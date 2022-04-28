@@ -900,6 +900,11 @@ RVTEST_SIGUPD_F(swreg,destreg,flagreg,offset)
       LI(reg2, MASK_XLEN(val2)); \
       inst destreg, reg1, reg2; \
     )
+
+//Tests for instructions with a single register operand
+#define TEST_RD_OP(inst, destreg, reg1, correctval, val1, swreg, offset, testreg) \
+	TEST_CMV_OP(inst, destreg, reg1, correctval, val1, swreg, offset, testreg)
+
 //Tests for floating-point instructions with register-register operand
 #define TEST_FPRR_OP(inst, destreg, freg1, freg2, rm, correctval, valaddr_reg, val_offset, flagreg, swreg, offset, testreg) \
     TEST_CASE_F(testreg, destreg, correctval, swreg, flagreg, offset, \

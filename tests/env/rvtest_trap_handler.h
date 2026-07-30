@@ -384,6 +384,15 @@
 #if (UDB_MXLEN==32)
   .set CSR_XEDELEGH, CSR_SEDELEGH               // sedelegh — upper half of sedeleg (RV32 only)
 #endif
+  // Does this mode's xtval already report the illegal instruction's own
+  // encoding (populated internally by fetch/decode, safe to read regardless
+  // of data-load page permissions), rather than just a faulting address? See
+  // XTVAL_HAS_ILLEGAL_ENCODING's use in adj_<mode>epc_rtn.
+#ifdef UDB_REPORT_ENCODING_IN_VSTVAL_ON_ILLEGAL_INSTRUCTION
+  .set XTVAL_HAS_ILLEGAL_ENCODING, 1
+#else
+  .set XTVAL_HAS_ILLEGAL_ENCODING, 0
+#endif
 .endm
 
 .macro _XCSR_RENAME_S
@@ -402,6 +411,11 @@
   .set CSR_XCAUSE,  CSR_SCAUSE                  // scause — S-mode trap cause
 #if (UDB_MXLEN==32)
   .set CSR_XEDELEGH, CSR_SEDELEGH               // sedelegh — upper half (RV32 only)
+#endif
+#ifdef UDB_REPORT_ENCODING_IN_STVAL_ON_ILLEGAL_INSTRUCTION
+  .set XTVAL_HAS_ILLEGAL_ENCODING, 1
+#else
+  .set XTVAL_HAS_ILLEGAL_ENCODING, 0
 #endif
 .endm
 
@@ -422,6 +436,11 @@
  #if (UDB_MXLEN==32)
   .set CSR_XEDELEGH, CSR_HEDELEGH               // hedelegh — upper half (RV32 only)
  #endif
+  // No UDB_REPORT_ENCODING_IN_HTVAL_ON_ILLEGAL_INSTRUCTION define exists (and
+  // H-mode isn't currently instantiated at all -- Sail doesn't support the
+  // hypervisor extension yet, see riscv_arch_test.h's #undef H_SUPPORTED), so
+  // default to the safe/conservative "no" -- falls back to the read-based path.
+  .set XTVAL_HAS_ILLEGAL_ENCODING, 0
 .endm
 
 .macro _XCSR_RENAME_M
@@ -440,6 +459,11 @@
   .set CSR_XCAUSE,  CSR_MCAUSE                  // mcause — M-mode trap cause
 #if (UDB_MXLEN==32)
   .set CSR_XEDELEGH, CSR_MEDELEGH               // medelegh — upper half (RV32 only)
+#endif
+#ifdef UDB_REPORT_ENCODING_IN_MTVAL_ON_ILLEGAL_INSTRUCTION
+  .set XTVAL_HAS_ILLEGAL_ENCODING, 1
+#else
+  .set XTVAL_HAS_ILLEGAL_ENCODING, 0
 #endif
 .endm
 
@@ -1911,26 +1935,62 @@ sv_\__MODE__\()epc:
 #endif
 
 adj_\__MODE__\()epc_rtn:
-        // T3 = trapping instruction's address (raw xEPC, re-read above). Determine
-        // whether it was a 16-bit compressed instruction or a >=32-bit instruction
-        // from its low 2 bits (RISC-V encoding rule: 0b11 => >=32-bit, else 16-bit)
-        // and advance by exactly 2 or 4 bytes accordingly. Only reached for causes
-        // where the instruction was already successfully fetched (e.g. illegal
-        // instruction, breakpoint), so this read cannot itself fault.
+        // T3 = trapping instruction's address (raw xEPC, re-read above); T5 still
+        // holds xcause from common entry (nothing above touches it).
         //
-        // The previous unconditional "align down to 4 bytes, then advance by
-        // 2*WDBYTSZ (8 bytes)" assumed every trapping instruction occupies a full
-        // aligned word slot. That is wrong for any compressed instruction trap
-        // (e.g. c.ebreak) when C is implemented: for a c.ebreak at an already
-        // 4-byte-aligned address, it resumed 6 bytes past the correct address
-        // (EPC+8 instead of EPC+2), landing execution on unrelated bytes.
+        // Only illegal-instruction and breakpoint traps need to distinguish a
+        // 16-bit compressed instruction from a >=32-bit one, to advance EPC by
+        // exactly the right amount instead of a fixed guess. Every other cause
+        // keeps the original fixed advance below unchanged.
+        li      T6, CAUSE_ILLEGAL_INSTRUCTION
+        beq     T5, T6, chk_\__MODE__\()illegal
+        li      T6, CAUSE_BREAKPOINT
+        bne     T5, T6, dflt_\__MODE__\()epc_advance
+
+        // Breakpoint (ebreak/c.ebreak): no safe CSR-reported encoding exists --
+        // this config's xtval reports the faulting VA for breakpoint (see
+        // UDB_REPORT_VA_IN_MTVAL_ON_BREAKPOINT), not the instruction -- so this
+        // reads the instruction directly. Known residual risk, not currently
+        // exercised by any test in this suite: this read checks DATA-load page
+        // permission, which can differ from the FETCH permission that already
+        // succeeded, on an execute-only page under active translation.
         lhu     T2, 0(T3)                             // T2 = low 16 bits of trapping instruction
+        j       chk_\__MODE__\()instr_width_bits
+
+        // Illegal instruction: prefer xtval when this mode/config guarantees it
+        // already holds the instruction's own encoding (XTVAL_HAS_ILLEGAL_ENCODING,
+        // set per-mode in XCSR_RENAME from the UDB_REPORT_ENCODING_IN_*TVAL_ON_
+        // ILLEGAL_INSTRUCTION config defines) -- populated internally by the
+        // fetch/decode stage, so safe regardless of data-load page permissions.
+        // Falls back to the same instruction-read as breakpoint otherwise.
+        //
+        // This distinction is not academic: applying the read unconditionally to
+        // every illegal-instruction trap regressed two real Sv39 exception tests
+        // (RV64, S-mode and U-mode) whose deliberately execute-only code pages
+        // are exactly what those tests exist to exercise -- the read itself
+        // faulted, cascading into a second trap. xtval avoids that read entirely
+        // for any config where it's guaranteed to already have the encoding.
+chk_\__MODE__\()illegal:
+.if XTVAL_HAS_ILLEGAL_ENCODING
+        csrr    T2, CSR_XTVAL                          // T2 = xtval = illegal instruction's own encoding
+.else
+        lhu     T2, 0(T3)                              // no xtval guarantee for this config: read it directly
+.endif
+
+chk_\__MODE__\()instr_width_bits:
         andi    T2, T2, 3                             // T2 = low 2 bits (RVC length indicator)
         addi    T4, T3, 4                             // T4 = EPC+4 (>=32-bit instruction resume addr)
         li      T6, 3
-        beq     T2, T6, 1f                            // low bits == 3 -> >=32-bit instruction, use EPC+4
+        beq     T2, T6, sv_\__MODE__\()adj_epc_done   // low bits == 3 -> >=32-bit instruction, use EPC+4
         addi    T4, T3, 2                             // else: 16-bit compressed, resume at EPC+2
-1:      csrw    CSR_XEPC, T4                           // write adjusted EPC (will resume after the faulting instr)
+        j       sv_\__MODE__\()adj_epc_done
+
+dflt_\__MODE__\()epc_advance:
+        andi    T3, T3, ~WDBYTMSK                      // align EPC to 4-byte boundary (unchanged prior behavior)
+        addi    T4, T3, 2*WDBYTSZ                       // advance past trapping instruction (with padding)
+
+sv_\__MODE__\()adj_epc_done:
+        csrw    CSR_XEPC, T4                            // write adjusted EPC (will resume after the faulting instr)
 
 skp_adj_\__MODE__\()epc:
         csrr    T3, CSR_XTVAL                         // T3 = xtval (trap value: faulting addr or instruction)

@@ -1229,7 +1229,7 @@ tsbi_\__MODE__\()reserved:
         csrr    T3, CSR_XEPC                       // T3 = mepc (address of the ecall instruction)
         addi    T3, T3, 4                           // T3 = mepc + 4 (skip past the 4-byte ecall)
         csrw    CSR_XEPC, T3                        // mepc = mepc + 4 (so mret returns after ecall)
-        j       resto_\__MODE__\()rtn              // restore regs and mret
+        j       resto_\__MODE__\()rtn_keep_a0      // restore regs (keep a0 = -1) and mret
 
         //--------------------------------------------------------------
         // T-SBI ECALL_TEST handler (M-mode)
@@ -1245,7 +1245,7 @@ tsbi_\__MODE__\()ecall_test:
         csrr    T3, CSR_XEPC                        // T3 = mepc (read again for bump calculation)
         addi    T3, T3, 4                            // T3 = mepc + 4 (skip past ecall)
         csrw    CSR_XEPC, T3                         // mepc = mepc + 4
-        j       resto_\__MODE__\()rtn               // restore regs and mret (a0 carries the return value)
+        j       resto_\__MODE__\()rtn_keep_a0        // restore regs (a0 carries the return value) and mret
 
         //--------------------------------------------------------------
         // T-SBI GOTO_xMODE handler (M-mode)
@@ -1282,7 +1282,7 @@ tsbi_\__MODE__\()goto_mode:
         beq     T3, T2, tsbi_\__MODE__\()goto_vu    // a0==5 -> GOTO_VUMODE
   #endif
         li      a0, TSBI_RESERVED_RET                // shouldn't reach here (range checked above), but return -1
-        j       resto_\__MODE__\()rtn               // restore and mret
+        j       resto_\__MODE__\()rtn_keep_a0        // restore (keep a0 = -1) and mret
 
         //--- GOTO M-mode: set MPP=11 (M), clear MPV ---
 tsbi_\__MODE__\()goto_m:
@@ -1431,7 +1431,7 @@ tsbi_\__MODE__\()csr_access:
         csrr    T3, CSR_XEPC                        // T3 = mepc (ecall address)
         addi    T3, T3, 4                            // T3 = mepc + 4 (skip past ecall)
         csrw    CSR_XEPC, T3                         // update mepc for return
-        j       resto_\__MODE__\()rtn               // restore handler regs, mret to caller with result in a0
+        j       resto_\__MODE__\()rtn_keep_a0        // restore handler regs, mret to caller with result in a0
 
 .endif  // --------- END M-MODE T-SBI DISPATCH ---------
 
@@ -1504,7 +1504,7 @@ tsbi_\__MODE__\()reserved:                        // Unrecognized SBI operation
         csrr    T3, CSR_XEPC                        // T3 = sepc
         addi    T3, T3, 4                            // skip ecall
         csrw    CSR_XEPC, T3                         // sepc += 4
-        j       resto_\__MODE__\()rtn              // sret to caller with a0 = -1
+        j       resto_\__MODE__\()rtn_keep_a0       // sret to caller with a0 = -1
 
         //--- S-mode ECALL_TEST ---
 tsbi_\__MODE__\()ecall_test:
@@ -1512,7 +1512,7 @@ tsbi_\__MODE__\()ecall_test:
         csrr    T3, CSR_XEPC                        // T3 = sepc (for bump)
         addi    T3, T3, 4                            // skip ecall
         csrw    CSR_XEPC, T3                         // sepc += 4
-        j       resto_\__MODE__\()rtn              // sret to caller with a0 = ecall address
+        j       resto_\__MODE__\()rtn_keep_a0       // sret to caller with a0 = ecall address
 
         //--- S-mode GOTO_xMODE dispatch ---
 tsbi_\__MODE__\()goto_mode:
@@ -1538,7 +1538,7 @@ tsbi_\__MODE__\()goto_mode:
   #endif
 
         li      a0, TSBI_RESERVED_RET                // shouldn't reach here, return -1
-        j       resto_\__MODE__\()rtn
+        j       resto_\__MODE__\()rtn_keep_a0
 
 tsbi_\__MODE__\()goto_s:                          // Return to S-mode via sret
         LI(     T3, SSTATUS_SPP)                   // T3 = SPP bit mask (bit 8)
@@ -1587,7 +1587,7 @@ tsbi_\__MODE__\()csr_access:
         csrr    T3, CSR_XEPC                        // T3 = sepc
         addi    T3, T3, 4                            // skip past ecall
         csrw    CSR_XEPC, T3                         // sepc += 4
-        j       resto_\__MODE__\()rtn              // sret to caller with CSR result in a0
+        j       resto_\__MODE__\()rtn_keep_a0       // sret to caller with CSR result in a0
 
 .endif  // --------- END S-MODE T-SBI DISPATCH ---------
 
@@ -1965,6 +1965,15 @@ chk_\__MODE__\()trapsig_overrun:
         LREG    T3, trap_sv_off+3*REGWIDTH(sp)    // restore T3 (x8)
         LREG    T4, trap_sv_off+4*REGWIDTH(sp)    // restore T4 (x9)
         LREG    T5, trap_sv_off+5*REGWIDTH(sp)    // restore T5 (x10/a0)
+
+ resto_\__MODE__\()rtn_keep_a0:
+        // T-SBI operations that return a value in a0 (ECALL_TEST, CSR_ACCESS, and
+        // the RESERVED/error fallback) jump directly here, skipping the T5/a0
+        // restore above, so their freshly-computed return value survives to
+        // mret/sret. T5 is aliased to x10/a0 (see file overview) purely as
+        // scratch for every other trap path, where restoring the interrupted
+        // program's original a0 here is required and correct -- only these T-SBI
+        // return-a-value operations need it left alone.
         LREG    T6, trap_sv_off+6*REGWIDTH(sp)    // restore T6 (x11/a1)
         LREG    sp, trap_sv_off+7*REGWIDTH(sp)    // restore original sp (undo xSCRATCH swap)
 

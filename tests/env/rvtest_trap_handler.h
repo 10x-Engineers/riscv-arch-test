@@ -1911,9 +1911,26 @@ sv_\__MODE__\()epc:
 #endif
 
 adj_\__MODE__\()epc_rtn:
-        andi    T3, T3, ~WDBYTMSK                    // align EPC to 4-byte boundary
-        addi    T3, T3,  2*WDBYTSZ                   // advance past trapping instruction (with padding)
-        csrw    CSR_XEPC, T3                          // write adjusted EPC (will resume after the faulting instr)
+        // T3 = trapping instruction's address (raw xEPC, re-read above). Determine
+        // whether it was a 16-bit compressed instruction or a >=32-bit instruction
+        // from its low 2 bits (RISC-V encoding rule: 0b11 => >=32-bit, else 16-bit)
+        // and advance by exactly 2 or 4 bytes accordingly. Only reached for causes
+        // where the instruction was already successfully fetched (e.g. illegal
+        // instruction, breakpoint), so this read cannot itself fault.
+        //
+        // The previous unconditional "align down to 4 bytes, then advance by
+        // 2*WDBYTSZ (8 bytes)" assumed every trapping instruction occupies a full
+        // aligned word slot. That is wrong for any compressed instruction trap
+        // (e.g. c.ebreak) when C is implemented: for a c.ebreak at an already
+        // 4-byte-aligned address, it resumed 6 bytes past the correct address
+        // (EPC+8 instead of EPC+2), landing execution on unrelated bytes.
+        lhu     T2, 0(T3)                             // T2 = low 16 bits of trapping instruction
+        andi    T2, T2, 3                             // T2 = low 2 bits (RVC length indicator)
+        addi    T4, T3, 4                             // T4 = EPC+4 (>=32-bit instruction resume addr)
+        li      T6, 3
+        beq     T2, T6, 1f                            // low bits == 3 -> >=32-bit instruction, use EPC+4
+        addi    T4, T3, 2                             // else: 16-bit compressed, resume at EPC+2
+1:      csrw    CSR_XEPC, T4                           // write adjusted EPC (will resume after the faulting instr)
 
 skp_adj_\__MODE__\()epc:
         csrr    T3, CSR_XTVAL                         // T3 = xtval (trap value: faulting addr or instruction)

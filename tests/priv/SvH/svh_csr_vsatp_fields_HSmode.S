@@ -35,7 +35,7 @@
 RVTEST_BEGIN
 
 main:
-  // Partner stage off (sheet: vsatp CSR tests use hgatp Bare)
+  // Partner stage off: vsatp field walks keep hgatp Bare so only VS CSR bins fire
   csrw hgatp, x0                                // hgatp=0 → G-stage Bare (isolate vsatp field bins)
   hfence.gvma                                   // flush old G TLB after hgatp clear
   RVTEST_TSBI_GOTO_SMODE                       // T-SBI: ecall a0=2 → HS/S (code at PA / identity)

@@ -25,6 +25,8 @@
 #define TRAP_SIGUPD_COUNT 16
 #define RVTEST_HYPERVISOR
 
+// Mode hops: none — stimulus stays in M. MPRV×MPP×MPV make M loads walk vsatp
+// as if they were VS S/U; clear MPRV before every SIGUPD (signature not guest-mapped).
 #include "riscv_arch_test.h"
 
 RVTEST_BEGIN

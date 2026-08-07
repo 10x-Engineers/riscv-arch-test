@@ -28,6 +28,8 @@
 #define TRAP_SIGUPD_COUNT 16
 #define RVTEST_HYPERVISOR
 
+// Mode hops: none for MPRV cases (stay in M). Case 7 uses HS HLV (T-SBI → S then
+// back to M). MPRV×MPP×MPV select whether M loads walk hgatp as VS/VU.
 #include "riscv_arch_test.h"
 
 RVTEST_BEGIN

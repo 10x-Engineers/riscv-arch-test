@@ -3,23 +3,24 @@
 // Config: sail-rv32-max | VS=Sv32 ON, hgatp=Bare
 // Coverpoints mapped (SvH_cg): cp_vsatp_endianess
 // What this proves (one line):
-//   hstatus.VSBE should flip VS endianness for guest loads/stores (Sail may hardwire VSBE=0).
+//   hstatus.VSBE should flip VS endianness for guest loads/stores — Sail hardwires VSBE=0.
 // --------------------------------------------------------------------------------------------------------------------------------
 // Test cases are as follows:
 // --------------------------------------------------------------------------------------------------------------------------------
 //  1. VSBE=0: VS lw after sw of 0xA1B2C3D4 → Successful
 //  2. VSBE=0: M-mode SPA readback (LE) → Successful (0xA1B2C3D4)
-//  3. VSBE=1 attempt: hstatus readback after csrs VSBE → Successful
-//  4. VSBE=1 attempt: VS lw after sw → Successful
-//  5. VSBE=1 attempt: M-mode SPA byte view → Successful
+//  3. VSBE=1 attempt: hstatus readback after csrs VSBE → Successful (bit stays 0 on Sail)
+//  4. VSBE=1 attempt: VS lw after sw → Successful (still LE on Sail)
+//  5. VSBE=1 attempt: M-mode SPA byte view → Successful (still LE)
 //
 // Total Expected Faults :: 0
 // --------------------------------------------------------------------------------------------------------------------------------
-// Sail note (current sail-riscv):
-//   legalize_hstatus() does NOT update VSBE ("We don't currently support
-//   changing VSBE"). csrs hstatus,VSBE leaves the bit 0. So VSBE=1 stimulus
-//   still runs LE on this model; vsbe_hstatus "set" stays ZERO until Sail
-//   implements VSBE. The ELF still PASSes and exercises VSBE=0 fully.
+// SAIL HARD BLOCK — do not fake big-endian cover hits:
+//   This Sail (nadime15 hypervisor / v0.13) legalize_hstatus() does NOT update
+//   VSBE ("We don't currently support changing VSBE"). Writing hstatus.VSBE=1
+//   leaves the bit 0; guest memory stays little-endian. Cover bins that need
+//   vsbe_hstatus "set" remain ZERO until Sail makes VSBE writable. The ELF
+//   still PASSes and fully exercises the VSBE=0 (LE) axis.
 // --------------------------------------------------------------------------------------------------------------------------------
 
 ##### START_TEST_CONFIG #####

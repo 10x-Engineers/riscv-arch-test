@@ -3,16 +3,21 @@
 // Config: sail-rv32-max | VS=Sv32 ON, hgatp=Bare
 // Coverpoints mapped (SvH_cg): cp_vsatp_pte_rsw
 // What this proves (one line):
-//   VS-stage PTE RSW[9:8] is preserved; stores/loads succeed for all RSW encodings.
+//   VS-stage PTE RSW[9:8] is preserved; stores and loads succeed for all RSW encodings.
 // --------------------------------------------------------------------------------------------------------------------------------
 // Test cases are as follows:
 // --------------------------------------------------------------------------------------------------------------------------------
-//  1. RSW=00 (no PTE_SOFT): VS sw/lw → Successful (0x257A0301)
-//  2. RSW=01 (0x100): update PTE, VS lw → Successful (0x257A0302)
-//  3. RSW=10 (0x200): update PTE, VS lw → Successful (0x257A0303)
-//  4. RSW=11 (PTE_SOFT=0x300): update PTE, VS lw → Successful (0x257A0304)
+//  1. RSW=00: VS sw → Successful (SPA 0x257A0301)
+//  2. RSW=00: VS lw only (fresh hop + hfence) → Successful (0x257A0301)
+//  3. RSW=01: VS sw → Successful (SPA 0x257A0302)
+//  4. RSW=01: VS lw only → Successful (0x257A0302)   // clears auto[1]×read
+//  5. RSW=10: VS sw → Successful (SPA 0x257A0303)
+//  6. RSW=10: VS lw only → Successful (0x257A0303)   // clears auto[2]×read
+//  7. RSW=11: VS sw → Successful (SPA 0x257A0304)
+//  8. RSW=11: VS lw only → Successful (0x257A0304)
 //
-// Total Expected Faults :: 0
+// Note: sw+lw in the same VS hop TLB-hits the load so VS_PTE_D is missing on
+// the read sample; RSW read bins need a separate hop after hfence.vvma.
 // --------------------------------------------------------------------------------------------------------------------------------
 
 ##### START_TEST_CONFIG #####
@@ -21,7 +26,7 @@
 ##### END_TEST_CONFIG #####
 
 #define TEST_FILE "svh_vs_pte_attr_VSmode.S"
-#define SIGUPD_COUNT 4
+#define SIGUPD_COUNT 8
 #define TRAP_SIGUPD_COUNT 64
 #define RVTEST_HYPERVISOR
 
@@ -38,117 +43,157 @@ main:
   .set va_code,                 0x90000000      // GVA where VS executes this code (U=0)
 
   // ---- VS-stage (vsatp Sv32): GVA -> PA  (hgatp Bare ⇒ PTE PPN fields are real PAs) ----
-  SUPERPAGE_VS_PTE_SETUP(sv32, rvtest_code_begin, (PTE_D | PTE_A | PTE_X | PTE_R | PTE_V), va_code, LEVEL1)  // leaf: va_code -> PA(code); LEVEL1 = 4 MiB X/R
+  SUPERPAGE_VS_PTE_SETUP(sv32, rvtest_code_begin, (PTE_D | PTE_A | PTE_X | PTE_R | PTE_V), va_code, LEVEL1)  // code leaf
 
-  csrr a0, mscratch                             // a0 = Msave_area (required by next macro)
-  V_SAVE_AREA_SETUP(va_code, rvtest_code_begin, code, LEVEL1)  // framework: VS entry PC is under va_code
+  csrr a0, mscratch                             // a0 = Msave_area for V_SAVE_AREA_SETUP
+  V_SAVE_AREA_SETUP(va_code, rvtest_code_begin, code, LEVEL1)  // guest PC under va_code
 
-  VS_PTE_SETUP(sv32, PA, rvtest_vlvl0_pg_tbl, (PTE_V), va_data, LEVEL1)  // non-leaf: va_data VPN1 -> VS L0 table PA
-  VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_W | PTE_R | PTE_V), va_data, LEVEL0)  // leaf: va_data -> PA(test_region) R/W; RSW=00 initially
+  VS_PTE_SETUP(sv32, PA, rvtest_vlvl0_pg_tbl, (PTE_V), va_data, LEVEL1)  // non-leaf → VS L0
+  VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_W | PTE_R | PTE_V), va_data, LEVEL0)  // RSW=00 leaf
 
-  VSATP_SETUP(sv32, PA)                         // vsatp = Sv32, PPN = PA of VS root
-  csrw hgatp, x0                                // hgatp = Bare (no G-stage)
-  hfence.vvma                                   // invalidate VS-stage TLB entries
-  hfence.gvma                                   // invalidate G-stage TLB entries (harmless with Bare)
+  VSATP_SETUP(sv32, PA)                         // VS-stage ON
+  csrw hgatp, x0                                // G Bare
+  hfence.vvma                                   // flush VS-stage TLB
+  hfence.gvma                                   // flush G-stage TLB (must be M or HS — illegal in VS/VU)
 
-  LI(a5, va_data)                               // a5 = GVA of data leaf (reused across RSW cases)
-
-//---------------------------------------------------------------------------------------------------------------------------------
-// Test case 1: RSW=00 VS sw/lw | Expected: Successful
-//---------------------------------------------------------------------------------------------------------------------------------
-  LI(t0, 0x257A0301)                            // payload for case 1
-  la t1, test_region                            // t1 = SPA
-  sw t0, 0(t1)                                  // poison SPA before guest access (M-mode baseline)
-
-  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VSmode mret + PA↔VA relocate (guest code VA≠PA; T-SBI enter lacks relocate)
-  sw   t0, 0(a5)                                // VS store through RSW=00 leaf
-  nop                                           // trap-skip padding after store
-  lw   a3, 0(a5)                                // VS load; expect 0x257A0301 (RSW must not break access)
-  nop                                           // trap-skip padding after load
-  RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
-
-  test1_rsw00:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_rsw00, test1_rsw00_str)  // record case 1 lw result in signature
+  LI(a5, va_data)                               // a5 = GVA for all cases
 
 //---------------------------------------------------------------------------------------------------------------------------------
-// Test case 2: RSW=01 (0x100) VS lw | Expected: Successful
+// Test case 1: RSW=00 VS sw | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
-  VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_W | PTE_R | PTE_V | 0x100), va_data, LEVEL0)  // leaf: same VA, RSW=01 (bits [9:8]=01)
-  hfence.vvma                                   // flush TLB so guest sees updated RSW bits
+  LI(t0, 0x257A0301)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // VA≠PA enter (V_SAVE_AREA)
+  sw   t0, 0(a5)                                // store through RSW=00 leaf
+  nop
+  RVTEST_TSBI_GOTO_MMODE                        // return to M (T-SBI ecall a0=1; rtn2mmode relocates EPC)
 
-  LI(t0, 0x257A0302)                            // payload for case 2
-  la t1, test_region                            // t1 = SPA
-  sw t0, 0(t1)                                  // poison SPA with new expected value
-
-  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VSmode mret + PA↔VA relocate (guest code VA≠PA; T-SBI enter lacks relocate)
-  sw   t0, 0(a5)                                // VS store through RSW=01 leaf
-  nop                                           // trap-skip padding after store
-  lw   a4, 0(a5)                                // VS load; expect 0x257A0302
-  nop                                           // trap-skip padding after load
-  RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
-
-  test2_rsw01:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test2_rsw01, test2_rsw01_str)  // record case 2 lw result in signature
+  la t1, test_region
+  lw s2, 0(t1)                                  // expect 0x257A0301 in SPA
+  test1_rsw00_sw:
+  RVTEST_SIGUPD(x2, x5, x4, s2, test1_rsw00_sw, test1_rsw00_sw_str)  // signature: dump s2 (test1_rsw00_sw) for PASS/FAIL
 
 //---------------------------------------------------------------------------------------------------------------------------------
-// Test case 3: RSW=10 (0x200) VS lw | Expected: Successful
+// Test case 2: RSW=00 VS lw only | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
-  VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_W | PTE_R | PTE_V | 0x200), va_data, LEVEL0)  // leaf: same VA, RSW=10 (bits [9:8]=10)
-  hfence.vvma                                   // flush TLB after PTE rewrite
+  hfence.vvma                                   // flush so lw rewalks (RSW read bin)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS mret + PA↔VA relocate (guest code VA≠PA)
+  lw   a3, 0(a5)                                // expect 0x257A0301
+  nop
+  RVTEST_TSBI_GOTO_MMODE                        // return to M (T-SBI ecall a0=1; rtn2mmode relocates EPC)
 
-  LI(t0, 0x257A0303)                            // payload for case 3
-  la t1, test_region                            // t1 = SPA
-  sw t0, 0(t1)                                  // poison SPA with new expected value
-
-  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VSmode mret + PA↔VA relocate (guest code VA≠PA; T-SBI enter lacks relocate)
-  sw   t0, 0(a5)                                // VS store through RSW=10 leaf
-  nop                                           // trap-skip padding after store
-  lw   a6, 0(a5)                                // expect 0x257A0303
-  nop                                           // trap-skip padding after load
-  RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
-
-  test3_rsw10:
-  RVTEST_SIGUPD(x2, x5, x4, a6, test3_rsw10, test3_rsw10_str)  // record case 3 lw result in signature
+  test2_rsw00_lw:
+  RVTEST_SIGUPD(x2, x5, x4, a3, test2_rsw00_lw, test2_rsw00_lw_str)  // signature: dump a3 (test2_rsw00_lw) for PASS/FAIL
 
 //---------------------------------------------------------------------------------------------------------------------------------
-// Test case 4: RSW=11 (PTE_SOFT=0x300) VS lw | Expected: Successful
+// Test case 3: RSW=01 VS sw | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
-  VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_W | PTE_R | PTE_V | PTE_SOFT), va_data, LEVEL0)  // leaf: same VA, RSW=11 via PTE_SOFT
-  hfence.vvma                                   // flush TLB after final RSW encoding
+  VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_W | PTE_R | PTE_V | 0x100), va_data, LEVEL0)  // RSW=01
+  hfence.vvma                                   // flush VS-stage TLB
 
-  LI(t0, 0x257A0304)                            // payload for case 4
-  la t1, test_region                            // t1 = SPA
-  sw t0, 0(t1)                                  // poison SPA with new expected value
+  LI(t0, 0x257A0302)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS mret + PA↔VA relocate (guest code VA≠PA)
+  sw   t0, 0(a5)                                // guest store through current PTE perms (expect allow)
+  nop
+  RVTEST_TSBI_GOTO_MMODE                        // return to M (T-SBI ecall a0=1; rtn2mmode relocates EPC)
 
-  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VSmode mret + PA↔VA relocate (guest code VA≠PA; T-SBI enter lacks relocate)
-  sw   t0, 0(a5)                                // VS store through RSW=11 leaf
-  nop                                           // trap-skip padding after store
-  lw   a7, 0(a5)                                // expect 0x257A0304
-  nop                                           // trap-skip padding after load
-  RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
+  la t1, test_region
+  lw s3, 0(t1)                                  // load from SPA
+  test3_rsw01_sw:
+  RVTEST_SIGUPD(x2, x5, x4, s3, test3_rsw01_sw, test3_rsw01_sw_str)  // signature: dump s3 (test3_rsw01_sw) for PASS/FAIL
 
-  test4_rsw11:
-  RVTEST_SIGUPD(x2, x5, x4, a7, test4_rsw11, test4_rsw11_str)  // record case 4 lw result in signature
+//---------------------------------------------------------------------------------------------------------------------------------
+// Test case 4: RSW=01 VS lw only | Expected: Successful
+//---------------------------------------------------------------------------------------------------------------------------------
+  hfence.vvma                                   // flush VS-stage TLB
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS mret + PA↔VA relocate (guest code VA≠PA)
+  lw   a4, 0(a5)                                // guest load through current PTE perms (expect allow)
+  nop
+  RVTEST_TSBI_GOTO_MMODE                        // return to M (T-SBI ecall a0=1; rtn2mmode relocates EPC)
+
+  test4_rsw01_lw:
+  RVTEST_SIGUPD(x2, x5, x4, a4, test4_rsw01_lw, test4_rsw01_lw_str)  // signature: dump a4 (test4_rsw01_lw) for PASS/FAIL
+
+//---------------------------------------------------------------------------------------------------------------------------------
+// Test case 5: RSW=10 VS sw | Expected: Successful
+//---------------------------------------------------------------------------------------------------------------------------------
+  VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_W | PTE_R | PTE_V | 0x200), va_data, LEVEL0)  // RSW=10
+  hfence.vvma                                   // flush VS-stage TLB
+
+  LI(t0, 0x257A0303)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS mret + PA↔VA relocate (guest code VA≠PA)
+  sw   t0, 0(a5)                                // guest store through current PTE perms (expect allow)
+  nop
+  RVTEST_TSBI_GOTO_MMODE                        // return to M (T-SBI ecall a0=1; rtn2mmode relocates EPC)
+
+  la t1, test_region
+  lw s4, 0(t1)                                  // load from SPA
+  test5_rsw10_sw:
+  RVTEST_SIGUPD(x2, x5, x4, s4, test5_rsw10_sw, test5_rsw10_sw_str)  // signature: dump s4 (test5_rsw10_sw) for PASS/FAIL
+
+//---------------------------------------------------------------------------------------------------------------------------------
+// Test case 6: RSW=10 VS lw only | Expected: Successful
+//---------------------------------------------------------------------------------------------------------------------------------
+  hfence.vvma                                   // flush VS-stage TLB
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS mret + PA↔VA relocate (guest code VA≠PA)
+  lw   a6, 0(a5)                                // guest load through current PTE perms (expect allow)
+  nop
+  RVTEST_TSBI_GOTO_MMODE                        // return to M (T-SBI ecall a0=1; rtn2mmode relocates EPC)
+
+  test6_rsw10_lw:
+  RVTEST_SIGUPD(x2, x5, x4, a6, test6_rsw10_lw, test6_rsw10_lw_str)  // signature: dump a6 (test6_rsw10_lw) for PASS/FAIL
+
+//---------------------------------------------------------------------------------------------------------------------------------
+// Test case 7: RSW=11 VS sw | Expected: Successful
+//---------------------------------------------------------------------------------------------------------------------------------
+  VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_W | PTE_R | PTE_V | PTE_SOFT), va_data, LEVEL0)  // RSW=11
+  hfence.vvma                                   // flush VS-stage TLB
+
+  LI(t0, 0x257A0304)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS mret + PA↔VA relocate (guest code VA≠PA)
+  sw   t0, 0(a5)                                // guest store through current PTE perms (expect allow)
+  nop
+  RVTEST_TSBI_GOTO_MMODE                        // return to M (T-SBI ecall a0=1; rtn2mmode relocates EPC)
+
+  la t1, test_region
+  lw s5, 0(t1)                                  // load from SPA
+  test7_rsw11_sw:
+  RVTEST_SIGUPD(x2, x5, x4, s5, test7_rsw11_sw, test7_rsw11_sw_str)  // signature: dump s5 (test7_rsw11_sw) for PASS/FAIL
+
+//---------------------------------------------------------------------------------------------------------------------------------
+// Test case 8: RSW=11 VS lw only | Expected: Successful
+//---------------------------------------------------------------------------------------------------------------------------------
+  hfence.vvma                                   // flush VS-stage TLB
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS mret + PA↔VA relocate (guest code VA≠PA)
+  lw   a7, 0(a5)                                // guest load through current PTE perms (expect allow)
+  nop
+  RVTEST_TSBI_GOTO_MMODE                        // return to M (T-SBI ecall a0=1; rtn2mmode relocates EPC)
+
+  test8_rsw11_lw:
+  RVTEST_SIGUPD(x2, x5, x4, a7, test8_rsw11_lw, test8_rsw11_lw_str)  // signature: dump a7 (test8_rsw11_lw) for PASS/FAIL
 
 //---------------------------------------------------------------------------------------------------------------------------------
 RVTEST_CODE_END
 RVTEST_DATA_BEGIN
 
-.align 12                                       // 4 KiB page align
-test_region:                                    // real PA backing va_data (RSW probe target)
-  .word 0                                       // data word (initially 0)
-  .word 0                                       // data word (initially 0)
-  .word 0                                       // data word (initially 0)
-  .word 0                                       // data word (initially 0)
+.align 12
+test_region:
+  .word 0
+  .word 0
+  .word 0
+  .word 0
 
-.align 12                                       // align to 4 KiB page
-rvtest_vlvl0_pg_tbl:                            // VS-stage level-0 PTE storage
-  .zero(4096)                                   // 4 KiB page-table storage
+.align 12
+rvtest_vlvl0_pg_tbl:
+  .zero(4096)
 
-test1_rsw00_str: .string "\"Mismatch on RSW=00 VS lw in Test Case 1!\""
-test2_rsw01_str: .string "\"Mismatch on RSW=01 VS lw in Test Case 2!\""
-test3_rsw10_str: .string "\"Mismatch on RSW=10 VS lw in Test Case 3!\""
-test4_rsw11_str: .string "\"Mismatch on RSW=11 VS lw in Test Case 4!\""
+test1_rsw00_sw_str: .string "\"Mismatch on RSW=00 VS sw SPA in Test Case 1!\""
+test2_rsw00_lw_str: .string "\"Mismatch on RSW=00 VS lw in Test Case 2!\""
+test3_rsw01_sw_str: .string "\"Mismatch on RSW=01 VS sw SPA in Test Case 3!\""
+test4_rsw01_lw_str: .string "\"Mismatch on RSW=01 VS lw in Test Case 4!\""
+test5_rsw10_sw_str: .string "\"Mismatch on RSW=10 VS sw SPA in Test Case 5!\""
+test6_rsw10_lw_str: .string "\"Mismatch on RSW=10 VS lw in Test Case 6!\""
+test7_rsw11_sw_str: .string "\"Mismatch on RSW=11 VS sw SPA in Test Case 7!\""
+test8_rsw11_lw_str: .string "\"Mismatch on RSW=11 VS lw in Test Case 8!\""
 
 RVTEST_DATA_END
 RVTEST_SIG_SETUP

@@ -1,6 +1,7 @@
 // --------------------------------------------------------------------------------------------------------------------------------
-// svh_hgatp_fault_VSmode.S
-// Config: sail-rv32-max | vsatp=Bare, hgatp=Sv32x4 ON
+// svh_hgatp_fault_sv39_VSmode.S
+// Config: sail-rv64-max | vsatp=Bare, hgatp=Sv39x4 ON
+// Pair:   svh_hgatp_fault_VSmode.S
 // Coverpoints mapped (SvH_cg): cp_hgatp_invalid_pte, cp_hgatp_nonleaf_lvl0
 // What this proves (one line):
 //   Invalid G PTE (V=0) and L0 non-leaf-only entry cause guest-page faults on HS HLV/HSV.
@@ -21,11 +22,11 @@
 // --------------------------------------------------------------------------------------------------------------------------------
 
 ##### START_TEST_CONFIG #####
-# REQUIRED_EXTENSIONS: [I, H, Sv32]
-# MARCH: rv32ih_zicsr_zifencei
+# REQUIRED_EXTENSIONS: [I, H, Sv39]
+# MARCH: rv64ih_zicsr_zifencei
 ##### END_TEST_CONFIG #####
 
-#define TEST_FILE "svh_hgatp_fault_VSmode.S"
+#define TEST_FILE "svh_hgatp_fault_sv39_VSmode.S"
 #define SIGUPD_COUNT 9
 #define TRAP_SIGUPD_COUNT 256
 #define RVTEST_HYPERVISOR
@@ -40,17 +41,18 @@ RVTEST_BEGIN
 
 main:
   .set gpa_data, 0x00C002000                     // GPA for data (vsatp Bare ⇒ address-as-GPA)
-  .set gpa_code, 0x80000000                      // identity GPA superpage for code + G PTs at 0x8000_0000
+  .set gpa_code,                0x0000000080000000                      // identity GPA superpage for code + G PTs at 0x8000_0000
 
-  // ---- G-stage (hgatp Sv32x4 ON): GPA -> PA ----
-  SUPERPAGE_G_PTE_SETUP(sv32x4, rvtest_code_begin, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_R | PTE_V), gpa_code, LEVEL1)  // gpa_code -> PA(code)
+  // ---- G-stage (hgatp Sv39x4 ON): GPA -> PA ----
+  SUPERPAGE_G_PTE_SETUP(sv39x4, rvtest_code_begin, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_R | PTE_V), gpa_code, LEVEL2)  // gpa_code -> PA(code)
 
-  G_PTE_SETUP(sv32x4, rvtest_hlvl0_pg_tbl, (PTE_V), gpa_data, LEVEL1)  // non-leaf: G VPN1 for data -> G L0 table
-  G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V | PTE_G), gpa_data, LEVEL0)  // valid baseline leaf (cases overwrite)
+  G_PTE_SETUP(sv39x4, rvtest_hlvl1_pg_tbl, (PTE_V), gpa_data, LEVEL2)
+  G_PTE_SETUP(sv39x4, rvtest_hlvl0_pg_tbl, (PTE_V), gpa_data, LEVEL1)  // non-leaf: G VPN1 for data -> G L0 table
+  G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V | PTE_G), gpa_data, LEVEL0)  // valid baseline leaf (cases overwrite)
 
   // ---- vsatp Bare + hgatp ON ----
   csrw vsatp, x0                                // VS Bare
-  HGATP_SETUP(sv32x4)                           // hgatp = Sv32x4, PPN = G root
+  HGATP_SETUP(sv39x4)                           // hgatp = Sv39x4, PPN = G root
   hfence.vvma                                   // flush VS TLB
   hfence.gvma                                   // flush G TLB so next access rewalks
 
@@ -64,7 +66,7 @@ main:
 // Test case 1: G leaf V=0 | Expected: Expected Fault
 // cp_hgatp_invalid_pte_rw bin: g_pte_d_inv — V=0 with other bits set still invalid
 //---------------------------------------------------------------------------------------------------------------------------------
-  G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R), gpa_data, LEVEL0)  // strip V bit; X set so invalid_pte_x matches
+  G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R), gpa_data, LEVEL0)  // strip V bit; X set so invalid_pte_x matches
   hfence.gvma                                   // flush so walk sees V=0 PTE
 
   LI(a3, 0)                                     // sentinel: stays 0 if trap fires
@@ -80,7 +82,7 @@ main:
 // Test case 2: G L0 non-leaf PTE_V only | Expected: Expected Fault
 // cp_hgatp_nonleaf_lvl0_rw bin: g_pte_nonleaf_lvl0_d — L0 entry with V=1 but XWR=000
 //---------------------------------------------------------------------------------------------------------------------------------
-  G_PTE_SETUP(sv32x4, test_region, (PTE_V), gpa_data, LEVEL0)  // V only at L0 (non-leaf shape at leaf level)
+  G_PTE_SETUP(sv39x4, test_region, (PTE_V), gpa_data, LEVEL0)  // V only at L0 (non-leaf shape at leaf level)
   hfence.gvma                                   // flush G TLB so next access rewalks
 
   LI(a4, 0)                                     // sentinel: stays 0 if trap fires
@@ -96,7 +98,7 @@ main:
 // Test case 3: HS HLV to V=0 GPA | Expected: Expected Fault
 // cp_hgatp_invalid_pte_rw bin: priv_mode HS, read_acc
 //---------------------------------------------------------------------------------------------------------------------------------
-  G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R), gpa_data, LEVEL0)  // V=0 leaf again
+  G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R), gpa_data, LEVEL0)  // V=0 leaf again
   hfence.gvma                                   // flush G TLB so next access rewalks
 
   RVTEST_TSBI_GOTO_SMODE                       // T-SBI: ecall a0=2 → HS/S (code at PA / identity)
@@ -130,7 +132,7 @@ main:
 // Test case 5: HS HSV to L0 non-leaf GPA | Expected: Expected Fault
 // cp_hgatp_nonleaf_lvl0_rw bin: priv_mode HS, write_acc
 //---------------------------------------------------------------------------------------------------------------------------------
-  G_PTE_SETUP(sv32x4, test_region, (PTE_V), gpa_data, LEVEL0)  // V only at L0 again
+  G_PTE_SETUP(sv39x4, test_region, (PTE_V), gpa_data, LEVEL0)  // V only at L0 again
   hfence.gvma                                   // flush G TLB so next access rewalks
 
   RVTEST_TSBI_GOTO_SMODE                       // T-SBI: ecall a0=2 → HS/S
@@ -162,7 +164,7 @@ main:
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 6: Restore valid U=1 R/W G leaf | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
-  G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V | PTE_G), gpa_data, LEVEL0)  // restore valid U=1 R/W+G leaf
+  G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V | PTE_G), gpa_data, LEVEL0)  // restore valid U=1 R/W+G leaf
   hfence.gvma                                   // force walk on restored leaf (G_PTE_D in .rvvi)
 
   LI(a7, 0)                                     // clear result register before load
@@ -177,7 +179,7 @@ main:
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 7: VS Bare jalr into V=0 G leaf | Expected: Expected Fault (cp_hgatp_invalid_pte_x)
 //---------------------------------------------------------------------------------------------------------------------------------
-  G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R), gpa_data, LEVEL0)  // V=0 again
+  G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R), gpa_data, LEVEL0)  // V=0 again
   hfence.gvma
 
   LI(s4, 0)                                     // sentinel — stays 0 if target never runs
@@ -194,7 +196,7 @@ main:
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 8: VS Bare sw into V=0 G leaf | Expected: Expected Fault (exception_reporting write)
 //---------------------------------------------------------------------------------------------------------------------------------
-  G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R), gpa_data, LEVEL0)
+  G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R), gpa_data, LEVEL0)
   hfence.gvma
 
   LI(a5, gpa_data)
@@ -222,6 +224,9 @@ test_region:                                  // SPA backing for GPA data leaf
   .word 0                                     // padding in same page
 
 .align 12                                      // 4 KiB page align
+.align 12
+rvtest_hlvl1_pg_tbl:
+  .zero(4096)
 rvtest_hlvl0_pg_tbl:                          // G-stage L0 PTE storage (4 KiB)
   .zero(4096)                                  // reserve 4 KiB page-table storage
 

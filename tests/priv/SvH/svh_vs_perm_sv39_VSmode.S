@@ -1,6 +1,7 @@
 // --------------------------------------------------------------------------------------------------------------------------------
-// svh_vs_perm_VSmode.S
-// Config: sail-rv32-max | VS=Sv32 ON, hgatp=Bare, SUM=0
+// svh_vs_perm_sv39_VSmode.S
+// Config: sail-rv64-max | VS=Sv39 ON, hgatp=Bare, SUM=0
+// Pair:   svh_vs_perm_VSmode.S
 // Coverpoints mapped (SvH_cg): cp_vsatp_spages_sum_rwx, cp_vsatp_perm_checks
 // What this proves (one line):
 //   VS enforces U=0 S-page XWR allow/deny and blocks U=1 pages when SUM=0 (lw+sw).
@@ -35,11 +36,11 @@
 // --------------------------------------------------------------------------------------------------------------------------------
 
 ##### START_TEST_CONFIG #####
-# REQUIRED_EXTENSIONS: [I, H, Sv32]
-# MARCH: rv32ih_zicsr_zifencei
+# REQUIRED_EXTENSIONS: [I, H, Sv39]
+# MARCH: rv64ih_zicsr_zifencei
 ##### END_TEST_CONFIG #####
 
-#define TEST_FILE "svh_vs_perm_VSmode.S"
+#define TEST_FILE "svh_vs_perm_sv39_VSmode.S"
 #define SIGUPD_COUNT 23
 #define TRAP_SIGUPD_COUNT 256
 #define RVTEST_HYPERVISOR
@@ -62,46 +63,48 @@ main:
   .set va_u_vonly, 0x008007000                  // GVA: U=1 V-only (urwx1000)
   .set va_s_vonly, 0x008008000                  // GVA: U=0 V-only (urwx0000)
   .set va_xexec, 0x008009000                    // GVA: S-page X-only target for SUM=1 ifetch
-  .set va_code,  0x90000000                     // GVA where VS executes this code
+  .set va_code,                 0x0000000090000000                     // GVA where VS executes this code
 
-  // ---- VS-stage (vsatp Sv32): GVA -> PA  (hgatp Bare ⇒ PTE PPN fields are real PAs) ----
-  SUPERPAGE_VS_PTE_SETUP(sv32, rvtest_code_begin, (PTE_D | PTE_A | PTE_X | PTE_R | PTE_V), va_code, LEVEL1)  // leaf: va_code -> PA(code); LEVEL1 = 4 MiB X/R
+  // ---- VS-stage (vsatp Sv39): GVA -> PA  (hgatp Bare ⇒ PTE PPN fields are real PAs) ----
+  VS_PTE_SETUP(sv39, PA, rvtest_vlvl1_pg_tbl, (PTE_V), va_code, LEVEL2)
+  SUPERPAGE_VS_PTE_SETUP(sv39, rvtest_code_begin, (PTE_D | PTE_A | PTE_X | PTE_R | PTE_V), va_code, LEVEL1)  // leaf: va_code -> PA(code); LEVEL1 megapage X/R
 
   csrr a0, mscratch                             // a0 = Msave_area (required by next macro)
-  V_SAVE_AREA_SETUP(va_code, rvtest_code_begin, code, LEVEL1)  // framework: VS entry PC is under va_code
+  V_SAVE_AREA_SETUP(va_code, rvtest_code_begin, code, LEVEL1)  // framework: entry PC under va_code
 
-  // Shared L1 non-leaf (same VPN1 for all data VAs)
-  VS_PTE_SETUP(sv32, PA, rvtest_vlvl0_pg_tbl, (PTE_V), va_rwx, LEVEL1)  // non-leaf: data VPN1 -> VS L0 table PA
+  // Shared L2+L1 non-leafs (same VPN2/VPN1 for all data VAs under 0x00800x000)
+  VS_PTE_SETUP(sv39, PA, rvtest_vlvl1_pg_tbl, (PTE_V), va_rwx, LEVEL2)
+  VS_PTE_SETUP(sv39, PA, rvtest_vlvl0_pg_tbl, (PTE_V), va_rwx, LEVEL1)  // non-leaf: data VPN1 -> VS L0 table PA
 
   // Case 1: S-page R/W/X (U=0, XWR=111)
-  VS_PTE_SETUP(sv32, PA, test_region_rwx, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V), va_rwx, LEVEL0)  // VS leaf U=0 R/W
+  VS_PTE_SETUP(sv39, PA, test_region_rwx, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V), va_rwx, LEVEL0)  // VS leaf U=0 R/W
 
   // Cases 2–3: S-page X-only (U=0, XWR=001)
-  VS_PTE_SETUP(sv32, PA, test_region_xonly, (PTE_D | PTE_A | PTE_X | PTE_V), va_xonly, LEVEL0)  // leaf: va_xonly -> PA(test_region_xonly) X-only
+  VS_PTE_SETUP(sv39, PA, test_region_xonly, (PTE_D | PTE_A | PTE_X | PTE_V), va_xonly, LEVEL0)  // leaf: va_xonly -> PA(test_region_xonly) X-only
 
   // Case 4: S-page R-only (U=0, XWR=011)
-  VS_PTE_SETUP(sv32, PA, test_region_ronly, (PTE_D | PTE_A | PTE_R | PTE_V), va_ronly, LEVEL0)  // leaf: va_ronly -> PA(test_region_ronly) R-only
+  VS_PTE_SETUP(sv39, PA, test_region_ronly, (PTE_D | PTE_A | PTE_R | PTE_V), va_ronly, LEVEL0)  // leaf: va_ronly -> PA(test_region_ronly) R-only
 
   // Cases 7–8: U=1 R/W/X (XWR=111, SUM stays 0)
-  VS_PTE_SETUP(sv32, PA, test_region_u, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R | PTE_V), va_u_rwx, LEVEL0)  // VS leaf U=1 XWR=111
+  VS_PTE_SETUP(sv39, PA, test_region_u, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R | PTE_V), va_u_rwx, LEVEL0)  // VS leaf U=1 XWR=111
 
   // Case 5: S-page R/W (U=0, XWR=110)
-  VS_PTE_SETUP(sv32, PA, test_region_rw, (PTE_D | PTE_A | PTE_W | PTE_R | PTE_V), va_rw, LEVEL0)  // VS leaf U=0 R/W
+  VS_PTE_SETUP(sv39, PA, test_region_rw, (PTE_D | PTE_A | PTE_W | PTE_R | PTE_V), va_rw, LEVEL0)  // VS leaf U=0 R/W
 
   // Case 6: S-page R/X (U=0, XWR=101)
-  VS_PTE_SETUP(sv32, PA, test_region_rx, (PTE_D | PTE_A | PTE_X | PTE_R | PTE_V), va_rx, LEVEL0)  // VS leaf U=0 R/X
+  VS_PTE_SETUP(sv39, PA, test_region_rx, (PTE_D | PTE_A | PTE_X | PTE_R | PTE_V), va_rx, LEVEL0)  // VS leaf U=0 R/X
 
   // Case 9: U=1 V-only (XWR=000) — hits VS urwx1000×write
-  VS_PTE_SETUP(sv32, PA, test_region_u_vonly, (PTE_D | PTE_A | PTE_U | PTE_V), va_u_vonly, LEVEL0)
+  VS_PTE_SETUP(sv39, PA, test_region_u_vonly, (PTE_D | PTE_A | PTE_U | PTE_V), va_u_vonly, LEVEL0)
 
   // Case 10: U=0 V-only
-  VS_PTE_SETUP(sv32, PA, test_region_s_vonly, (PTE_D | PTE_A | PTE_V), va_s_vonly, LEVEL0)
+  VS_PTE_SETUP(sv39, PA, test_region_s_vonly, (PTE_D | PTE_A | PTE_V), va_s_vonly, LEVEL0)
 
   // Case 14: executable X-only page for SUM=1 ifetch (same PTE shape as va_xonly)
-  VS_PTE_SETUP(sv32, PA, xonly_exec_page, (PTE_D | PTE_A | PTE_X | PTE_V), va_xexec, LEVEL0)
+  VS_PTE_SETUP(sv39, PA, xonly_exec_page, (PTE_D | PTE_A | PTE_X | PTE_V), va_xexec, LEVEL0)
 
 
-  VSATP_SETUP(sv32, PA)                         // turn on VS-stage paging (vsatp MODE + root PPN)
+  VSATP_SETUP(sv39, PA)                         // turn on VS-stage paging (vsatp MODE + root PPN)
   csrw hgatp, x0                                // write hgatp (hypervisor page-table root / Bare if x0)
   hfence.vvma                                   // flush VS-stage TLB
   hfence.gvma                                   // flush G-stage TLB (must be M or HS — illegal in VS/VU)
@@ -540,6 +543,9 @@ xonly_exec_page:
   nop
   nop
 
+.align 12
+rvtest_vlvl1_pg_tbl:
+  .zero(4096)
 .align 12
 rvtest_vlvl0_pg_tbl:
   .zero(4096)

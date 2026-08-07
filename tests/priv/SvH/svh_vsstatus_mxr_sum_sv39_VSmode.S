@@ -1,6 +1,7 @@
 // --------------------------------------------------------------------------------------------------------------------------------
-// svh_vsstatus_mxr_sum_VSmode.S
-// Config: sail-rv32-max | VS=Sv32 ON, hgatp=Bare
+// svh_vsstatus_mxr_sum_sv39_VSmode.S
+// Config: sail-rv64-max | VS=Sv39 ON, hgatp=Bare
+// Pair:   svh_vsstatus_mxr_sum_VSmode.S
 // Coverpoints mapped (SvH_cg): cp_vsstatus_mxr_sum
 // What this proves (one line):
 //   VS MXR×SUM×page-type (X-only S/U, RWX S/U) control load/store permissions.
@@ -17,6 +18,7 @@
 //  8. MXR=1 SUM=1, U-page XWR=111: VS sw+lw → Successful (0x257A0508)
 //  9. MXR=0 SUM=0, U-page XWR=111: VS sw → Expected Fault (s2 stays 0)
 // 10. MXR=0 SUM=0, S-page XWR=111: VS sw+lw → Successful (0x257A050A)
+// 10b. MXR=0 SUM=0, S-page XWR=111: VS lw only → Successful (0x257A050A) // unset,unset,rwx111_s,read fresh walk
 // 11. MXR=0 SUM=1 S-page X-only: VS lw → Expected Fault (s3 stays 0)
 // 12. MXR=1 SUM=1 S-page XWR=111: VS lw → Successful (0x257A050A)
 // 13. MXR=0 SUM=1 U-page X-only: VS lw → Expected Fault (s4 stays 0)
@@ -44,12 +46,12 @@
 // --------------------------------------------------------------------------------------------------------------------------------
 
 ##### START_TEST_CONFIG #####
-# REQUIRED_EXTENSIONS: [I, H, Sv32]
-# MARCH: rv32ih_zicsr_zifencei
+# REQUIRED_EXTENSIONS: [I, H, Sv39]
+# MARCH: rv64ih_zicsr_zifencei
 ##### END_TEST_CONFIG #####
 
-#define TEST_FILE "svh_vsstatus_mxr_sum_VSmode.S"
-#define SIGUPD_COUNT 33
+#define TEST_FILE "svh_vsstatus_mxr_sum_sv39_VSmode.S"
+#define SIGUPD_COUNT 34
 #define TRAP_SIGUPD_COUNT 256
 #define RVTEST_HYPERVISOR
 
@@ -66,29 +68,32 @@ main:
   .set va_x_u,  0x008002000                     // GVA: U-page X-only leaf
   .set va_u_rw, 0x008003000                     // GVA: U-page R/W/X leaf (needs SUM=1)
   .set va_s_rw, 0x008004000                     // GVA: S-page R/W/X leaf
-  .set va_code, 0x90000000                      // GVA where VS executes this code
+  .set va_code,                 0x0000000090000000      // GVA where guest executes this code
 
-  // ---- VS-stage (vsatp Sv32): GVA -> PA  (hgatp Bare ⇒ PTE PPN fields are real PAs) ----
-  SUPERPAGE_VS_PTE_SETUP(sv32, rvtest_code_begin, (PTE_D | PTE_A | PTE_X | PTE_R | PTE_V), va_code, LEVEL1)  // leaf: va_code -> PA(code); LEVEL1 = 4 MiB X/R
+  // ---- VS-stage (vsatp Sv39): GVA -> PA  (hgatp Bare ⇒ PTE PPN fields are real PAs) ----
+  VS_PTE_SETUP(sv39, PA, rvtest_vlvl1_pg_tbl, (PTE_V), va_code, LEVEL2)
+  SUPERPAGE_VS_PTE_SETUP(sv39, rvtest_code_begin, (PTE_D | PTE_A | PTE_X | PTE_R | PTE_V), va_code, LEVEL1)  // leaf: va_code -> PA(code); LEVEL1 megapage X/R
 
   csrr a0, mscratch                             // a0 = Msave_area (required by next macro)
-  V_SAVE_AREA_SETUP(va_code, rvtest_code_begin, code, LEVEL1)  // framework: VS entry PC is under va_code
+  V_SAVE_AREA_SETUP(va_code, rvtest_code_begin, code, LEVEL1)  // framework: entry PC under va_code
 
-  VS_PTE_SETUP(sv32, PA, rvtest_vlvl0_pg_tbl, (PTE_V), va_x_s, LEVEL1)  // non-leaf: data VPN1 -> VS L0 table PA
+  // Shared L2+L1 non-leafs (same VPN2/VPN1 for all data VAs under 0x00800x000)
+  VS_PTE_SETUP(sv39, PA, rvtest_vlvl1_pg_tbl, (PTE_V), va_x_s, LEVEL2)
+  VS_PTE_SETUP(sv39, PA, rvtest_vlvl0_pg_tbl, (PTE_V), va_x_s, LEVEL1)  // non-leaf: data VPN1 -> VS L0 table PA
 
   // S-page X-only (XWR=001, U=0) — MXR decides whether load is allowed
-  VS_PTE_SETUP(sv32, PA, test_region_x_s, (PTE_D | PTE_A | PTE_X | PTE_V), va_x_s, LEVEL0)  // leaf: va_x_s -> PA(test_region_x_s) X-only U=0
+  VS_PTE_SETUP(sv39, PA, test_region_x_s, (PTE_D | PTE_A | PTE_X | PTE_V), va_x_s, LEVEL0)  // leaf: va_x_s -> PA(test_region_x_s) X-only U=0
 
   // U-page X-only — needs MXR for load, but U=1 still blocks without SUM
-  VS_PTE_SETUP(sv32, PA, test_region_x_u, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_V), va_x_u, LEVEL0)  // leaf: va_x_u -> PA(test_region_x_u) X-only U=1
+  VS_PTE_SETUP(sv39, PA, test_region_x_u, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_V), va_x_u, LEVEL0)  // leaf: va_x_u -> PA(test_region_x_u) X-only U=1
 
   // U-page R/W/X — SUM=1 required for any U=1 access
-  VS_PTE_SETUP(sv32, PA, test_region_u_rw, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R | PTE_V), va_u_rw, LEVEL0)  // leaf: va_u_rw -> PA(test_region_u_rw) U=1 R/W/X
+  VS_PTE_SETUP(sv39, PA, test_region_u_rw, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R | PTE_V), va_u_rw, LEVEL0)  // leaf: va_u_rw -> PA(test_region_u_rw) U=1 R/W/X
 
   // S-page R/W/X — readable/writable regardless of MXR/SUM
-  VS_PTE_SETUP(sv32, PA, test_region_s_rw, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V), va_s_rw, LEVEL0)  // leaf: va_s_rw -> PA(test_region_s_rw) U=0 R/W/X
+  VS_PTE_SETUP(sv39, PA, test_region_s_rw, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V), va_s_rw, LEVEL0)  // leaf: va_s_rw -> PA(test_region_s_rw) U=0 R/W/X
 
-  VSATP_SETUP(sv32, PA)                         // vsatp = Sv32, PPN = PA of VS root
+  VSATP_SETUP(sv39, PA)                         // vsatp = Sv39, PPN = PA of VS root
   csrw hgatp, x0                                // hgatp = Bare (no G-stage)
   hfence.vvma                                   // invalidate VS-stage TLB entries
   hfence.gvma                                   // invalidate G-stage TLB entries (harmless with Bare)
@@ -278,6 +283,24 @@ main:
 
   test10_srw_swlw:
   RVTEST_SIGUPD(x2, x5, x4, a7, test10_srw_swlw, test10_srw_swlw_str)  // signature: dump a7 (test10_srw_swlw) for PASS/FAIL
+
+//---------------------------------------------------------------------------------------------------------------------------------
+// Test case 10b: MXR=0 SUM=0 S-page XWR=111 VS lw only | Expected: Successful
+// Fresh walk so leaf PTE lands in .rvvi for unset,unset,rwx111_s,read_acc (sw+lw TLB-hit drops it).
+//---------------------------------------------------------------------------------------------------------------------------------
+  hfence.vvma
+  LI(t0, 0x257A050A)
+  la t1, test_region_s_rw
+  sw t0, 0(t1)
+  LI(a5, va_s_rw)
+  LI(s11, 0)
+  RVTEST_GOTO_LOWER_MODE VSmode
+  lw   s11, 0(a5)
+  nop
+  RVTEST_TSBI_GOTO_MMODE
+
+  test10b_srw_lw:
+  RVTEST_SIGUPD(x2, x5, x4, s11, test10b_srw_lw, test10b_srw_lw_str)
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 11: MXR=0 SUM=1 S-page X-only VS lw | Expected: Expected Fault
@@ -764,6 +787,9 @@ test_region_s_rw:                               // real PA backing va_s_rw (S-pa
   .word 0                                       // padding in same page
   .word 0                                       // padding in same page
 .align 12                                       // align to 4 KiB page
+rvtest_vlvl1_pg_tbl:
+  .zero(4096)
+.align 12
 rvtest_vlvl0_pg_tbl:                            // VS-stage level-0 PTE storage
   .zero(4096)                                   // 4 KiB page-table storage
 
@@ -777,6 +803,7 @@ test7_sum1_urw_lw_str:   .string "\"Mismatch on SUM=1 U-page VS lw in Test Case 
 test8_sum1_urw_swlw_str: .string "\"Mismatch on SUM=1 U-page VS sw+lw in Test Case 8!\""
 test9_sum0_urw_sw_str:   .string "\"Mismatch on SUM=0 U-page VS sw (expect fault) in Test Case 9!\""
 test10_srw_swlw_str:         .string "\"Mismatch on S-page R/W/X VS sw+lw in Test Case 10!\""
+test10b_srw_lw_str:          .string "\"Mismatch on S-page R/W/X VS lw-only in Test Case 10b!\""
 test11_sum1_mxr0_xs_str:     .string "\"Mismatch on SUM=1 MXR=0 S X-only VS lw (expect fault) in Test Case 11!\""
 test12_mxr1_sum1_srw_str:    .string "\"Mismatch on MXR=1 SUM=1 S RWX VS lw in Test Case 12!\""
 test13_sum1_mxr0_xu_str:     .string "\"Mismatch on SUM=1 MXR=0 U X-only VS lw (expect fault) in Test Case 13!\""

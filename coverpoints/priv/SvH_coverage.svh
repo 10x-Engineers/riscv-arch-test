@@ -490,34 +490,35 @@ covergroup SvH_cg with function sample(ins_t ins);
         //     (forces PBMT_PMA if menvcfg.PBMTE=0, or VS-stage and henvcfg.PBMTE=0).
         //   • Ext_Svpbmt only when Ext_Sv39 — vmem_pte.sail::currentlyEnabled(Ext_Svpbmt);
         //     sail-rv32-max has Svpbmt.supported=false (these crosses are RV64-only).
-        //   • Residual empty encodings: stimulus gap — VS case leaves PBMTE=0 (expect
-        //     fault); does not walk full PBMT×PBMTE×henvcfg matrix / exec_acc.
+        //   • Residual empty encodings: pbmte_menvcfg only bins {0}=no_support — score
+        //     PBMT≠0 with PBMTE cleared (invalid path). PBMTE=1 legal path is leaf-only
+        //     (not in this cross). PBMT=0b11 has no Sail mapping (vmem_types.sail).
+        //   • Stimulus: svh_vs_pte_attr_RV64_VSmode.S walks PBMT 1/2/3 × PBMTE 0/1 + exec.
         cp_vsatp_svpbmt_rw: cross priv_mode_vs, vsatp_mode, pbmte_menvcfg, vs_pte_d_svpbmt, read_write_acc;
         cp_vsatp_svpbmt_x:  cross priv_mode_vs, vsatp_mode, pbmte_menvcfg, vs_pte_i_svpbmt, exec_acc;
 
         // Coverpoint: cp_hgatp_svpbmt
         // Sample HS HLV/HSV (or VS with vsatp Bare). Stimulus: svh_g_pte_attr_RV64_VSmode.S.
-        // Empty / partial bins: same Sail rules as vsatp_svpbmt (pte_is_invalid + pt_walk
-        // PBMT_PMA force). G-stage uses menvcfg.PBMTE only (no henvcfg). Residual empty
-        // PBMT encodings / exec_acc: stimulus gap (case sets menvcfg.PBMTE + one PBMT=1).
+        // Same pbmte_menvcfg={0}-only cross rule; G-stage uses menvcfg.PBMTE only.
+        // Empty / partial bins: same Sail rules as vsatp_svpbmt (pte_is_invalid + pt_walk).
         cp_hgatp_svpbmt_rw: cross priv_mode_hs, hgatp_mode, pbmte_menvcfg, g_pte_d_svpbmt, read_write_acc;
         cp_hgatp_svpbmt_x:  cross priv_mode_hs, hgatp_mode, pbmte_menvcfg, g_pte_i_svpbmt, exec_acc;
 
         // Coverpoint: cp_vsatp_reserved_fields
         // Sample VS guest accesses under vsatp. Stimulus: svh_vs_pte_attr_RV64_VSmode.S.
-        // Empty walking-ones bins: stimulus gap (one PTE_RSVD case, not full [60:54] walk).
-        // Sail does not “ignore” reserved: with Priv ISA ≥ 1.12,
-        // model/core/isa_version.sail::pte_reserved_bits_must_be_zero and
+        // Sail: model/core/isa_version.sail::pte_reserved_bits_must_be_zero and
         // vmem_pte.sail::pte_is_invalid (pte_ext[reserved] != 0) → invalid PTE / page fault.
-        // Note: coverpoint [60:54] also overlaps Svrsw60t59b [60:59]; those bits are legal
-        // when Ext_Svrsw60t59b is on (sail-rv64-max supports it).
+        // Svrsw60t59b (sail-rv64-max supported=true): pte_ext[RSW_60t59b] bits [60:59] are
+        // soft-RSW — NOT reserved; setting only those bits does not invalidate the PTE
+        // (vmem_pte.sail::pte_is_invalid). Coverpoint still bins [60:54] walking ones;
+        // stimulus hits 59/60 via successful lw/sw/jalr. True reserved = [58:54] + all_ones.
         cp_vsatp_reserved_fields_rw: cross priv_mode_vs, vsatp_mode, vs_pte_d_reserved, read_write_acc;
         cp_vsatp_reserved_fields_x : cross priv_mode_vs, vsatp_mode, vs_pte_i_reserved, exec_acc;
 
         // Coverpoint: cp_hgatp_reserved_fields
         // Sample HS HLV/HSV. Stimulus: svh_g_pte_attr_RV64_VSmode.S.
         // Same Sail enforcement as vsatp_reserved_fields (pte_is_invalid + reserved≠0).
-        // Empty walking-ones / exec bins: stimulus gap (one reserved leaf + HLV/HSV only).
+        // [60:59] soft-RSW under Svrsw60t59b — see vsatp note above.
         cp_hgatp_reserved_fields_rw : cross priv_mode_hs, hgatp_mode, g_pte_d_reserved, read_write_acc;
         cp_hgatp_reserved_fields_x  : cross priv_mode_hs, hgatp_mode, g_pte_i_reserved, exec_acc;
     `endif
@@ -611,17 +612,16 @@ covergroup SvH_cg with function sample(ins_t ins);
 
     // Coverpoint: cp_vsatp_invalid_pte
     // Invalid VS PTE: sample VS guest VA access under vsatp.
-    // Stimulus: svh_vsatp_fault_VSmode.S (lw/sw). _rw Covered; empty _x bins are a
-    // stimulus gap (need VS ifetch into an invalid leaf) — not a Sail gap.
+    // Stimulus: svh_vsatp_fault_VSmode.S (lw/sw + jalr ifetch into V=0).
     cp_vsatp_invalid_pte_rw: cross priv_mode_vs, vsatp_mode, vs_pte_d_inv, read_write_acc;
     cp_vsatp_invalid_pte_x:  cross priv_mode_vs, vsatp_mode, vs_pte_i_inv, exec_acc;
 
     // Coverpoint: cp_hgatp_invalid_pte
-    // Invalid G PTE: sample HS HLV/HSV (or VS with vsatp Bare).
-    // Stimulus: svh_hgatp_fault_VSmode.S. Empty _x: stimulus gap (no ifetch into
-    // invalid G leaf) — not a Sail gap.
+    // Invalid G PTE: sample HS HLV/HSV for _rw; VS Bare ifetch for _x.
+    // Stimulus: svh_hgatp_fault_VSmode.S. Axis for _x is VS (guest ifetch through
+    // invalid G) — HS ifetch does not walk hgatp for code.
     cp_hgatp_invalid_pte_rw: cross priv_mode_hs, hgatp_mode, g_pte_d_inv, read_write_acc;
-    cp_hgatp_invalid_pte_x:  cross priv_mode_hs, hgatp_mode, g_pte_i_inv, exec_acc;
+    cp_hgatp_invalid_pte_x:  cross priv_mode_vs, hgatp_mode, g_pte_i_inv, exec_acc;
 
     // Coverpoint: cp_vsatp_sum_effects
     cp_vsatp_sum_effects_rw: cross priv_mode_vs, sum_vsstatus, vs_pte_xwr111_u_d, read_write_acc;
@@ -638,12 +638,14 @@ covergroup SvH_cg with function sample(ins_t ins);
     // Coverpoint: cp_vsstatus_mxr_sum
     // Separate from two-stage MXR (cp_two_stage_mxr below).
     // Stimulus: svh_vsstatus_mxr_sum_VSmode.S + svh_vsstatus_mxr_sum_VUmode.S (U=1 code).
-    // Empty residual MXR×SUM×page bins: stimulus gap (matrix incomplete) — not a Sail gap.
-    // Observed RV32 after VU pack: mxr_sum_rw ~44% / _x ~53%.
+    // Residual empty bins: need fresh-walk hops (hfence in M between r/w) — TLB-hit
+    // accesses omit VS_PTE_* from sail_to_rvvi.py. Not a Sail gap.
     cp_vsstatus_mxr_sum_rw: cross priv_mode_vs_vu, vsatp_mode, sum_vsstatus, mxr_vsstatus, vs_pte_xwr_comb_d, read_write_acc;
     cp_vsstatus_mxr_sum_x:  cross priv_mode_vs_vu, vsatp_mode, sum_vsstatus, mxr_vsstatus, vs_pte_xwr_comb_i, exec_acc;
 
     // Coverpoint: cp_vsatp_spages_sum_rwx
+    // Stimulus: svh_vs_perm_VSmode.S — R-only/R/X store faults must be separate hops
+    // after hfence.vvma (same-hop lw→sw TLB-hit drops VS_PTE_D on the store).
     cp_vsatp_spages_sum_rw: cross priv_mode_vs, vsatp_mode, sum_vsstatus, vs_pte_legal_xwr_d, read_write_acc;
     cp_vsatp_spages_sum_x:  cross priv_mode_vs, vsatp_mode, sum_vsstatus, vs_pte_legal_xwr_i, exec_acc;
 
@@ -715,20 +717,85 @@ covergroup SvH_cg with function sample(ins_t ins);
     }
 
     //--------------------------------------------------------------------------
-    // Not implemented yet (planned coverpoints — not coded)
+    // P3 — structural / faults / X-only MXR=0 / VU two-stage
     //--------------------------------------------------------------------------
-    // TODO: speculative A-bit — needs commit/squash visibility (Sail + RVVI), no cross yet
-    // TODO: GPA width / non-canonical GPA (RV64) — stimulus + cross missing
-    // TODO: misaligned G superpage — stimulus + cross missing
-    // TODO: hgatp root table alignment and size — stimulus + cross missing
-    // TODO: hgatp_exception_reporting — not a Sail gap: TB key TRAP exists
-    //       (framework/.../testbench.sv); sail_to_rvvi.py never emits TRAP; no cross yet
-    // TODO: MPRV+SUM HS two-stage — stimulus + cross missing (≠ Bare-G MPRV above)
-    // TODO: VM_permission_invalid — stimulus + cross missing; TRAP in .rvvi likely needed
-    // TODO: RWX on U-mode pages in U-mode — stimulus + cross missing
-    // TODO: broader X-only × MXR=0 in HS/VS/VU/G — stimulus + cross missing
-    //       (distinct from cp_two_stage_mxr)
-    // TODO: HFENCE / hgatp mode-change + fence operand crosses — stimulus + cross missing
+    trap_set: coverpoint ins.trap {
+        bins trapped = {1'b1};
+    }
+
+    hfence_vvma_insn: coverpoint ins.current.insn {
+        wildcard bins hfence_vvma = {HFENCE_VVMA};
+    }
+    hfence_gvma_insn: coverpoint ins.current.insn {
+        wildcard bins hfence_gvma = {HFENCE_GVMA};
+    }
+
+    // Coverpoint: hgatp_exception_reporting — cause class matches access type via
+    // TRAP=1 + access flags + invalid G leaf on the faulting insn.
+    // sail_to_rvvi.py emits TRAP from Sail "trapping from …" lines.
+    // Stimulus: svh_hgatp_fault_VSmode.S (VS Bare r/w/x + HS HLV/HSV).
+    hgatp_exception_reporting_rw: cross priv_mode_vs, hgatp_mode, g_pte_d_inv, read_write_acc, trap_set;
+    hgatp_exception_reporting_x:  cross priv_mode_vs, hgatp_mode, g_pte_i_inv, exec_acc, trap_set;
+
+    // Coverpoint: VM_permission_invalid — two-stage V=0 deny.
+    // Stimulus parked: tests/priv/SvH/_park/svh_twostage_invalid_VSmode.S
+    // (trap-signature mismatch under both stages; reopen when stable).
+
+    // Coverpoint: mprv_sum_effect_hs_two_stage — MPRV×SUM with both stages paged.
+    // Stimulus: svh_mprv_sum_two_stage_Mmode.S (≠ Bare-G MPRV).
+    mprv_sum_effect_hs_two_stage: cross priv_mode_m, mstatus_mprv_set, sum_vsstatus, vsatp_mode, hgatp_mode, read_write_acc;
+
+    // Coverpoint: RWX access on Umode pages in Umode — VU both-stage U=1.
+    // Stimulus: svh_vu_rwx_two_stage_VUmode.S
+    rwx_umode_pages_umode_rw: cross priv_mode_vu, vsatp_mode, hgatp_mode, vs_pte_xwr111_u_d, read_write_acc;
+    rwx_umode_pages_umode_x:  cross priv_mode_vu, vsatp_mode, hgatp_mode, vs_pte_xwr111_u_i, exec_acc;
+
+    // Coverpoint: X-only × MXR=0 (sheet R50–R53) — distinct from cp_two_stage_mxr.
+    // Stimulus: svh_xonly_mxr0_{HS,VS,VU,gstage}_*.S
+    xonly_mxr0_vs_hs: cross priv_mode_hs, mxr_vsstatus, vs_pte_xonly_d, read_write_acc {
+        ignore_bins mxr1 = binsof(mxr_vsstatus.set);
+        ignore_bins writes = binsof(read_write_acc.write_acc);
+    }
+    xonly_mxr0_vs_vs: cross priv_mode_vs, mxr_vsstatus, vs_pte_xonly_d, read_write_acc {
+        ignore_bins mxr1 = binsof(mxr_vsstatus.set);
+        ignore_bins writes = binsof(read_write_acc.write_acc);
+    }
+    xonly_mxr0_vs_vu: cross priv_mode_vu, mxr_vsstatus, vs_pte_xonly_d, read_write_acc {
+        ignore_bins mxr1 = binsof(mxr_vsstatus.set);
+        ignore_bins writes = binsof(read_write_acc.write_acc);
+    }
+    xonly_mxr0_g_hs: cross priv_mode_hs, mxr_vsstatus, g_pte_xonly_d, read_write_acc {
+        ignore_bins mxr1 = binsof(mxr_vsstatus.set);
+        ignore_bins writes = binsof(read_write_acc.write_acc);
+    }
+
+    // Coverpoint: hgatp_misaligned_superpage / root alignment (structural).
+    // Stimulus: svh_g_struct_HSmode.S (+ sv39 twin). Score via trap on bad GPA walk.
+    hgatp_misaligned_superpage: cross priv_mode_hs, hgatp_mode, read_write_acc, trap_set;
+    hgatp_root_table_alignment_and_size: cross priv_mode_hs, hgatp_mode, hfence_gvma_insn;
+
+    // Coverpoint: cp_hgatp_gpa_width_checks (RV64 Sv39x4 non-canonical GPA).
+    // Stimulus: svh_gpa_width_VSmode.S
+    `ifdef UDB_MXLEN_64
+    cp_hgatp_gpa_width_checks: cross priv_mode_vs, hgatp_mode, read_write_acc, trap_set;
+    `endif
+
+    //--------------------------------------------------------------------------
+    // P4 — HFENCE
+    //--------------------------------------------------------------------------
+    // Stimulus: svh_hfence_vvma_HSmode.S / svh_hfence_gvma_mode_HSmode.S /
+    //           svh_hfence_gvma_ops_HSmode.S (legal HS/M only — never VS/VU).
+    cp_hfence_functionality: cross priv_mode_hs, hfence_vvma_insn, vsatp_mode;
+    cp_hfence_vvma_operand: cross priv_mode_hs, hfence_vvma_insn;
+    cp_hgatp_mode_change_hfence: cross priv_mode_hs, hgatp_mode, hfence_gvma_insn;
+    cp_hfence_gvma_operand: cross priv_mode_hs, hfence_gvma_insn;
+
+    //--------------------------------------------------------------------------
+    // Not implemented / Sail-blocked / waived
+    //--------------------------------------------------------------------------
+    // TODO: speculative A-bit — needs commit/squash visibility (Sail + RVVI), waived
+    // VSBE set bins: Sail legalize_hstatus hardwire (record only)
+    // vs_pte_ad_unset×g_ad: intentional omit (VS A=0 → page fault before G leaf)
     //--------------------------------------------------------------------------
 
 endgroup

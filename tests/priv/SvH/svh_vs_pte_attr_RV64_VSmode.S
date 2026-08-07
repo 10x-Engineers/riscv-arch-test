@@ -12,12 +12,17 @@
 //  2. RSW=01 (0x100): VS sw+lw → Successful (0x257A0302)
 //  3. RSW=10 (0x200): VS sw+lw → Successful (0x257A0303)
 //  4. RSW=11 (PTE_SOFT): VS sw+lw → Successful (0x257A0304)
-//  5. PTE[60:54]|PTE_RSVD on otherwise-valid R/W leaf: VS lw → Expected Fault if Sail
-//     checks reserved bits (a6 stays 0); otherwise dump whatever Sail returns
-//  6. PTE_PBMT on leaf (menvcfg.PBMTE likely 0): VS lw → Expected Fault (a7 stays 0) if
-//     Sail enforces PBMT without extension; otherwise dump result
+//  5. Reserved walk PTE[60:54] ones + all-ones: VS lw each → Expected Fault (sentinel 0)
+//     Note: bits 59/60 are soft-RSW under Svrsw60t59b (sail-rv64-max) — lw succeeds; still
+//     scores walking_one_59/60 on vs_pte_d (not a true reserved fault).
+//  6. Reserved bits 54–58 + all-ones: VS sw each → Expected Fault (SPA unchanged)
+//  6b. Soft-RSW bits 59/60: VS sw → Successful (distinct SPA patterns)
+//  7. Reserved bit54 X-leaf: VS jalr → Expected Fault (fetch fault)
+//  7b. Soft-RSW bits 59/60 X-leaf: VS jalr → Successful (ret trampoline)
+//  8. PBMT=1/2/3 with menvcfg+henvcfg.PBMTE=1: VS lw (+sw on PBMT=1) → dump Sail result
+//  9. PBMT=1 X-leaf: VS jalr → dump (fault or allow)
 //
-// Total Expected Faults :: 1–2 (Sail-dependent for cases 5–6)
+// Total Expected Faults :: ≥14 (reserved 54–58); bits 59/60 soft-RSW allow
 // --------------------------------------------------------------------------------------------------------------------------------
 
 ##### START_TEST_CONFIG #####
@@ -26,8 +31,8 @@
 ##### END_TEST_CONFIG #####
 
 #define TEST_FILE "svh_vs_pte_attr_RV64_VSmode.S"
-#define SIGUPD_COUNT 8
-#define TRAP_SIGUPD_COUNT 64
+#define SIGUPD_COUNT 31
+#define TRAP_SIGUPD_COUNT 256
 #define RVTEST_HYPERVISOR
 
 // Mode hops (T-SBI) — return-to-M always uses RVTEST_TSBI_GOTO_MMODE (ecall a0=1;
@@ -35,6 +40,19 @@
 //   • Code at PA / identity: RVTEST_TSBI_GOTO_VSMODE / _SMODE (ecall a0=4/2)
 //   • Guest code VA≠PA (V_SAVE_AREA_*): RVTEST_GOTO_LOWER_MODE (mret + PA↔VA relocate)
 #include "riscv_arch_test.h"
+
+// PTE[60:54] reserved walking-ones; PBMT is PTE[62:61]
+#define PTE_BIT54 (_RISCV_ULL(1) << 54)
+#define PTE_BIT55 (_RISCV_ULL(1) << 55)
+#define PTE_BIT56 (_RISCV_ULL(1) << 56)
+#define PTE_BIT57 (_RISCV_ULL(1) << 57)
+#define PTE_BIT58 (_RISCV_ULL(1) << 58)
+#define PTE_BIT59 (_RISCV_ULL(1) << 59)
+#define PTE_BIT60 (_RISCV_ULL(1) << 60)
+#define PTE_RSVD_ALL (_RISCV_ULL(0x7F) << 54)    /* bits 60:54 — coverpoint all_ones */
+#define PTE_PBMT1 (_RISCV_ULL(1) << 61)
+#define PTE_PBMT2 (_RISCV_ULL(1) << 62)
+#define PTE_PBMT3 (_RISCV_ULL(3) << 61)          /* == PTE_PBMT */
 
 RVTEST_BEGIN
 
@@ -196,30 +214,211 @@ main:
   RVTEST_SIGUPD(x2, x5, x4, a7, test4_rsw11, test4_rsw11_str)  // record case 4 lw result in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------
-// Test case 5: Reserved PTE[60:54] VS lw | Expected: Expected Fault (Sail-dependent)
+// Test case 4b: RSW=11 VS lw only (fresh hop) | Expected: Successful
+// Separate hop so .rvvi keeps VS_PTE_D for cp_vsatp_pte_rsw <auto[3],read_acc>.
 //---------------------------------------------------------------------------------------------------------------------------------
-  LI(a5, va_rsvd)                               // a5 = GVA of reserved-bits leaf
-  LI(a6, 0)                                     // a6 stays 0 if Sail faults on PTE_RSVD (insn skipped)
-  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VSmode mret + PA↔VA relocate (guest code VA≠PA; T-SBI enter lacks relocate)
-  lw   a6, 0(a5)                                // reserved PTE bits → load-page-fault if enforced
-  nop                                           // trap-skip padding after load
-  RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
-
-  test5_rsvd:
-  RVTEST_SIGUPD(x2, x5, x4, a6, test5_rsvd, test5_rsvd_str)  // record case 5 fault/result in signature
+  hfence.vvma
+  LI(a5, va_rsw11)
+  RVTEST_GOTO_LOWER_MODE VSmode
+  lw   s4, 0(a5)
+  nop
+  RVTEST_TSBI_GOTO_MMODE
+  test4b_rsw11_lw:
+  RVTEST_SIGUPD(x2, x5, x4, s4, test4b_rsw11_lw, test4b_rsw11_lw_str)
 
 //---------------------------------------------------------------------------------------------------------------------------------
-// Test case 6: PTE_PBMT VS lw | Expected: Expected Fault (Sail-dependent)
+// Test case 5a–5h: Reserved PTE[60:54] walking-ones + all-ones VS lw | Expected: Expected Fault
 //---------------------------------------------------------------------------------------------------------------------------------
-  LI(a5, va_pbmt)                               // a5 = GVA of PBMT leaf
-  LI(a7, 0)                                     // a7 stays 0 if Sail faults without menvcfg.PBMTE (insn skipped)
-  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VSmode mret + PA↔VA relocate (guest code VA≠PA; T-SBI enter lacks relocate)
-  lw   a7, 0(a5)                                // PBMT without extension → load-page-fault if enforced
-  nop                                           // trap-skip padding after load
-  RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
+#define RSVD_LW_CASE(bitmask, reg, label, strlabel)                 \
+  VS_PTE_SETUP(sv39, PA, test_region4, (PTE_D | PTE_A | PTE_W | PTE_R | PTE_V | (bitmask)), va_rsvd, LEVEL0); \
+  hfence.vvma;                                                      \
+  LI(a5, va_rsvd);                                                  \
+  LI(reg, 0);                                                       \
+  RVTEST_GOTO_LOWER_MODE VSmode;                                    \
+  lw   reg, 0(a5);                                                  \
+  nop;                                                              \
+  RVTEST_TSBI_GOTO_MMODE;                                           \
+  label:                                                            \
+  RVTEST_SIGUPD(x2, x5, x4, reg, label, strlabel)
 
-  test6_pbmt:
-  RVTEST_SIGUPD(x2, x5, x4, a7, test6_pbmt, test6_pbmt_str)  // record case 6 fault/result in signature
+  RSVD_LW_CASE(PTE_BIT54, a6, test5a_b54, test5a_b54_str)
+  RSVD_LW_CASE(PTE_BIT55, a7, test5b_b55, test5b_b55_str)
+  RSVD_LW_CASE(PTE_BIT56, s2, test5c_b56, test5c_b56_str)
+  RSVD_LW_CASE(PTE_BIT57, s3, test5d_b57, test5d_b57_str)
+  RSVD_LW_CASE(PTE_BIT58, s4, test5e_b58, test5e_b58_str)
+  RSVD_LW_CASE(PTE_BIT59, s5, test5f_b59, test5f_b59_str)
+  RSVD_LW_CASE(PTE_BIT60, s6, test5g_b60, test5g_b60_str)
+  RSVD_LW_CASE(PTE_RSVD_ALL, s7, test5h_all, test5h_all_str)
+
+#undef RSVD_LW_CASE
+
+//---------------------------------------------------------------------------------------------------------------------------------
+// Test case 6a–6f: Reserved bits 54–58 + all-ones VS sw | Expected: Expected Fault
+//---------------------------------------------------------------------------------------------------------------------------------
+#define RSVD_SW_CASE(bitmask, label, strlabel)                      \
+  VS_PTE_SETUP(sv39, PA, test_region4, (PTE_D | PTE_A | PTE_W | PTE_R | PTE_V | (bitmask)), va_rsvd, LEVEL0); \
+  hfence.vvma;                                                      \
+  LI(a5, va_rsvd);                                                  \
+  LI(t0, 0xBAD00FAD);                                               \
+  RVTEST_GOTO_LOWER_MODE VSmode;                                    \
+  sw   t0, 0(a5);                                                   \
+  nop;                                                              \
+  RVTEST_TSBI_GOTO_MMODE;                                           \
+  la t1, test_region4;                                              \
+  lw a3, 0(t1);                                                     \
+  label:                                                            \
+  RVTEST_SIGUPD(x2, x5, x4, a3, label, strlabel)
+
+  LI(t0, 0x257A0305)
+  la t1, test_region4
+  sw t0, 0(t1)
+
+  RSVD_SW_CASE(PTE_BIT54, test6a_sw54, test6a_sw54_str)
+  RSVD_SW_CASE(PTE_BIT55, test6b_sw55, test6b_sw55_str)
+  RSVD_SW_CASE(PTE_BIT56, test6c_sw56, test6c_sw56_str)
+  RSVD_SW_CASE(PTE_BIT57, test6d_sw57, test6d_sw57_str)
+  RSVD_SW_CASE(PTE_BIT58, test6e_sw58, test6e_sw58_str)
+  RSVD_SW_CASE(PTE_RSVD_ALL, test6f_sw_all, test6f_sw_all_str)
+#undef RSVD_SW_CASE
+
+//---------------------------------------------------------------------------------------------------------------------------------
+// Test case 6g–6h: Soft-RSW bits 59/60 VS sw | Expected: Successful (Svrsw60t59b)
+//---------------------------------------------------------------------------------------------------------------------------------
+  VS_PTE_SETUP(sv39, PA, test_region4, (PTE_D | PTE_A | PTE_W | PTE_R | PTE_V | PTE_BIT59), va_rsvd, LEVEL0)
+  hfence.vvma
+  LI(a5, va_rsvd)
+  LI(t0, 0x257A0359)
+  RVTEST_GOTO_LOWER_MODE VSmode
+  sw   t0, 0(a5)
+  nop
+  lw   a3, 0(a5)
+  nop
+  RVTEST_TSBI_GOTO_MMODE
+  test6g_sw59:
+  RVTEST_SIGUPD(x2, x5, x4, a3, test6g_sw59, test6g_sw59_str)
+
+  VS_PTE_SETUP(sv39, PA, test_region4, (PTE_D | PTE_A | PTE_W | PTE_R | PTE_V | PTE_BIT60), va_rsvd, LEVEL0)
+  hfence.vvma
+  LI(a5, va_rsvd)
+  LI(t0, 0x257A0360)
+  RVTEST_GOTO_LOWER_MODE VSmode
+  sw   t0, 0(a5)
+  nop
+  lw   a4, 0(a5)
+  nop
+  RVTEST_TSBI_GOTO_MMODE
+  test6h_sw60:
+  RVTEST_SIGUPD(x2, x5, x4, a4, test6h_sw60, test6h_sw60_str)
+
+//---------------------------------------------------------------------------------------------------------------------------------
+// Test case 7: Reserved bit54 X-leaf VS jalr | Expected: Expected Fault
+//---------------------------------------------------------------------------------------------------------------------------------
+  VS_PTE_SETUP(sv39, PA, test_region4, (PTE_D | PTE_A | PTE_X | PTE_R | PTE_V | PTE_BIT54), va_rsvd, LEVEL0)
+  hfence.vvma
+  LI(a5, va_rsvd)
+  LI(a4, 0)
+  RVTEST_GOTO_LOWER_MODE VSmode
+  nop
+  jalr ra, a5, 0
+  nop
+  RVTEST_TSBI_GOTO_MMODE
+  test7_rsvd_jalr:
+  RVTEST_SIGUPD(x2, x5, x4, a4, test7_rsvd_jalr, test7_rsvd_jalr_str)
+
+//---------------------------------------------------------------------------------------------------------------------------------
+// Test case 7b–7c: Soft-RSW bits 59/60 X-leaf VS jalr | Expected: Successful
+//---------------------------------------------------------------------------------------------------------------------------------
+  LI(t0, 0x00008067)                            // ret
+  la t1, test_region4
+  sw t0, 0(t1)
+  VS_PTE_SETUP(sv39, PA, test_region4, (PTE_D | PTE_A | PTE_X | PTE_R | PTE_V | PTE_BIT59), va_rsvd, LEVEL0)
+  hfence.vvma
+  LI(a5, va_rsvd)
+  LI(s2, 0)
+  RVTEST_GOTO_LOWER_MODE VSmode
+  nop
+  jalr ra, a5, 0
+  LI(s2, 0x257A0759)
+  nop
+  RVTEST_TSBI_GOTO_MMODE
+  test7b_jalr59:
+  RVTEST_SIGUPD(x2, x5, x4, s2, test7b_jalr59, test7b_jalr59_str)
+
+  LI(t0, 0x00008067)
+  la t1, test_region4
+  sw t0, 0(t1)
+  VS_PTE_SETUP(sv39, PA, test_region4, (PTE_D | PTE_A | PTE_X | PTE_R | PTE_V | PTE_BIT60), va_rsvd, LEVEL0)
+  hfence.vvma
+  LI(a5, va_rsvd)
+  LI(s3, 0)
+  RVTEST_GOTO_LOWER_MODE VSmode
+  nop
+  jalr ra, a5, 0
+  LI(s3, 0x257A0760)
+  nop
+  RVTEST_TSBI_GOTO_MMODE
+  test7c_jalr60:
+  RVTEST_SIGUPD(x2, x5, x4, s3, test7c_jalr60, test7c_jalr60_str)
+
+//---------------------------------------------------------------------------------------------------------------------------------
+// Test case 8a–8c: PBMT=1/2/3 with PBMTE=0 (covergroup bins only no_support={0})
+// Expect fault; scores cp_vsatp_svpbmt_* × no_support × auto[1/2/3].
+//---------------------------------------------------------------------------------------------------------------------------------
+  LI(t0, MENVCFG_PBMTE)
+  csrc menvcfg, t0
+  LI(t0, HENVCFG_PBMTE)
+  csrc henvcfg, t0
+
+  VS_PTE_SETUP(sv39, PA, test_region5, (PTE_D | PTE_A | PTE_W | PTE_R | PTE_V | PTE_PBMT1), va_pbmt, LEVEL0)
+  hfence.vvma
+  LI(a5, va_pbmt)
+  LI(a6, 0)
+  RVTEST_GOTO_LOWER_MODE VSmode
+  lw   a6, 0(a5)
+  nop
+  sw   a6, 0(a5)
+  nop
+  RVTEST_TSBI_GOTO_MMODE
+  test8a_pbmt1_nosup:
+  RVTEST_SIGUPD(x2, x5, x4, a6, test8a_pbmt1_nosup, test8a_pbmt1_nosup_str)
+
+  VS_PTE_SETUP(sv39, PA, test_region5, (PTE_D | PTE_A | PTE_W | PTE_R | PTE_V | PTE_PBMT2), va_pbmt, LEVEL0)
+  hfence.vvma
+  LI(a5, va_pbmt)
+  LI(a7, 0)
+  RVTEST_GOTO_LOWER_MODE VSmode
+  lw   a7, 0(a5)
+  nop
+  sw   a7, 0(a5)
+  nop
+  RVTEST_TSBI_GOTO_MMODE
+  test8b_pbmt2_nosup:
+  RVTEST_SIGUPD(x2, x5, x4, a7, test8b_pbmt2_nosup, test8b_pbmt2_nosup_str)
+
+  VS_PTE_SETUP(sv39, PA, test_region5, (PTE_D | PTE_A | PTE_W | PTE_R | PTE_V | PTE_PBMT3), va_pbmt, LEVEL0)
+  hfence.vvma
+  LI(a5, va_pbmt)
+  LI(s2, 0)
+  RVTEST_GOTO_LOWER_MODE VSmode
+  lw   s2, 0(a5)
+  nop
+  sw   s2, 0(a5)
+  nop
+  RVTEST_TSBI_GOTO_MMODE
+  test8c_pbmt3_nosup:
+  RVTEST_SIGUPD(x2, x5, x4, s2, test8c_pbmt3_nosup, test8c_pbmt3_nosup_str)
+
+  VS_PTE_SETUP(sv39, PA, test_region5, (PTE_D | PTE_A | PTE_X | PTE_R | PTE_V | PTE_PBMT1), va_pbmt, LEVEL0)
+  hfence.vvma
+  LI(a5, va_pbmt)
+  LI(s3, 0)
+  RVTEST_GOTO_LOWER_MODE VSmode
+  nop
+  jalr ra, a5, 0
+  nop
+  RVTEST_TSBI_GOTO_MMODE
+  test8d_pbmt1_nosup_x:
+  RVTEST_SIGUPD(x2, x5, x4, s3, test8d_pbmt1_nosup_x, test8d_pbmt1_nosup_x_str)
 
 //---------------------------------------------------------------------------------------------------------------------------------
 RVTEST_CODE_END
@@ -274,8 +473,30 @@ test2b_rsw01_lw_str:.string "\"Mismatch on RSW=01 VS lw-only in Test Case 2b!\""
 test3_rsw10_str:    .string "\"Mismatch on RSW=10 VS sw+lw in Test Case 3!\""
 test3b_rsw10_lw_str:.string "\"Mismatch on RSW=10 VS lw-only in Test Case 3b!\""
 test4_rsw11_str:    .string "\"Mismatch on RSW=11 VS sw+lw in Test Case 4!\""
-test5_rsvd_str:     .string "\"Mismatch on reserved PTE VS lw in Test Case 5!\""
-test6_pbmt_str:     .string "\"Mismatch on PBMT PTE VS lw in Test Case 6!\""
+test4b_rsw11_lw_str:.string "\"Mismatch on RSW=11 VS lw-only in Test Case 4b!\""
+test5a_b54_str:     .string "\"Mismatch on reserved bit54 VS lw (expect fault) in Test Case 5a!\""
+test5b_b55_str:     .string "\"Mismatch on reserved bit55 VS lw (expect fault) in Test Case 5b!\""
+test5c_b56_str:     .string "\"Mismatch on reserved bit56 VS lw (expect fault) in Test Case 5c!\""
+test5d_b57_str:     .string "\"Mismatch on reserved bit57 VS lw (expect fault) in Test Case 5d!\""
+test5e_b58_str:     .string "\"Mismatch on reserved bit58 VS lw (expect fault) in Test Case 5e!\""
+test5f_b59_str:     .string "\"Mismatch on reserved bit59 VS lw (expect fault) in Test Case 5f!\""
+test5g_b60_str:     .string "\"Mismatch on reserved bit60 VS lw (expect fault) in Test Case 5g!\""
+test5h_all_str:     .string "\"Mismatch on reserved all-ones VS lw (expect fault) in Test Case 5h!\""
+test6a_sw54_str:    .string "\"Mismatch on reserved bit54 VS sw (expect fault) in Test Case 6a!\""
+test6b_sw55_str:    .string "\"Mismatch on reserved bit55 VS sw (expect fault) in Test Case 6b!\""
+test6c_sw56_str:    .string "\"Mismatch on reserved bit56 VS sw (expect fault) in Test Case 6c!\""
+test6d_sw57_str:    .string "\"Mismatch on reserved bit57 VS sw (expect fault) in Test Case 6d!\""
+test6e_sw58_str:    .string "\"Mismatch on reserved bit58 VS sw (expect fault) in Test Case 6e!\""
+test6f_sw_all_str:  .string "\"Mismatch on reserved all-ones VS sw (expect fault) in Test Case 6f!\""
+test6g_sw59_str:    .string "\"Mismatch on soft-RSW bit59 VS sw in Test Case 6g!\""
+test6h_sw60_str:    .string "\"Mismatch on soft-RSW bit60 VS sw in Test Case 6h!\""
+test7_rsvd_jalr_str:.string "\"Mismatch on reserved bit54 VS jalr (expect fault) in Test Case 7!\""
+test7b_jalr59_str:  .string "\"Mismatch on soft-RSW bit59 VS jalr in Test Case 7b!\""
+test7c_jalr60_str:  .string "\"Mismatch on soft-RSW bit60 VS jalr in Test Case 7c!\""
+test8a_pbmt1_nosup_str: .string "\"Mismatch on PBMT=1 PBMTE=0 VS (expect fault) in Test Case 8a!\""
+test8b_pbmt2_nosup_str: .string "\"Mismatch on PBMT=2 PBMTE=0 VS (expect fault) in Test Case 8b!\""
+test8c_pbmt3_nosup_str: .string "\"Mismatch on PBMT=3 PBMTE=0 VS (expect fault) in Test Case 8c!\""
+test8d_pbmt1_nosup_x_str: .string "\"Mismatch on PBMT=1 PBMTE=0 VS jalr (expect fault) in Test Case 8d!\""
 
 RVTEST_DATA_END
 RVTEST_SIG_SETUP

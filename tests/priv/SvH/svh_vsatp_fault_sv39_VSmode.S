@@ -1,6 +1,7 @@
 // --------------------------------------------------------------------------------------------------------------------------------
-// svh_vsatp_fault_VSmode.S
-// Config: sail-rv32-max | VS=Sv32 ON, hgatp=Bare
+// svh_vsatp_fault_sv39_VSmode.S
+// Config: sail-rv64-max | VS=Sv39 ON, hgatp=Bare
+// Pair:   svh_vsatp_fault_VSmode.S
 // Coverpoints mapped (SvH_cg): cp_vsatp_invalid_pte, cp_vsatp_nonleaf_lvl0
 // What this proves (one line):
 //   VS faults on V=0/nonleaf lw+sw; HS HLV/HSV with SPVP=1 fault invalid PTE.
@@ -20,11 +21,11 @@
 // --------------------------------------------------------------------------------------------------------------------------------
 
 ##### START_TEST_CONFIG #####
-# REQUIRED_EXTENSIONS: [I, H, Sv32]
-# MARCH: rv32ih_zicsr_zifencei
+# REQUIRED_EXTENSIONS: [I, H, Sv39]
+# MARCH: rv64ih_zicsr_zifencei
 ##### END_TEST_CONFIG #####
 
-#define TEST_FILE "svh_vsatp_fault_VSmode.S"
+#define TEST_FILE "svh_vsatp_fault_sv39_VSmode.S"
 #define SIGUPD_COUNT 8
 #define TRAP_SIGUPD_COUNT 256
 #define RVTEST_HYPERVISOR
@@ -41,21 +42,23 @@ main:
   .set va_ok,     0x008001000                    // GVA for valid R/W leaf (case 7 baseline)
   .set va_inv,    0x008002000                    // GVA for V=0 invalid leaf
   .set va_nleaf,  0x008003000                    // GVA for L0 non-leaf PTE
-  .set va_code,   0x90000000                     // GVA where VS executes this code
+  .set va_code,                 0x0000000090000000                     // GVA where VS executes this code
 
-  // ---- VS-stage (vsatp Sv32): GVA -> PA  (hgatp Bare ⇒ PTE PPN fields are real PAs) ----
-  SUPERPAGE_VS_PTE_SETUP(sv32, rvtest_code_begin, (PTE_D | PTE_A | PTE_X | PTE_R | PTE_V), va_code, LEVEL1)  // leaf: va_code -> PA(code)
+  // ---- VS-stage (vsatp Sv39): GVA -> PA  (hgatp Bare ⇒ PTE PPN fields are real PAs) ----
+  VS_PTE_SETUP(sv39, PA, rvtest_vlvl1_pg_tbl, (PTE_V), va_code, LEVEL2)
+  SUPERPAGE_VS_PTE_SETUP(sv39, rvtest_code_begin, (PTE_D | PTE_A | PTE_X | PTE_R | PTE_V), va_code, LEVEL1)  // leaf: va_code -> PA(code)
 
   csrr a0, mscratch                             // a0 = Msave_area (required by next macro)
   V_SAVE_AREA_SETUP(va_code, rvtest_code_begin, code, LEVEL1)  // framework: VS entry PC is under va_code
 
-  VS_PTE_SETUP(sv32, PA, rvtest_vlvl0_pg_tbl, (PTE_V), va_ok, LEVEL1)  // non-leaf: data VPN1 -> VS L0 table PA
+  VS_PTE_SETUP(sv39, PA, rvtest_vlvl1_pg_tbl, (PTE_V), va_ok, LEVEL2)
+  VS_PTE_SETUP(sv39, PA, rvtest_vlvl0_pg_tbl, (PTE_V), va_ok, LEVEL1)  // non-leaf: data VPN1 -> VS L0 table PA
 
-  VS_PTE_SETUP(sv32, PA, test_region_ok, (PTE_D | PTE_A | PTE_W | PTE_R | PTE_V), va_ok, LEVEL0)  // valid R/W leaf
-  VS_PTE_SETUP(sv32, PA, test_region_inv, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R), va_inv, LEVEL0)  // V=0 invalid (X set so invalid_pte_x matches)
-  VS_PTE_SETUP(sv32, PA, test_region_nleaf, (PTE_V), va_nleaf, LEVEL0)  // L0 non-leaf (XWR=000)
+  VS_PTE_SETUP(sv39, PA, test_region_ok, (PTE_D | PTE_A | PTE_W | PTE_R | PTE_V), va_ok, LEVEL0)  // valid R/W leaf
+  VS_PTE_SETUP(sv39, PA, test_region_inv, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R), va_inv, LEVEL0)  // V=0 invalid (X set so invalid_pte_x matches)
+  VS_PTE_SETUP(sv39, PA, test_region_nleaf, (PTE_V), va_nleaf, LEVEL0)  // L0 non-leaf (XWR=000)
 
-  VSATP_SETUP(sv32, PA)                         // vsatp = Sv32, PPN = PA of VS root
+  VSATP_SETUP(sv39, PA)                         // vsatp = Sv39, PPN = PA of VS root
   csrw hgatp, x0                                // hgatp = Bare (no G-stage)
   hfence.vvma                                   // invalidate VS-stage TLB entries
   hfence.gvma                                   // invalidate G-stage TLB entries (harmless with Bare)
@@ -203,6 +206,9 @@ test_region_nleaf:                              // PTE storage misused as L0 non
   .word 0
   .word 0
 .align 12
+.align 12
+rvtest_vlvl1_pg_tbl:
+  .zero(4096)
 rvtest_vlvl0_pg_tbl:                            // VS-stage level-0 PTE storage
   .zero(4096)
 

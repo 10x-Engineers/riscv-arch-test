@@ -1,6 +1,7 @@
 // --------------------------------------------------------------------------------------------------------------------------------
-// svh_vsstatus_mxr_sum_VUmode.S
-// Config: sail-rv32-max | VS=Sv32 ON, hgatp=Bare, stimulus in VU
+// svh_vsstatus_mxr_sum_sv39_VUmode.S
+// Config: sail-rv64-max | VS=Sv39 ON, hgatp=Bare, stimulus in VU
+// Pair:   svh_vsstatus_mxr_sum_VUmode.S
 // Coverpoints mapped (SvH_cg): cp_vsstatus_mxr_sum
 // What this proves (one line):
 //   VU MXR×SUM×U-page (X-only / RWX) control load/store; S-pages fault in VU.
@@ -44,11 +45,11 @@
 // --------------------------------------------------------------------------------------------------------------------------------
 
 ##### START_TEST_CONFIG #####
-# REQUIRED_EXTENSIONS: [I, H, Sv32]
-# MARCH: rv32ih_zicsr_zifencei
+# REQUIRED_EXTENSIONS: [I, H, Sv39]
+# MARCH: rv64ih_zicsr_zifencei
 ##### END_TEST_CONFIG #####
 
-#define TEST_FILE "svh_vsstatus_mxr_sum_VUmode.S"
+#define TEST_FILE "svh_vsstatus_mxr_sum_sv39_VUmode.S"
 #define SIGUPD_COUNT 37
 #define TRAP_SIGUPD_COUNT 512
 #define RVTEST_HYPERVISOR
@@ -66,23 +67,26 @@ main:
   .set va_u_rw, 0x008003000                     // GVA: U-page R/W/X leaf
   .set va_s_rw, 0x008004000                     // GVA: S-page R/W/X leaf (VU must fault)
   .set va_x_s,  0x008001000                     // GVA: S-page X-only leaf (VU must fault)
-  .set va_code, 0x90000000                      // GVA where VU executes this code (needs U=1)
+  .set va_code,                 0x0000000090000000      // GVA where guest executes this code
 
-  // ---- VS-stage (vsatp Sv32): GVA -> PA  (hgatp Bare ⇒ PTE PPN fields are real PAs) ----
+  // ---- VS-stage (vsatp Sv39): GVA -> PA  (hgatp Bare ⇒ PTE PPN fields are real PAs) ----
   // VU ifetch requires U=1 on the code leaf (unlike VS which uses U=0).
-  SUPERPAGE_VS_PTE_SETUP(sv32, rvtest_code_begin, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_R | PTE_V), va_code, LEVEL1)  // VS-stage superpage: code GVA → PA/GPA
+  VS_PTE_SETUP(sv39, PA, rvtest_vlvl1_pg_tbl, (PTE_V), va_code, LEVEL2)
+  SUPERPAGE_VS_PTE_SETUP(sv39, rvtest_code_begin, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_R | PTE_V), va_code, LEVEL1)  // leaf: va_code -> PA(code); LEVEL1 megapage X/R
 
   csrr a0, mscratch                             // a0 = Msave_area (required by next macro)
-  V_SAVE_AREA_SETUP(va_code, rvtest_code_begin, code, LEVEL1)  // framework: VU entry PC under va_code
+  V_SAVE_AREA_SETUP(va_code, rvtest_code_begin, code, LEVEL1)  // framework: entry PC under va_code
 
-  VS_PTE_SETUP(sv32, PA, rvtest_vlvl0_pg_tbl, (PTE_V), va_x_s, LEVEL1)  // non-leaf: data VPN1 -> VS L0
+  // Shared L2+L1 non-leafs (same VPN2/VPN1 for all data VAs under 0x00800x000)
+  VS_PTE_SETUP(sv39, PA, rvtest_vlvl1_pg_tbl, (PTE_V), va_x_s, LEVEL2)
+  VS_PTE_SETUP(sv39, PA, rvtest_vlvl0_pg_tbl, (PTE_V), va_x_s, LEVEL1)  // non-leaf: data VPN1 -> VS L0 table PA
 
-  VS_PTE_SETUP(sv32, PA, test_region_x_s, (PTE_D | PTE_A | PTE_X | PTE_V), va_x_s, LEVEL0)  // S X-only
-  VS_PTE_SETUP(sv32, PA, test_region_x_u, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_V), va_x_u, LEVEL0)  // U X-only
-  VS_PTE_SETUP(sv32, PA, test_region_u_rw, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R | PTE_V), va_u_rw, LEVEL0)  // VS leaf U=1 XWR=111 (U-page for MXR/SUM)
-  VS_PTE_SETUP(sv32, PA, test_region_s_rw, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V), va_s_rw, LEVEL0)  // VS leaf U=0 XWR=111 (S-page; VU must fault)
+  VS_PTE_SETUP(sv39, PA, test_region_x_s, (PTE_D | PTE_A | PTE_X | PTE_V), va_x_s, LEVEL0)  // S X-only
+  VS_PTE_SETUP(sv39, PA, test_region_x_u, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_V), va_x_u, LEVEL0)  // U X-only
+  VS_PTE_SETUP(sv39, PA, test_region_u_rw, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R | PTE_V), va_u_rw, LEVEL0)  // VS leaf U=1 XWR=111 (U-page for MXR/SUM)
+  VS_PTE_SETUP(sv39, PA, test_region_s_rw, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V), va_s_rw, LEVEL0)  // VS leaf U=0 XWR=111 (S-page; VU must fault)
 
-  VSATP_SETUP(sv32, PA)                         // turn on VS-stage paging (vsatp MODE + root PPN)
+  VSATP_SETUP(sv39, PA)                         // turn on VS-stage paging (vsatp MODE + root PPN)
   csrw hgatp, x0                                // write hgatp (hypervisor page-table root / Bare if x0)
   hfence.vvma                                   // flush VS-stage TLB
   hfence.gvma                                   // flush G-stage TLB (must be M or HS — illegal in VS/VU)
@@ -830,6 +834,9 @@ test_region_s_rw:
   .word 0
   .word 0
   .word 0
+.align 12
+rvtest_vlvl1_pg_tbl:
+  .zero(4096)
 .align 12
 rvtest_vlvl0_pg_tbl:
   .zero(4096)

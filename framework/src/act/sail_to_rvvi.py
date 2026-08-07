@@ -17,7 +17,7 @@
 #     VS_PTE_D 200024c7 G_PTE_D 20003001
 #
 # Extra keys beyond ORDER/PC/INSN/MODE (MODE_VIRT, READ/WRITE_ACCESS,
-# VS_PTE_*/G_PTE_*) are required for SvH covergroups to hit.
+# VS_PTE_*/G_PTE_*, TRAP) are required for SvH covergroups to hit.
 ##################################
 
 import re                                                       # regular expressions to parse Sail log lines
@@ -43,6 +43,18 @@ def sailLog2Trace(inputLogFile: Path, outputTraceFile: Path) -> None:
     # Match a CSR *write* only (arrow left <-). Reads (->) must not flip flags.
     # Example: CSR vsatp (0x280) <- 0x80000000
     csr_wr_pattern = re.compile(r"CSR .* \(0x([0-9a-fA-F]+)\) <- 0x([0-9a-fA-F]+)")
+
+    # Sail trap sideband (between retired insn and handler). TB key TRAP is binary.
+    # Example: trapping from VS to HS to handle load-page-fault
+    trap_pattern = re.compile(r"trapping from [A-Z]+ to [A-Z]+ to handle (.+)")
+    # Fetch faults never retire the target insn — PTEs appear *after* the redirect
+    # (jalr/branch). Promote those walks to *_PTE_I so invalid_pte_x can score.
+    fetch_fault_names = (
+        "fetch-page-fault",
+        "fetch-guest-page-fault",
+        "instruction-page-fault",
+        "instruction-guest-page-fault",
+    )
 
     # Patterns for side effects we append onto the .rvvi line
     reg_patterns = {
@@ -157,24 +169,35 @@ def sailLog2Trace(inputLogFile: Path, outputTraceFile: Path) -> None:
             #   mem[R] PTE(s)
             #   mem[W] store data      <-- stop PTE collection
             #
-            # Load / HLV (Sv39, one stage) example:
-            #   lw
-            #   mem[R] non-leaf
-            #   mem[R] non-leaf
-            #   mem[R] leaf            <-- keep (coverpoints need this)
-            #   mem[R] loaded word     <-- do NOT keep (can look like V=1)
+            # Load / HLV:
+            #   Keep ALL walk PTEs (two-stage HLV can have >2 leaves because G
+            #   also maps VS page-table pages). Drop any mem[R] that equals an
+            #   xN <- value — that is the load payload, not a PTE.
             #
-            # Old code stopped after 2 mem[R]s (fine for Sv32, wrong for Sv39).
-            # Now stop after enough *leaf* PTEs (bits [3:1] = R/W/X non-zero):
-            #   one stage  -> need 1 leaf
-            #   two-stage  -> need 2 leaves (VS then G)
+            # Old "stop after need leaves" dropped the real G A=0 leaf on HLV
+            # (adbit read_acc ZERO) and mistagged V=1 payloads as VS_PTE_D
+            # (poisoned RSW read bins).
             data_ptes: list[int] = []                           # PTEs from the data-access walk
+            post_ifetch_ptes: list[int] = []                    # PTEs after insn before a fetch trap
+            load_x_vals: set[int] = set()                       # xN <- values (load/HLV result)
             stop_ptes = False                                   # True = do not collect more PTEs
             saw_store = False                                   # True = we saw mem[W] after this insn
+            trapped = False                                     # Sail logged a trap after this insn?
+            fetch_trap = False                                  # trap was an instruction-fetch fault?
             j = i + 1                                           # start one line below the insn
             while j < len(lines):                               # scan forward until next insn / end
                 if insn_pattern.search(lines[j]):               # next retired instruction starts
                     break
+
+                trap_m = trap_pattern.search(lines[j])          # trapping from … to handle …?
+                if trap_m:
+                    trapped = True                              # TB TRAP key on this retired line
+                    cause = trap_m.group(1).strip().lower()
+                    if any(name in cause for name in fetch_fault_names):
+                        fetch_trap = True                       # promote post-insn PTEs → *_PTE_I
+                    stop_ptes = True                            # stop walk collection at trap
+                    j += 1
+                    continue
 
                 if "mem[W," in lines[j]:                        # store payload written to memory
                     saw_store = True                            # this insn was (or did) a store
@@ -188,24 +211,8 @@ def sailLog2Trace(inputLogFile: Path, outputTraceFile: Path) -> None:
                         val = int(mr.group(1), 16)              # walk PTE or load result
                         # Value "looks like" a PTE candidate?
                         if (val & 1) or ((val & 0xE) and (val & 0xC0)):
-                            f7 = (insn_val >> 25) & 0x7F        # funct7 field of the instruction
-                            f3 = (insn_val >> 12) & 0x7         # funct3 field of the instruction
-                            # Is this a normal load (opcode 0x03) or HLV?
-                            is_data_load = (insn_val & 0x7F) == 0x03 or (
-                                (insn_val & 0x7F) == 0x73       # SYSTEM opcode
-                                and f3 == 0b100                 # HLV/HSV funct3
-                                and f7 in (0x34, 0x36)          # HLV funct7 values
-                            )
-                            if is_data_load:                    # load/HLV: protect against payload
-                                # Count leaf PTEs already kept (R/W/X bits set)
-                                leaves = sum(1 for p in data_ptes if (p & 0xE) != 0)
-                                # Two-stage needs VS leaf + G leaf; else one leaf
-                                need = 2 if (vsatp_on and hgatp_on) else 1
-                                if leaves < need:               # still missing leaf PTE(s)
-                                    data_ptes.append(val)       # keep this walk entry
-                                # else: already have leaf(s); this mem[R] is load data — skip
-                            else:                               # not a load/HLV (e.g. other cases)
-                                data_ptes.append(val)           # keep the mem[R] value
+                            data_ptes.append(val)               # keep; filter load payload below
+                            post_ifetch_ptes.append(val)        # candidate ifetch if fetch-trap
 
                 # Also grab X/F/V/CSR updates printed after the instruction
                 for reg, pattern in reg_patterns.items():       # try CSR, then X, then F, then V
@@ -213,8 +220,41 @@ def sailLog2Trace(inputLogFile: Path, outputTraceFile: Path) -> None:
                     if reg_match:
                         reg_num, reg_val = reg_match.groups()   # register id and new value
                         next_output += f" {reg} {reg_num} {reg_val}"  # append onto rvvi line
+                        if reg == "X":                          # load/HLV result lives in xN
+                            load_x_vals.add(int(reg_val, 16))
                         break                                   # one match per log line is enough
                 j += 1                                          # next log line
+
+            # Fetch fault: target never retires; walk after redirect is the ifetch.
+            if fetch_trap and post_ifetch_ptes:
+                ifetch_ptes = post_ifetch_ptes                  # score VS_PTE_I / G_PTE_I
+                data_ptes = []                                  # do not also emit as data PTEs
+
+            # Drop load/HLV payload mistaken for a PTE (V=1 data words, TLB-hit lw).
+            f7_ld = (insn_val >> 25) & 0x7F
+            f3_ld = (insn_val >> 12) & 0x7
+            is_data_load = (insn_val & 0x7F) == 0x03 or (
+                (insn_val & 0x7F) == 0x73
+                and f3_ld == 0b100
+                and f7_ld in (0x34, 0x36)
+            )
+            if is_data_load and load_x_vals:
+                # HLV.W / LW sign-extend: Sail prints xN <- 0xFFFFFFFFDEADBEEF while
+                # the mem[R] walk/payload line is the raw 32-bit word 0xDEADBEEF.
+                payloads = set(load_x_vals)
+                for v in list(load_x_vals):
+                    payloads.add(v & 0xFFFFFFFF)
+                    if v <= 0xFFFFFFFF and (v & 0x80000000):
+                        payloads.add(v | 0xFFFFFFFF00000000)
+                # Truncate at first payload mem[R]: later mem[R] are next-insn ifetch
+                # PTEs (would poison VS/G_PTE_D leaf). Do not stop on xN<- alone —
+                # that broke some MPRV/HSV paths.
+                cut = len(data_ptes)
+                for i, p in enumerate(data_ptes):
+                    if p in payloads:
+                        cut = i
+                        break
+                data_ptes = [p for p in data_ptes[:cut] if p not in payloads]
 
             # ============================================================
             # Access flags: was this a read, a write, or both?
@@ -239,10 +279,16 @@ def sailLog2Trace(inputLogFile: Path, outputTraceFile: Path) -> None:
                     is_hsv = True
             read_a = "1" if is_load or is_hlv else "0"          # mark READ_ACCESS for load/HLV
             write_a = "1" if is_store or is_hsv else "0"        # mark WRITE_ACCESS for store/HSV
-            is_mem = read_a == "1" or write_a == "1"            # memory op? (affects MODE flush)
+            # Keep start MODE on flush for mem ops *and* traps (handler would poison VS/VU).
+            is_mem = read_a == "1" or write_a == "1" or trapped
+            # Fetch trap: keep EXECUTE on redirect so invalid_pte_x / exception_x score.
+            # Data trap on load/store: still EXECUTE=1 (retired redirect/mem insn).
             next_output += (
                 f" READ_ACCESS {read_a} WRITE_ACCESS {write_a} EXECUTE_ACCESS 1"
             )
+            # TB parses TRAP; default 0 via reset — emit 1 when Sail logged a trap.
+            if trapped:
+                next_output += " TRAP 1"
 
             # ============================================================
             # Decide which leaf is VS-stage and which is G-stage

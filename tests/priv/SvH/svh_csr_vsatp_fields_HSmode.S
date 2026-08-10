@@ -1,14 +1,18 @@
 // --------------------------------------------------------------------------------------------------------------------------------
 // svh_csr_vsatp_fields_HSmode.S
 // Config: sail-rv32-max | HS writes vsatp; hgatp=Bare
-// Pair:   svh_csr_vsatp_fields_RV64_HSmode.S
-// Coverpoints mapped (SvH_cg): cp_vsatp_mode_field, cp_vsatp_ppn_field, cp_vsatp_asidlen_detect
+// Pair:   svh_csr_vsatp_fields_RV64_HSmode.S  (that twin owns MODE WARL + Sv39 PPN/ASID)
+// Coverpoints mapped (SvH_cg):
+//   cp_vsatp_ppn_field      — HS write/read vsatp.PPN (Sv32)
+//   cp_vsatp_asidlen_detect — HS write all ASID bits, read back ASIDLEN
+// NOT mapped (RV64-only; see RV64 twin + UDB_MXLEN_64):
+//   cp_vsatp_mode_field
 // What this proves (one line):
-//   From HS, vsatp MODE / PPN / ASID can be written and read back.
+//   From HS on RV32, vsatp PPN / ASID write+read (no MODE 0..15 walk — that is RV64-only).
 // --------------------------------------------------------------------------------------------------------------------------------
 // Test cases are as follows:
 // --------------------------------------------------------------------------------------------------------------------------------
-//  1. Set vsatp.MODE=Sv32 with PPN=0 from HS → Successful (readback)
+//  1. vsatp.MODE=Sv32 + PPN=0 (setup for PPN/ASID bins; not MODE WARL) → Successful
 //  2. vsatp.ASID = all ones with MODE=Sv32 → Successful (ASIDLEN detect)
 //  3. vsatp.PPN = all ones with MODE=Sv32 → Successful
 //  4. Walking ones on vsatp.PPN bits [21:0] with MODE=Sv32 → Successful
@@ -35,7 +39,7 @@
 RVTEST_BEGIN
 
 main:
-  // Partner stage off: vsatp field walks keep hgatp Bare so only VS CSR bins fire
+  // Partner stage off (vsatp CSR tests use hgatp Bare)
   csrw hgatp, x0                                // hgatp=0 → G-stage Bare (isolate vsatp field bins)
   hfence.gvma                                   // flush old G TLB after hgatp clear
   RVTEST_TSBI_GOTO_SMODE                       // T-SBI: ecall a0=2 → HS/S (code at PA / identity)
@@ -43,7 +47,7 @@ main:
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 1: Set vsatp.MODE=Sv32, PPN=0 | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
-  // cp_vsatp_mode_field bin: MODE=Sv32, PPN=0
+  // MODE=Sv32 + PPN=0 (sets vsatp_mode for later PPN/ASID crosses; MODE WARL walk is RV64-only)
   LI(t0, (SATP_MODE_SV32 << 31))                // RV32: MODE bit 31, PPN clear
   csrw vsatp, t0                                // write guest page-table CSR
   test1_mode:                                   // signature dump point for case 1
@@ -52,7 +56,7 @@ main:
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: vsatp.ASID = all ones | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
-  // cp_vsatp_asidlen_detect bin: write all ASID bits, read back WARL-truncated value
+  // cp_vsatp_asidlen_detect: write all ASID bits, read back WARL-truncated value
   LI(t0, (SATP_MODE_SV32 << 31) | SATP32_ASID)  // MODE + every ASID bit
   csrw vsatp, t0                                // write vsatp with MODE + all ASID bits (ASIDLEN detect)
   test2_asid:                                   // signature dump point for case 2
@@ -61,7 +65,7 @@ main:
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 3: vsatp.PPN = all ones | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
-  // cp_vsatp_ppn_field bin: PPN all-ones (22 bits on RV32)
+  // cp_vsatp_ppn_field: PPN all-ones (22 bits on RV32)
   LI(t0, (SATP_MODE_SV32 << 31) | 0x3FFFFF)     // MODE + PPN ones (22 bits)
   csrw vsatp, t0                                // write vsatp with MODE + PPN all-ones
   test3_ppn_ones:                               // signature dump point for case 3
@@ -70,7 +74,7 @@ main:
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 4: Walking ones on vsatp.PPN | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
-  // cp_vsatp_ppn_field bin: walking-1 on PPN[21:0] (one bit set per iteration)
+  // cp_vsatp_ppn_field: walking-1 on PPN[21:0] (one bit set per iteration)
   LI(t3, 0)                                     // bit index
 ppn_walk:                                       // loop: walking-1 across PPN bits
   LI(t0, (SATP_MODE_SV32 << 31))                // MODE only

@@ -2,9 +2,9 @@
 // svh_hgatp_fault_sv39_VSmode.S
 // Config: sail-rv64-max | vsatp=Bare, hgatp=Sv39x4 ON
 // Pair:   svh_hgatp_fault_VSmode.S
-// Coverpoints mapped (SvH_cg): cp_hgatp_invalid_pte, cp_hgatp_nonleaf_lvl0
+// Coverpoints mapped (SvH_cg): cp_hgatp_invalid_pte, cp_hgatp_nonleaf_lvl0, hgatp_exception_reporting
 // What this proves (one line):
-//   Invalid G PTE (V=0) and L0 non-leaf-only entry cause guest-page faults on HS HLV/HSV.
+//   Invalid G PTE (V=0) and L0 non-leaf-only entry cause guest-page faults; trap cause matches access type.
 // --------------------------------------------------------------------------------------------------------------------------------
 // Test cases are as follows:
 // --------------------------------------------------------------------------------------------------------------------------------

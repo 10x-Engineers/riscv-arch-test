@@ -16,10 +16,11 @@ covergroup SvH_cg with function sample(ins_t ins);
     `include "general/RISCV_coverage_standard_coverpoints.svh"
 
     // How to read comments:
-    //   What / Test / Hit? (from work/sail-rv32-max + sail-rv64-max SvH_report.txt)
+    //   What / Test — cite ELF + Sail path/symbol or sail_to_rvvi.py when bins stay empty.
     //   Our side = tests + sail_to_rvvi.py. Sail side = model under sail-riscv-hypervisor/.
-    // Open then: vsbe_hstatus.set + vs_pte_ad_unset (old HS HLV adbit cross).
-    // coverage before quoting a new percent. VSBE still Sail-only.
+    // Open Sail hole: vsbe_hstatus.set (sys_regs.sail::legalize_hstatus leaves VSBE unassigned).
+    // Speculative VS A-bit (sheet cp_vsatp_speculative_a_bit): no cross — .rvvi has no
+    // squash/speculation sideband; waived in status tracker until converter/Sail emit it.
 
     read_write_acc: coverpoint {ins.current.write_access, ins.current.read_access} {
         bins read_acc = {2'b01};
@@ -484,40 +485,55 @@ covergroup SvH_cg with function sample(ins_t ins);
         wildcard bins hsv_w = {HSV_W};
     }
 
+    // Arch gates (Gap Highlighted SvH — do not score RV64-only bins on RV32):
+    //   RV64-only: cp_vsatp_mode_field, cp_satp_mode_field, cp_hgatp_gpa_width_checks
+    //   RV64 Env:  cp_*_svpbmt, cp_*_reserved_fields (PTE[62:61]/[60:54])
+    //   BOTH (diff): cp_hgatp_mode_field — RV64 0..15 walk; RV32 Bare/Sv32x4
+    //   BOTH: cp_vsatp_ppn_field, cp_vsatp_asidlen_detect (Sv32 or Sv39)
     `ifdef UDB_MXLEN_64
         // Write vsatp MODE in HS. Test: svh_csr_vsatp_fields_RV64_HSmode.S
+        // RV64-only: 16× MODE encodings from Bare/Sv39 starts.
         cp_vsatp_mode_field: cross priv_mode_hs, csrrw, vsatp, mode_field_values;
-        // Write satp MODE from VS. Test: svh_csr_* satp / vsatp field tests.
+        // Write satp MODE from VS. Test: svh_csr_satp_mode_VSmode.S
+        // RV64-only.
         cp_satp_mode_field:  cross priv_mode_vs, csrrw, satp, mode_field_values;
         // Write hgatp MODE in HS. Test: svh_csr_hgatp_fields_RV64_HSmode.S
+        // RV64 16-encoding walk (RV32 Bare/Sv32x4 is the `else` branch).
         cp_hgatp_mode_field: cross priv_mode_hs, csrrw, hgatp, mode_field_values;
+    `else
+        // RV32 hgatp MODE is 1 bit: Bare / Sv32x4 only (no third MODE encoding).
+        // Test: svh_csr_hgatp_fields_HSmode.S
+        // Not compiled on RV32: cp_vsatp_mode_field, cp_satp_mode_field.
+        mode_field_values_hgatp32: coverpoint ins.current.rs1_val[31] {
+            bins bare   = {1'b0};
+            bins sv32x4 = {1'b1};
+        }
+        cp_hgatp_mode_field: cross priv_mode_hs, csrrw, hgatp, mode_field_values_hgatp32;
+    `endif
 
-        // VS guest + PBMT bits [62:61]. RV64 only (RV32 has no Svpbmt).
-        // Test: svh_vs_pte_attr_RV64_VSmode.S
-        // Hit: 100% RV64. Our side done (test + converter PTE keys).
-        // Sail is ISA-correct here: PBMTE=0 and PBMT≠0 → invalid
-        // (vmem_pte.sail::pte_is_invalid). PBMTE=1 applies PBMT (vmem.sail::pt_walk).
-        // This cross only has PBMTE=0. PBMT=11 has no Sail enum (vmem_types.sail).
+    `ifdef UDB_MXLEN_64
+        // PBMT / reserved PTE fields — RV64 Env only (absent from RV32 SvH_cg).
+
+        // VS guest + PBMT bits [62:61]. Test: svh_vs_pte_attr_RV64_VSmode.S
+        // Sail: PBMTE=0 and PBMT≠0 → invalid (vmem_pte.sail::pte_is_invalid).
         cp_vsatp_svpbmt_rw: cross priv_mode_vs, vsatp_mode, pbmte_menvcfg, vs_pte_d_svpbmt, read_write_acc;
         cp_vsatp_svpbmt_x:  cross priv_mode_vs, vsatp_mode, pbmte_menvcfg, vs_pte_i_svpbmt, exec_acc;
 
-        // Same on G-stage (HS HLV/HSV). Test: svh_g_pte_attr_RV64_VSmode.S  Hit: 100% RV64.
+        // Same on G-stage (HS HLV/HSV). Test: svh_g_pte_attr_RV64_VSmode.S
         cp_hgatp_svpbmt_rw: cross priv_mode_hs, hgatp_mode, pbmte_menvcfg, g_pte_d_svpbmt, read_write_acc;
         cp_hgatp_svpbmt_x:  cross priv_mode_hs, hgatp_mode, pbmte_menvcfg, g_pte_i_svpbmt, exec_acc;
 
-        // VS guest + PTE bits [60:54]. Test: svh_vs_pte_attr_RV64_VSmode.S  Hit: 100% RV64.
-        // Sail: reserved ≠ 0 → invalid (isa_version.sail::pte_reserved_bits_must_be_zero,
-        //       vmem_pte.sail::pte_is_invalid). Not a Sail bug.
-        // [60:59] are soft-RSW when Svrsw60t59b is on — not reserved. True reserved: [58:54].
+        // VS guest + PTE bits [60:54]. Test: svh_vs_pte_attr_RV64_VSmode.S
+        // Sail: reserved ≠ 0 → invalid. Soft-RSW [60:59] when Svrsw60t59b on.
         cp_vsatp_reserved_fields_rw: cross priv_mode_vs, vsatp_mode, vs_pte_d_reserved, read_write_acc;
         cp_vsatp_reserved_fields_x : cross priv_mode_vs, vsatp_mode, vs_pte_i_reserved, exec_acc;
 
-        // Same on G-stage. Test: svh_g_pte_attr_RV64_VSmode.S  Hit: 100% RV64.
+        // Same on G-stage. Test: svh_g_pte_attr_RV64_VSmode.S
         cp_hgatp_reserved_fields_rw : cross priv_mode_hs, hgatp_mode, g_pte_d_reserved, read_write_acc;
         cp_hgatp_reserved_fields_x  : cross priv_mode_hs, hgatp_mode, g_pte_i_reserved, exec_acc;
     `endif
 
-    // Write vsatp PPN / ASID in HS. Test: svh_csr_vsatp_fields_*.S
+    // BOTH (Sv32 or Sv39). Tests: svh_csr_vsatp_fields_{,RV64_}HSmode.S
     cp_vsatp_ppn_field:      cross priv_mode_hs, vsatp_mode, csrrw, vsatp, ppn_field_values;
     cp_vsatp_asidlen_detect: cross priv_mode_hs, vsatp_mode, csrrw, vsatp, asid_field_value;
 
@@ -672,8 +688,8 @@ covergroup SvH_cg with function sample(ins_t ins);
     cp_h_vm_gstagetrans: cross priv_mode_vs, vsatp_mode, hgatp_mode, read_write_acc;
 
     // Two-stage load of X-only page. MXR=0 fault, MXR=1 allow. Not cp_vsstatus_mxr_sum.
-    // Test: svh_two_stage_mxr_*.S
-    cp_two_stage_mxr: cross priv_mode_vs, vsatp_mode, hgatp_mode, mxr_vsstatus, vs_pte_xonly_d, read_write_acc {
+    // Sheet R43: loads from {VS,VU}. Tests: svh_two_stage_mxr_*_{VS,VU}mode.S (+ Sv39).
+    cp_two_stage_mxr: cross priv_mode_vs_vu, vsatp_mode, hgatp_mode, mxr_vsstatus, vs_pte_xonly_d, read_write_acc {
         ignore_bins writes = binsof(read_write_acc.write_acc);
     }
 
@@ -695,7 +711,11 @@ covergroup SvH_cg with function sample(ins_t ins);
     hgatp_exception_reporting_rw: cross priv_mode_vs, hgatp_mode, g_pte_d_inv, read_write_acc, trap_set;
     hgatp_exception_reporting_x:  cross priv_mode_vs, hgatp_mode, g_pte_i_inv, exec_acc, trap_set;
 
-    // Two-stage V=0 deny. Test: svh_twostage_invalid_VSmode.S (and Sv39 twin).
+    // Two-stage V=0 deny (both stages ON). Test: svh_twostage_invalid_VSmode.S (+ Sv39 twin).
+    // lw + sw (separate hops + hfence) so read_acc and write_acc both hit with TRAP.
+    // Distinct from cp_*_invalid_pte_* (those allow partner Bare).
+    VM_permission_invalid_vs_rw: cross priv_mode_vs, vsatp_mode, hgatp_mode, vs_pte_d_inv, read_write_acc, trap_set;
+    VM_permission_invalid_g_rw:  cross priv_mode_vs, vsatp_mode, hgatp_mode, g_pte_d_inv, read_write_acc, trap_set;
 
     // MPRV+SUM with both stages paged (not Bare-G MPRV). Test: svh_mprv_sum_two_stage_Mmode.S
     mprv_sum_effect_hs_two_stage: cross priv_mode_m, mstatus_mprv_set, sum_vsstatus, vsatp_mode, hgatp_mode, read_write_acc;
@@ -737,6 +757,7 @@ covergroup SvH_cg with function sample(ins_t ins);
     cp_hfence_vvma_operand: cross priv_mode_hs, hfence_vvma_insn;
     cp_hgatp_mode_change_hfence: cross priv_mode_hs, hgatp_mode, hfence_gvma_insn;
     cp_hfence_gvma_operand: cross priv_mode_hs, hfence_gvma_insn;
+
 
 
 endgroup

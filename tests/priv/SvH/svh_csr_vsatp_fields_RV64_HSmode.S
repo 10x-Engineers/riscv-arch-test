@@ -2,7 +2,10 @@
 // svh_csr_vsatp_fields_RV64_HSmode.S
 // Config: sail-rv64-max | HS writes vsatp; hgatp=Bare
 // Pair:   svh_csr_vsatp_fields_HSmode.S
-// Coverpoints mapped (SvH_cg): cp_vsatp_mode_field, cp_vsatp_ppn_field, cp_vsatp_asidlen_detect
+// Coverpoints mapped (SvH_cg):
+//   cp_vsatp_mode_field     — HS WARL walk of vsatp.MODE (RV64-only sheet row)
+//   cp_vsatp_ppn_field      — HS write/read vsatp.PPN
+//   cp_vsatp_asidlen_detect — HS write all ASID bits, read back ASIDLEN
 // What this proves (one line):
 //   On RV64, from HS, vsatp MODE / PPN / ASID write+read works.
 // --------------------------------------------------------------------------------------------------------------------------------

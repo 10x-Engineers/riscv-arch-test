@@ -1,10 +1,10 @@
 // --------------------------------------------------------------------------------------------------------------------------------
-// svh_vsbe_endian_VSmode.S
-// Config: sail-rv32-max | VS=Sv32 ON, hgatp=Bare
-// Pair:   svh_vsbe_endian_sv39_VSmode.S
+// svh_vsbe_endian_sv39_VSmode.S
+// Config: sail-rv64-max | VS=Sv39 ON, hgatp=Bare
+// Pair:   svh_vsbe_endian_VSmode.S
 // Coverpoints mapped (SvH_cg): cp_vsatp_endianess
 // What this proves (one line):
-//   hstatus.VSBE should flip VS endianness for guest loads/stores — Sail hardwires VSBE=0.
+//   On RV64/Sv39, hstatus.VSBE should flip VS endianness — Sail hardwires VSBE=0.
 // --------------------------------------------------------------------------------------------------------------------------------
 // Test cases are as follows:
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -25,11 +25,11 @@
 // --------------------------------------------------------------------------------------------------------------------------------
 
 ##### START_TEST_CONFIG #####
-# REQUIRED_EXTENSIONS: [I, H, Sv32]
-# MARCH: rv32ih_zicsr_zifencei
+# REQUIRED_EXTENSIONS: [I, H, Sv39]
+# MARCH: rv64ih_zicsr_zifencei
 ##### END_TEST_CONFIG #####
 
-#define TEST_FILE "svh_vsbe_endian_VSmode.S"
+#define TEST_FILE "svh_vsbe_endian_sv39_VSmode.S"
 #define SIGUPD_COUNT 5
 #define TRAP_SIGUPD_COUNT 16
 #define RVTEST_HYPERVISOR
@@ -43,20 +43,22 @@
 RVTEST_BEGIN
 
 main:
-  .set va_data,                 0x008001000     // GVA for endian probe data page
-  .set va_code,                 0x90000000      // GVA where VS executes this code
+  .set va_data,                 0x0000000080010000 // GVA for endian probe data page
+  .set va_code,                 0x0000000090000000 // GVA where VS executes this code
 
-  // ---- VS-stage (vsatp Sv32): GVA -> PA  (hgatp Bare ⇒ PTE PPN fields are real PAs) ----
-  SUPERPAGE_VS_PTE_SETUP(sv32, rvtest_code_begin, (PTE_D | PTE_A | PTE_X | PTE_R | PTE_V), va_code, LEVEL1)  // leaf: va_code -> PA(code); LEVEL1 = 4 MiB X/R
+  // ---- VS-stage (vsatp Sv39): GVA -> PA  (hgatp Bare ⇒ PTE PPN fields are real PAs) ----
+  VS_PTE_SETUP(sv39, PA, rvtest_vlvl1_pg_tbl, (PTE_V), va_code, LEVEL2)  // VS non-leaf: va_code VPN2 → VS L1 table PA
+  SUPERPAGE_VS_PTE_SETUP(sv39, rvtest_code_begin, (PTE_D | PTE_A | PTE_X | PTE_R | PTE_V), va_code, LEVEL1)  // leaf: va_code -> PA(code); LEVEL1 = 2 MiB X/R
 
   csrr a0, mscratch                             // a0 = Msave_area (required by next macro)
   V_SAVE_AREA_SETUP(va_code, rvtest_code_begin, code, LEVEL1)  // framework: VS entry PC is under va_code
 
   // Data leaf XWR=111 (coverpoint vs_pte_xwr111_d = 8'b11??1111); U=0 is fine here
-  VS_PTE_SETUP(sv32, PA, rvtest_vlvl0_pg_tbl, (PTE_V), va_data, LEVEL1)  // non-leaf: va_data VPN1 -> VS L0 table PA
-  VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V), va_data, LEVEL0)  // leaf: va_data -> PA(test_region) R/W/X
+  VS_PTE_SETUP(sv39, PA, rvtest_vlvl1_pg_tbl, (PTE_V), va_data, LEVEL2)  // VS non-leaf: va_data VPN2 → VS L1 table PA
+  VS_PTE_SETUP(sv39, PA, rvtest_vlvl0_pg_tbl, (PTE_V), va_data, LEVEL1)  // non-leaf: va_data VPN1 -> VS L0 table PA
+  VS_PTE_SETUP(sv39, PA, test_region, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V), va_data, LEVEL0)  // leaf: va_data -> PA(test_region) R/W/X
 
-  VSATP_SETUP(sv32, PA)                         // vsatp = Sv32, PPN = PA of VS root
+  VSATP_SETUP(sv39, PA)                         // vsatp = Sv39, PPN = PA of VS root
   csrw hgatp, x0                                // hgatp = Bare (no G-stage)
   hfence.vvma                                   // invalidate VS-stage TLB entries
   hfence.gvma                                   // invalidate G-stage TLB entries (harmless with Bare)
@@ -145,6 +147,10 @@ test_region:                                    // real PA backing va_data (endi
   .word 0                                       // data word (initially 0)
   .word 0                                       // data word (initially 0)
   .word 0                                       // data word (initially 0)
+
+.align 12                                       // align to 4 KiB page
+rvtest_vlvl1_pg_tbl:                            // VS-stage level-1 PTE storage
+  .zero(4096)                                   // 4 KiB page-table storage
 
 .align 12                                       // align to 4 KiB page
 rvtest_vlvl0_pg_tbl:                            // VS-stage level-0 PTE storage

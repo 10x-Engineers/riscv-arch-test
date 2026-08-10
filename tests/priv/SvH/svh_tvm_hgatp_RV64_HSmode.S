@@ -48,7 +48,7 @@ main:
   RVTEST_TSBI_GOTO_SMODE                       // T-SBI: ecall a0=2 → HS/S (code at PA / identity)
   LI(t0, (HGATP_MODE_SV39X4 << 60))             // t0 = MODE Sv39x4 only (RV64 MODE in [63:60])
   csrw hgatp, t0                                // should succeed under TVM=0
-  test1_hgatp:
+  test1_hgatp:                                  // signature dump point for case 1
   RVTEST_SIGUPD_CSR_READ(hgatp, a4, test1_hgatp, test1_hgatp_str)  // signature: read hgatp after TVM=0 write
   RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
 
@@ -68,7 +68,7 @@ main:
   LI(t0, MSTATUS_TVM)                           // t0 = TVM bit mask
   csrc mstatus, t0                              // clear TVM again (tidy)
 
-  test2_marker:
+  test2_marker:                                 // signature dump point for case 2
   RVTEST_SIGUPD(x2, x5, x4, a4, test2_marker, test2_marker_str)  // signature: marker proves TVM=1 blocked csrw
 
 //---------------------------------------------------------------------------------------------------------------------------------

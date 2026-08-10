@@ -81,7 +81,7 @@ main:
   nop                                           // trap-skip padding after load
   RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
 
-  test1_vsbe0_lw:
+  test1_vsbe0_lw:                               // signature dump point for case 1
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_vsbe0_lw, test1_vsbe0_lw_str)  // record case 1 VS lw result in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -90,7 +90,7 @@ main:
   // M-mode: confirm bytes landed in SPA as little-endian
   la t1, test_region                            // t1 = SPA of data page
   lw t2, 0(t1)                                  // M (LE) read; expect 0xA1B2C3D4
-  test2_vsbe0_spa:
+  test2_vsbe0_spa:                              // signature dump point for case 2
   RVTEST_SIGUPD(x2, x5, x4, t2, test2_vsbe0_spa, test2_vsbe0_spa_str)  // record case 2 SPA readback in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -98,7 +98,7 @@ main:
 //---------------------------------------------------------------------------------------------------------------------------------
   LI(t0, HSTATUS_VSBE)                          // t0 = VSBE bit mask (hstatus[7])
   csrs hstatus, t0                              // try to set VSBE (Sail may WARL it back to 0)
-  test3_vsbe1_hstatus:
+  test3_vsbe1_hstatus:                          // signature dump point for case 3
   RVTEST_SIGUPD_CSR_READ(hstatus, a4, test3_vsbe1_hstatus, test3_vsbe1_hstatus_str)  // record hstatus after VSBE set attempt
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -117,7 +117,7 @@ main:
   nop                                           // trap-skip padding after load
   RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
 
-  test4_vsbe1_lw:
+  test4_vsbe1_lw:                               // signature dump point for case 4
   RVTEST_SIGUPD(x2, x5, x4, a4, test4_vsbe1_lw, test4_vsbe1_lw_str)  // record case 4 VS lw result in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -127,7 +127,7 @@ main:
   la t1, test_region                            // t1 = SPA
   lw t3, 0(t1)                                  // M LE view of stored bytes
                                                 // Ideal VSBE=1: 0xD4C3B2A1; Sail today: 0xA1B2C3D4
-  test5_vsbe1_spa:
+  test5_vsbe1_spa:                              // signature dump point for case 5
   RVTEST_SIGUPD(x2, x5, x4, t3, test5_vsbe1_spa, test5_vsbe1_spa_str)  // record case 5 SPA byte view in signature
 
   // Leave VSBE clear for any follow-on tests in the harness

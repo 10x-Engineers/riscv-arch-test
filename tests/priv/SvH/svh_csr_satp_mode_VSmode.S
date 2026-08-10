@@ -54,9 +54,9 @@ main:
   csrr a4, vsatp                                // vsatp must match (alias)
   RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
 
-  test1_satp:
+  test1_satp:                                   // signature dump point for case 1
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_satp, test1_satp_str)  // signature: satp read in VS (Sv39)
-  test1_vsatp:
+  test1_vsatp:                                  // signature dump point for case 1
   RVTEST_SIGUPD(x2, x5, x4, a4, test1_vsatp, test1_vsatp_str)  // signature: vsatp alias must match satp
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -69,7 +69,7 @@ main:
   li   t0, ~((0xF) << 60)                       // mask to clear MODE nibble
   and  t2, t2, t0                               // strip MODE; keep PPN/ASID
   LI(t3, 0)                                     // bit/index = 0
-mode_walk:
+mode_walk:                                      // loop: try each MODE encoding
   sll  t0, t3, 60                               // candidate MODE
   or   t1, t2, t0                               // combine kept PPN/ASID with MODE
   csrw satp, t1                                 // try that MODE (WARL may rewrite illegal values)
@@ -82,7 +82,7 @@ mode_walk:
   blt  t3, t4, mode_walk                        // repeat until all MODE values tried
   RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
 
-  test2_mode_walk:
+  test2_mode_walk:                              // signature dump point for case 2
   RVTEST_SIGUPD(x2, x5, x4, a5, test2_mode_walk, test2_mode_walk_str)  // signature: last WARL MODE sample from walk
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -92,7 +92,7 @@ mode_walk:
   csrr a6, satp                                 // final satp after loop
   RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
 
-  test3_final:
+  test3_final:                                  // signature dump point for case 3
   RVTEST_SIGUPD(x2, x5, x4, a6, test3_final, test3_final_str)  // signature: final satp after MODE walk
 
 //---------------------------------------------------------------------------------------------------------------------------------

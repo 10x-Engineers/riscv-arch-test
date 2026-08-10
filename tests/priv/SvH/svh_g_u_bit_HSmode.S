@@ -67,7 +67,7 @@ main:
   LI(a3, 0)                                     // clear result register before load
   hlv.w a3, (t1)                                // G walk as U-mode sees U=1 → load succeeds
   nop                                           // trap-skip padding if previous access faults
-  test1_u1_hlv:
+  test1_u1_hlv:                                 // signature dump point for case 1
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_u1_hlv, test1_u1_hlv_str)  // record result in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -82,7 +82,7 @@ main:
   LI(a6, 0)                                     // clear result register before load
   hlv.w a6, (t1)                                // expect 0x257A0232
   nop                                           // trap-skip padding if previous access faults
-  test2_u1_hsv:
+  test2_u1_hsv:                                 // signature dump point for case 2
   RVTEST_SIGUPD(x2, x5, x4, a6, test2_u1_hsv, test2_u1_hsv_str)  // record result in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -97,7 +97,7 @@ main:
   LI(t1, gpa_data)                              // reload GPA pointer
   hlv.w a4, (t1)                                // U=0 G leaf → fault (G walk as U-mode)
   nop                                           // trap-skip padding if previous access faults
-  test3_u0_hlv:
+  test3_u0_hlv:                                 // signature dump point for case 3
   RVTEST_SIGUPD(x2, x5, x4, a4, test3_u0_hlv, test3_u0_hlv_str)  // record result in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -109,7 +109,7 @@ main:
   LI(t1, gpa_data)                              // reload GPA pointer
   hsv.w t0, (t1)                                // U=0 G leaf → store fault
   nop                                           // trap-skip padding if previous access faults
-  test4_u0_hsv:
+  test4_u0_hsv:                                 // signature dump point for case 4
   RVTEST_SIGUPD(x2, x5, x4, s3, test4_u0_hsv, test4_u0_hsv_str)  // record result in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -124,7 +124,7 @@ main:
   LI(t1, gpa_data)                              // reload GPA pointer
   hlv.w a7, (t1)                                // expect 0x257A0232 (from case 2 HSV)
   nop                                           // trap-skip padding if previous access faults
-  test5_restore:
+  test5_restore:                                // signature dump point for case 5
   RVTEST_SIGUPD(x2, x5, x4, a7, test5_restore, test5_restore_str)  // record result in signature
 
   RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M
@@ -135,14 +135,14 @@ RVTEST_DATA_BEGIN
 
 .align 12                                      // 4 KiB page align
 test_region:                                  // SPA backing for GPA data leaf
-  .word 0
-  .word 0
-  .word 0
-  .word 0
+  .word 0                                       // data word (initially 0)
+  .word 0                                       // data word (initially 0)
+  .word 0                                       // data word (initially 0)
+  .word 0                                       // data word (initially 0)
 
-.align 12
+.align 12                                       // 4 KiB page align
 rvtest_hlvl0_pg_tbl:                          // G-stage L0 PTE storage (4 KiB)
-  .zero(4096)
+  .zero(4096)                                   // 4 KiB page-table storage
 
 test1_u1_hlv_str:  .string "\"Mismatch on HS HLV with G U=1 XWR=111 in Test Case 1!\""
 test2_u1_hsv_str:  .string "\"Mismatch on HS HSV/HLV with G U=1 XWR=111 in Test Case 2!\""

@@ -68,7 +68,7 @@ main:
 //---------------------------------------------------------------------------------------------------------------------------------
   la t1, test_region_x                          // t1 = real PA for X-only backing memory
   lw a3, 0(t1)                                  // read physical memory directly without hgatp
-  test1_spa:
+  test1_spa:                                    // signature dump point for case 1
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_spa, test1_spa_str)  // record case 1 direct SPA lw in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -87,7 +87,7 @@ main:
   la t1, test_region_x                          // t1 = real PA (not GPA)
   lw a4, 0(t1)                                  // load as M → no G walk; should succeed
   nop                                           // trap-skip padding after load
-  test2_m:
+  test2_m:                                      // signature dump point for case 2
   RVTEST_SIGUPD(x2, x5, x4, a4, test2_m, test2_m_str)  // record case 2 MPRV MPP=M load in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -102,7 +102,7 @@ main:
   la t1, test_region_x                          // t1 = real PA (satp Bare → no translate)
   lw a5, 0(t1)                                  // load as HS → no G walk; should succeed
   nop                                           // trap-skip padding after load
-  test3_hs:
+  test3_hs:                                     // signature dump point for case 3
   RVTEST_SIGUPD(x2, x5, x4, a5, test3_hs, test3_hs_str)  // record case 3 MPRV HS load in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -115,7 +115,7 @@ main:
   LI(t1, gpa_xonly)                             // t1 = GPA that hgatp maps execute-only
   lw a6, 0(t1)                                  // load as VS through G; should fault (no R)
   nop                                           // trap-skip padding after load
-  test4_vs:
+  test4_vs:                                     // signature dump point for case 4
   RVTEST_SIGUPD(x2, x5, x4, a6, test4_vs, test4_vs_str)  // record case 4 VS X-only GPA fault in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -130,7 +130,7 @@ main:
   la t1, test_region_x                          // t1 = real PA
   lw a7, 0(t1)                                  // load as U → no G walk; should succeed
   nop                                           // trap-skip padding after load
-  test5_u:
+  test5_u:                                      // signature dump point for case 5
   RVTEST_SIGUPD(x2, x5, x4, a7, test5_u, test5_u_str)  // record case 5 MPRV U load in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -143,7 +143,7 @@ main:
   LI(t1, gpa_xonly)                             // t1 = GPA that hgatp maps execute-only
   lw s1, 0(t1)                                  // load as VU through G; should fault (no R)
   nop                                           // trap-skip padding after load
-  test6_vu:
+  test6_vu:                                     // signature dump point for case 6
   RVTEST_SIGUPD(x2, x5, x4, s1, test6_vu, test6_vu_str)  // record case 6 VU X-only GPA fault in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -160,7 +160,7 @@ main:
   LI(t0, MSTATUS_MPV)                           // t0 = bit mask for MPV
   csrc mstatus, t0                              // clear MPV before finishing
 
-  test7_hlv:
+  test7_hlv:                                    // signature dump point for case 7
   RVTEST_SIGUPD(x2, x5, x4, s2, test7_hlv, test7_hlv_str)  // record case 7 HLV R/W GPA load in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------

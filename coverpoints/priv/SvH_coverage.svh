@@ -15,9 +15,11 @@ covergroup SvH_cg with function sample(ins_t ins);
     option.per_instance = 0;
     `include "general/RISCV_coverage_standard_coverpoints.svh"
 
-    // Empty-bin notes (per cross below): cite what is missing, where
-    // (Sail path under sail-riscv-hypervisor/, sail_to_rvvi.py, or stimulus),
-    // and which bin/test is affected. Avoid vague “Sail may …” wording.
+    // How to read comments:
+    //   What / Test / Hit? (from work/sail-rv32-max + sail-rv64-max SvH_report.txt)
+    //   Our side = tests + sail_to_rvvi.py. Sail side = model under sail-riscv-hypervisor/.
+    // Open then: vsbe_hstatus.set + vs_pte_ad_unset (old HS HLV adbit cross).
+    // coverage before quoting a new percent. VSBE still Sail-only.
 
     read_write_acc: coverpoint {ins.current.write_access, ins.current.read_access} {
         bins read_acc = {2'b01};
@@ -39,7 +41,7 @@ covergroup SvH_cg with function sample(ins_t ins);
         wildcard bins csrrw = {CSRRW};
     }
 
-    // CSRRW then CSRR (csrrs rd,csr,x0) — VMID readback after write
+    // Write hgatp (CSRRW) then read it back (CSRR) — used for VMID check.
     raw_csrrw_csrr: coverpoint {ins.prev.insn[14:12], ins.current.insn[14:12]} {
         bins raw = {6'b001_010};
     }
@@ -47,7 +49,7 @@ covergroup SvH_cg with function sample(ins_t ins);
     vs_pte_rsw: coverpoint ins.current.vs_pte_d[9:8];
     g_pte_rsw: coverpoint ins.current.g_pte_d[9:8];
 
-    // CSR address bins (needed on RV32 and RV64; crosses reference these)
+    // CSR addresses used by the crosses below (same on RV32 and RV64).
     vsatp: coverpoint ins.current.insn[31:20] {
         bins vsatp = {CSR_VSATP};
     }
@@ -150,7 +152,7 @@ covergroup SvH_cg with function sample(ins_t ins);
         `endif
     }
 
-    // PPN field alone (not full rs1) — MODE/ASID/VMID must not poison bins
+    // Only the PPN bits of rs1 (not MODE/ASID/VMID).
 `ifdef UDB_MXLEN_32
     ppn_field_values: coverpoint ins.current.rs1_val[21:0] {
         bins all_zeros = {0};
@@ -243,7 +245,7 @@ covergroup SvH_cg with function sample(ins_t ins);
             wildcard bins all_ones = {64'b??????_11111111111111_????????????????????????????????????????????};
         `endif
     }
-    // For read-after-write scoping: VMID is in prev CSRRW's rs1
+    // VMID from the previous CSRRW's rs1 (write, then read).
     vmid_field_prev: coverpoint ins.prev.rs1_val {
         `ifdef UDB_MXLEN_32
             wildcard bins all_ones = {32'b???_1111111_??????????????????????};
@@ -294,8 +296,8 @@ covergroup SvH_cg with function sample(ins_t ins);
     }
 
     `ifdef UDB_MXLEN_32
-    // RV32: MPV lives in mstatush[7]. Sample PREV so trap CSR updates on the
-    // faulting insn do not clear MPV before the coverpoint sees it.
+    // RV32: MPV is mstatush[7]. Use PREV so a trap on this insn does not
+    // clear MPV before we sample.
     mstatus_mpv_set: coverpoint ins.prev.csr[CSR_MSTATUSH][7] {
         bins mpv_set = {1};
     }
@@ -393,7 +395,12 @@ covergroup SvH_cg with function sample(ins_t ins);
         wildcard bins urwx1111 = {8'b???11111};
     }
 
+    // VS data/fetch leaf A/D: 11 = already accessed; 00 = needs update (Svade → page fault).
     vs_pte_ad: coverpoint ins.current.vs_pte_d[7:0] {
+        wildcard bins vs_pte_ad_set = {8'b11??1111};
+        wildcard bins vs_pte_ad_unset = {8'b00??1111};
+    }
+    vs_pte_ad_i: coverpoint ins.current.vs_pte_i[7:0] {
         wildcard bins vs_pte_ad_set = {8'b11??1111};
         wildcard bins vs_pte_ad_unset = {8'b00??1111};
     }
@@ -402,8 +409,12 @@ covergroup SvH_cg with function sample(ins_t ins);
         wildcard bins g_pte_xwr100 = {8'b????1001};
     }
 
+    // G PTE that maps VS page-table pages: A=D=0, R/W (no X). Implicit PT walk, not data XWR=111.
     g_pte_ad_unset: coverpoint ins.current.g_pte_d[7:0] {
-        wildcard bins g_pte_ad = {8'b00??1111};
+        wildcard bins g_pte_ad = {8'b00??0111};
+    }
+    g_pte_ad_unset_i: coverpoint ins.current.g_pte_i[7:0] {
+        wildcard bins g_pte_ad = {8'b00??0111};
     }
 
     g_pte_i_u: coverpoint ins.current.g_pte_i[7:0] {
@@ -449,7 +460,7 @@ covergroup SvH_cg with function sample(ins_t ins);
         wildcard bins g_bit_set = {8'b1???1111};
     }
 
-    // Execute-only leaf (X=1,R=0,W=0,V=1); U/A/D/G wildcard
+    // Execute-only leaf: X=1, R=0, W=0, V=1.
     vs_pte_xonly_d: coverpoint ins.current.vs_pte_d[7:0] {
         wildcard bins xonly = {8'b????1001};
     }
@@ -457,13 +468,13 @@ covergroup SvH_cg with function sample(ins_t ins);
         wildcard bins xonly = {8'b????1001};
     }
 
-    // HS sstatus.MXR (two-stage MXR samples HS sstatus)
+    // HS sstatus.MXR (used if a cross samples HS MXR).
     mxr_sstatus: coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_CURRENT, "sstatus", "mxr") {
         bins unset = {0};
         bins set = {1};
     }
 
-    // Acc opcodes split for MPRV×hgatp (HLV/HSV unaffected by MPRV)
+    // lw/sw vs HLV/HSV (HLV/HSV do not follow MPRV).
     acc_lw_sw: coverpoint ins.current.insn {
         wildcard bins lw = {LW};
         wildcard bins sw = {SW};
@@ -474,72 +485,52 @@ covergroup SvH_cg with function sample(ins_t ins);
     }
 
     `ifdef UDB_MXLEN_64
-        // Coverpoint: cp_vsatp_mode_field
+        // Write vsatp MODE in HS. Test: svh_csr_vsatp_fields_RV64_HSmode.S
         cp_vsatp_mode_field: cross priv_mode_hs, csrrw, vsatp, mode_field_values;
-        // Coverpoint: cp_satp_mode_field
+        // Write satp MODE from VS. Test: svh_csr_* satp / vsatp field tests.
         cp_satp_mode_field:  cross priv_mode_vs, csrrw, satp, mode_field_values;
-        // Coverpoint: cp_hgatp_mode_field
+        // Write hgatp MODE in HS. Test: svh_csr_hgatp_fields_RV64_HSmode.S
         cp_hgatp_mode_field: cross priv_mode_hs, csrrw, hgatp, mode_field_values;
 
-        // Coverpoint: cp_vsatp_svpbmt
-        // Sample VS guest accesses under vsatp (not HS). Stimulus: svh_vs_pte_attr_RV64_VSmode.S.
-        // Empty / partial bins (not “Sail ignores PBMT”):
-        //   • Sail treats nonzero PBMT as invalid when PBMTE is off —
-        //     model/sys/vmem_pte.sail::pte_is_invalid (PBMT + menvcfg/henvcfg.PBMTE).
-        //   • With PBMTE on, Sail applies PBMT via model/sys/vmem.sail::pt_walk
-        //     (forces PBMT_PMA if menvcfg.PBMTE=0, or VS-stage and henvcfg.PBMTE=0).
-        //   • Ext_Svpbmt only when Ext_Sv39 — vmem_pte.sail::currentlyEnabled(Ext_Svpbmt);
-        //     sail-rv32-max has Svpbmt.supported=false (these crosses are RV64-only).
-        //   • Residual empty encodings: pbmte_menvcfg only bins {0}=no_support — score
-        //     PBMT≠0 with PBMTE cleared (invalid path). PBMTE=1 legal path is leaf-only
-        //     (not in this cross). PBMT=0b11 has no Sail mapping (vmem_types.sail).
-        //   • Stimulus: svh_vs_pte_attr_RV64_VSmode.S walks PBMT 1/2/3 × PBMTE 0/1 + exec.
+        // VS guest + PBMT bits [62:61]. RV64 only (RV32 has no Svpbmt).
+        // Test: svh_vs_pte_attr_RV64_VSmode.S
+        // Hit: 100% RV64. Our side done (test + converter PTE keys).
+        // Sail is ISA-correct here: PBMTE=0 and PBMT≠0 → invalid
+        // (vmem_pte.sail::pte_is_invalid). PBMTE=1 applies PBMT (vmem.sail::pt_walk).
+        // This cross only has PBMTE=0. PBMT=11 has no Sail enum (vmem_types.sail).
         cp_vsatp_svpbmt_rw: cross priv_mode_vs, vsatp_mode, pbmte_menvcfg, vs_pte_d_svpbmt, read_write_acc;
         cp_vsatp_svpbmt_x:  cross priv_mode_vs, vsatp_mode, pbmte_menvcfg, vs_pte_i_svpbmt, exec_acc;
 
-        // Coverpoint: cp_hgatp_svpbmt
-        // Sample HS HLV/HSV (or VS with vsatp Bare). Stimulus: svh_g_pte_attr_RV64_VSmode.S.
-        // Same pbmte_menvcfg={0}-only cross rule; G-stage uses menvcfg.PBMTE only.
-        // Empty / partial bins: same Sail rules as vsatp_svpbmt (pte_is_invalid + pt_walk).
+        // Same on G-stage (HS HLV/HSV). Test: svh_g_pte_attr_RV64_VSmode.S  Hit: 100% RV64.
         cp_hgatp_svpbmt_rw: cross priv_mode_hs, hgatp_mode, pbmte_menvcfg, g_pte_d_svpbmt, read_write_acc;
         cp_hgatp_svpbmt_x:  cross priv_mode_hs, hgatp_mode, pbmte_menvcfg, g_pte_i_svpbmt, exec_acc;
 
-        // Coverpoint: cp_vsatp_reserved_fields
-        // Sample VS guest accesses under vsatp. Stimulus: svh_vs_pte_attr_RV64_VSmode.S.
-        // Sail: model/core/isa_version.sail::pte_reserved_bits_must_be_zero and
-        // vmem_pte.sail::pte_is_invalid (pte_ext[reserved] != 0) → invalid PTE / page fault.
-        // Svrsw60t59b (sail-rv64-max supported=true): pte_ext[RSW_60t59b] bits [60:59] are
-        // soft-RSW — NOT reserved; setting only those bits does not invalidate the PTE
-        // (vmem_pte.sail::pte_is_invalid). Coverpoint still bins [60:54] walking ones;
-        // stimulus hits 59/60 via successful lw/sw/jalr. True reserved = [58:54] + all_ones.
+        // VS guest + PTE bits [60:54]. Test: svh_vs_pte_attr_RV64_VSmode.S  Hit: 100% RV64.
+        // Sail: reserved ≠ 0 → invalid (isa_version.sail::pte_reserved_bits_must_be_zero,
+        //       vmem_pte.sail::pte_is_invalid). Not a Sail bug.
+        // [60:59] are soft-RSW when Svrsw60t59b is on — not reserved. True reserved: [58:54].
         cp_vsatp_reserved_fields_rw: cross priv_mode_vs, vsatp_mode, vs_pte_d_reserved, read_write_acc;
         cp_vsatp_reserved_fields_x : cross priv_mode_vs, vsatp_mode, vs_pte_i_reserved, exec_acc;
 
-        // Coverpoint: cp_hgatp_reserved_fields
-        // Sample HS HLV/HSV. Stimulus: svh_g_pte_attr_RV64_VSmode.S.
-        // Same Sail enforcement as vsatp_reserved_fields (pte_is_invalid + reserved≠0).
-        // [60:59] soft-RSW under Svrsw60t59b — see vsatp note above.
+        // Same on G-stage. Test: svh_g_pte_attr_RV64_VSmode.S  Hit: 100% RV64.
         cp_hgatp_reserved_fields_rw : cross priv_mode_hs, hgatp_mode, g_pte_d_reserved, read_write_acc;
         cp_hgatp_reserved_fields_x  : cross priv_mode_hs, hgatp_mode, g_pte_i_reserved, exec_acc;
     `endif
 
-    // Coverpoint: cp_vsatp_ppn_field
+    // Write vsatp PPN / ASID in HS. Test: svh_csr_vsatp_fields_*.S
     cp_vsatp_ppn_field:      cross priv_mode_hs, vsatp_mode, csrrw, vsatp, ppn_field_values;
-    // Coverpoint: cp_vsatp_asidlen_detect
     cp_vsatp_asidlen_detect: cross priv_mode_hs, vsatp_mode, csrrw, vsatp, asid_field_value;
 
-    // Coverpoint: cp_hgatp_ppn_field
-    // Sv*x4 WARL forces PPN[1:0]=0 — ignore those walking bins
+    // Write hgatp PPN. Ignore PPN[1:0] and all-ones: Sv*x4 forces those bits 0.
     cp_hgatp_ppn_field:      cross priv_mode_hs, hgatp_mode, csrrw, hgatp, ppn_field_values {
-        // Sv*x4 WARL: PPN[1:0]=0; all-ones PPN not implementable with MODE set
         ignore_bins align0 = binsof(ppn_field_values.walking_ones_0);
         ignore_bins align1 = binsof(ppn_field_values.walking_ones_1);
         ignore_bins all1   = binsof(ppn_field_values.all_ones);
     }
-    // Coverpoint: cp_hgatp_vmidlen_detect
+    // Write hgatp VMID in HS. Test: svh_csr_hgatp_fields_*.S
     cp_hgatp_vmidlen_detect: cross priv_mode_hs, hgatp_mode, csrrw, hgatp, vmid_field_value;
 
-    // R/W S/U leaves for MPRV×vsatp (translated loads — not X-only)
+    // R/W PTE leaves for MPRV×vsatp (loads only, not execute-only).
     vs_pte_rw_s_d: coverpoint ins.current.vs_pte_d[7:0] {
         wildcard bins rw_s = {8'b11?00111};
     }
@@ -550,25 +541,21 @@ covergroup SvH_cg with function sample(ins_t ins);
         wildcard bins rw = {8'b????0111};
     }
 
-    // Coverpoint: cp_vsatp_mprv_effects
-    // MPRV=1: data uses vsatp; MPRV=0: negative (no VS translate).
-    // Directed tests only do lw — write bins ignored.
-    // Data access as VS → vsatp translates
+    // MPRV=1 in M: data translate uses vsatp (as VS or VU). Tests only do lw.
+    // Test: svh_mprv_*_Mmode.S
     cp_vsatp_mprv_effects_s: cross priv_mode_m, mstatus_mprv_set, mpp_mstatus_s, vsatp_mode, hgatp_bare, satp_bare, vs_pte_rw_s_d, read_write_acc {
         ignore_bins writes = binsof(read_write_acc.write_acc);
     }
-    // Data access as VU → vsatp translates
     cp_vsatp_mprv_effects_u: cross priv_mode_m, mstatus_mprv_set, mpp_mstatus_u, vsatp_mode, hgatp_bare, satp_bare, vs_pte_rw_u_d, read_write_acc {
         ignore_bins writes = binsof(read_write_acc.write_acc);
     }
-    // Data access does not take the MPRV→VS/VU path → vsatp not used
+    // MPRV=0: vsatp is not used for this data access.
     cp_vsatp_mprv_effects_off: cross priv_mode_m, mstatus_mprv_unset, vsatp_mode, hgatp_bare, satp_bare, read_write_acc {
         ignore_bins writes = binsof(read_write_acc.write_acc);
     }
 
-    // Coverpoint: cp_hgatp_mprv_effects
-    // MPRV=1 × {M,HS,VS,U,VU} × lw; HLV/HSV ignore MPRV (separate cross).
-    // VS/VU (MPV=1): G walked → X-only leaf deny. M/HS/U (MPV=0 or MPP=M): no G walk.
+    // MPRV=1 × lw as M/HS/VS/U/VU. HLV ignores MPRV (cross below).
+    // VS/VU (MPV=1): G-stage is walked. M/HS/U: no G walk.
     cp_hgatp_mprv_effects_m: cross priv_mode_m, mstatus_mprv_set, mpp_mstatus_m, hgatp_mode, acc_lw_sw {
         ignore_bins stores = binsof(acc_lw_sw.sw);
     }
@@ -584,141 +571,113 @@ covergroup SvH_cg with function sample(ins_t ins);
     cp_hgatp_mprv_effects_vu: cross priv_mode_m, mstatus_mprv_set, mpp_mstatus_u, mstatus_mpv_set, hgatp_mode, g_pte_xwr100_d, acc_lw_sw {
         ignore_bins stores = binsof(acc_lw_sw.sw);
     }
-    // HLV ignores MPRV; R/W G leaf allow (not the X-only deny path)
+    // HLV/HSV ignore MPRV. R/W G leaf allowed.
     cp_hgatp_mprv_effects_hlv: cross priv_mode_m, mstatus_mprv_set, hgatp_mode, g_pte_rw_d, acc_hlv_hsv {
         ignore_bins hsv = binsof(acc_hlv_hsv.hsv_w);
     }
 
 
-    // Coverpoint: cp_vsatp_endianess
-    // VSBE little/big endian on VS data. Stimulus: svh_vsbe_endian_VSmode.S.
-    // Empty vsbe_hstatus.set bins: Sail gap — legalize_hstatus in
-    // sail-riscv-hypervisor/model/core/sys_regs.sail leaves VSBE unassigned
-    // (“We don't currently support changing VSBE”); writes are dropped, VSBE stays 0.
-    // Observed on this host: LE (unset) Covered; BE (set) remains ZERO. Needs Sail
-    // change in legalize_hstatus (and memory endian path) to hit set bins.
+    // VS data little vs big endian (hstatus.VSBE). Test: svh_vsbe_endian_VSmode.S
+    // Hit: 50% RV32 and RV64. LE (VSBE=0) Covered. VSBE=1 ZERO on both reports.
+    // Our side: test already writes VSBE=1 — nothing more for us to do.
+    // Sail issue: legalize_hstatus in model/core/sys_regs.sail never assigns VSBE
+    // ("We don't currently support changing VSBE"); bit stays 0.
+    // Sail fix needed: honor VSBE writes in legalize_hstatus and use it for guest
+    // data endian in the mem path. Then vsbe_hstatus.set / this cross can hit.
     cp_vsatp_endianess:   cross priv_mode_vs, vsatp_mode, vsbe_hstatus, vs_pte_xwr111_d, read_write_acc;
 
-    // Coverpoint: cp_hgatp_tvm_effects
-    // TVM=1 illegal hgatp access. Stimulus: svh_tvm_hgatp_*_HSmode.S (signature checks).
-    // Not a Sail model gap: TB accepts TRAP (testbench.sv), but sail_to_rvvi.py does not
-    // emit a TRAP key — trap-cause scoring in .rvvi is still TODO (see skill tracefile-rvvi.md).
+    // TVM=1 illegal hgatp CSR access. Test: svh_tvm_hgatp_*_HSmode.S
+    // Hit: 100% both arch. Our side fixed (test + TRAP in sail_to_rvvi.py).
     cp_hgatp_tvm_effects: cross priv_mode_hs, tvm_mstatus, csrrw, hgatp;
 
-    // Coverpoint: cp_vsatp_pte_rsw — RSW bits on VS-stage leaf; sample VS.
+    // RSW bits [9:8] on the leaf. VS guest vs HS HLV/HSV.
     cp_vsatp_pte_rsw: cross priv_mode_vs, vsatp_mode, vs_pte_rsw, read_write_acc;
-    // Coverpoint: cp_hgatp_pte_rsw — RSW on G-stage leaf; sample HS HLV/HSV.
     cp_hgatp_pte_rsw: cross priv_mode_hs, hgatp_mode, g_pte_rsw, read_write_acc;
 
-    // Coverpoint: cp_vsatp_invalid_pte
-    // Invalid VS PTE: sample VS guest VA access under vsatp.
-    // Stimulus: svh_vsatp_fault_VSmode.S (lw/sw + jalr ifetch into V=0).
+    // VS PTE V=0. Test: svh_vsatp_fault_VSmode.S (lw/sw + jalr into V=0).
+    // Hit: 100% both. Our side fixed: fetch-fault walks → VS_PTE_I in sail_to_rvvi.py.
     cp_vsatp_invalid_pte_rw: cross priv_mode_vs, vsatp_mode, vs_pte_d_inv, read_write_acc;
     cp_vsatp_invalid_pte_x:  cross priv_mode_vs, vsatp_mode, vs_pte_i_inv, exec_acc;
 
-    // Coverpoint: cp_hgatp_invalid_pte
-    // Invalid G PTE: sample HS HLV/HSV for _rw; VS Bare ifetch for _x.
-    // Stimulus: svh_hgatp_fault_VSmode.S. Axis for _x is VS (guest ifetch through
-    // invalid G) — HS ifetch does not walk hgatp for code.
+    // G PTE V=0. _rw = HS HLV/HSV. _x = VS fetch (HS code fetch does not walk hgatp).
+    // Test: svh_hgatp_fault_VSmode.S  Hit: 100% both. Same converter fetch-trap fix.
     cp_hgatp_invalid_pte_rw: cross priv_mode_hs, hgatp_mode, g_pte_d_inv, read_write_acc;
     cp_hgatp_invalid_pte_x:  cross priv_mode_vs, hgatp_mode, g_pte_i_inv, exec_acc;
 
-    // Coverpoint: cp_vsatp_sum_effects
+    // SUM + U-page in VS. Test: svh_vs_perm / sum tests.
     cp_vsatp_sum_effects_rw: cross priv_mode_vs, sum_vsstatus, vs_pte_xwr111_u_d, read_write_acc;
     cp_vsatp_sum_effects_x : cross priv_mode_vs, sum_vsstatus, vs_pte_xwr111_u_i, exec_acc;
 
-    // Coverpoint: cp_vsatp_nonleaf_lvl0 — L0 non-leaf under vsatp; sample VS.
+    // Level-0 PTE is a pointer (V=1, XWR=000), not a leaf. Hit: 100% both.
+    // Our side fixed: sail_to_rvvi.py emits nonleaf when the walk has no leaf.
     cp_vsatp_nonleaf_lvl0_rw: cross priv_mode_vs, vsatp_mode, vs_pte_nonleaf_lvl0_d, read_write_acc;
     cp_vsatp_nonleaf_lvl0_x:  cross priv_mode_vs, vsatp_mode, vs_pte_nonleaf_lvl0_i, exec_acc;
-
-    // Coverpoint: cp_hgatp_nonleaf_lvl0 — G L0 non-leaf; sample HS HLV/HSV.
     cp_hgatp_nonleaf_lvl0_rw: cross priv_mode_hs, hgatp_mode, g_pte_nonleaf_lvl0_d, read_write_acc;
     cp_hgatp_nonleaf_lvl0_x:  cross priv_mode_hs, hgatp_mode, g_pte_nonleaf_lvl0_i, exec_acc;
 
-    // Coverpoint: cp_vsstatus_mxr_sum
-    // Separate from two-stage MXR (cp_two_stage_mxr below).
-    // Stimulus: svh_vsstatus_mxr_sum_VSmode.S + svh_vsstatus_mxr_sum_VUmode.S (U=1 code).
-    // Residual empty bins: need fresh-walk hops (hfence in M between r/w) — TLB-hit
-    // accesses omit VS_PTE_* from sail_to_rvvi.py. Not a Sail gap.
+    // VS/VU × SUM × MXR × PTE combos. Not cp_two_stage_mxr.
+    // Test: svh_vsstatus_mxr_sum_VS/VUmode.S (+ Sv39). Hit: 100% both.
+    // Our side fixed: VU tests + fences so .rvvi still has VS_PTE_* (not a Sail gap).
     cp_vsstatus_mxr_sum_rw: cross priv_mode_vs_vu, vsatp_mode, sum_vsstatus, mxr_vsstatus, vs_pte_xwr_comb_d, read_write_acc;
     cp_vsstatus_mxr_sum_x:  cross priv_mode_vs_vu, vsatp_mode, sum_vsstatus, mxr_vsstatus, vs_pte_xwr_comb_i, exec_acc;
 
-    // Coverpoint: cp_vsatp_spages_sum_rwx
-    // Stimulus: svh_vs_perm_VSmode.S — R-only/R/X store faults must be separate hops
-    // after hfence.vvma (same-hop lw→sw TLB-hit drops VS_PTE_D on the store).
+    // SUM × legal S-page XWR. Test: svh_vs_perm_*.S  Hit: 100% both. Our side fixed.
     cp_vsatp_spages_sum_rw: cross priv_mode_vs, vsatp_mode, sum_vsstatus, vs_pte_legal_xwr_d, read_write_acc;
     cp_vsatp_spages_sum_x:  cross priv_mode_vs, vsatp_mode, sum_vsstatus, vs_pte_legal_xwr_i, exec_acc;
 
-    // Coverpoint: cp_vsatp_perm_checks
-    // Stimulus: svh_vs_perm_VSmode.S + svh_vs_perm_VUmode.S.
-    // Observed RV32: _x Covered 100%; _rw 93.75% — only open bin is VS urwx1000×write
-    // (stimulus gap in VS twin; not a Sail gap).
+    // VS/VU permission matrix. Test: svh_vs_perm_VS/VUmode.S (+ Sv39). Hit: 100% both.
     cp_vsatp_perm_checks_rw: cross priv_mode_vs_vu, vsatp_mode, vs_pte_uxwr_perm_d, read_write_acc;
     cp_vsatp_perm_checks_x:  cross priv_mode_vs_vu, vsatp_mode, vs_pte_uxwr_perm_i, exec_acc;
 
-    // Coverpoint: cp_hgatp_perm_checks
-    // Stimulus: svh_g_perm_VSmode.S + svh_g_perm_VUmode.S.
-    // Observed RV32: _rw/_x Covered 100% (not a Sail gap).
+    // G-stage permission matrix. Test: svh_g_perm_VS/VUmode.S  Hit: 100% both.
     cp_hgatp_perm_checks_rw: cross priv_mode_vs_vu, hgatp_mode, g_pte_uxwr_perm_d, read_write_acc;
     cp_hgatp_perm_checks_x:  cross priv_mode_vs_vu, hgatp_mode, g_pte_uxwr_perm_i, exec_acc;
 
-    // Coverpoint: cp_hgatp_adbit_behavior
-    // HS HLV/HSV with both VS and G PTE leaves on the same instruction.
-    // Stimulus: svh_g_adbit_VSmode.S (G A=0, VS A=D=1, Svade on) — vs_pte_ad_set×r/w Covered.
-    // Empty vs_pte_ad_unset bins: intentional stimulus omission, not waffle.
-    // Sail (ISA-correct): explicit VS-stage A=0 under Svade → PTW_PTE_Needs_Update →
-    // regular page fault (not guest-page). See model/sys/vmem.sail::build_exception_context
-    // (VS_Stage non-Implicit arm) and the Case table above it (Explicit VS-Stage =
-    // page fault). G-stage A=0 → guest-page via convertToGuestException
-    // (model/sys/vmem_ptw.sail). Co-sampling vs_pte_ad_unset with g_pte_ad_unset on one
-    // insn also races VS-stage fail before the G data leaf is walked; test omits that path
-    // so trap signatures stay stable.
-    cp_hgatp_adbit_behavior: cross priv_mode_hs, g_pte_ad_unset, vs_pte_ad, read_write_acc;
+    // G-stage A/D on *implicit* VS page-table walks (not HS HLV on a data leaf).
+    // Test: svh_g_adbit_VSmode.S (+ Sv39 twin). VS lw/sw/fetch, ADUE=0 (Svade).
+    //   G PTE for VS L0 table: A=D=0 R/W → guest-page (implicit read).
+    //   VS leaf A=D=00, G-for-PT A=1 → page fault (VS A/D update).
+    // Sail ADUE=1 (menvcfg/henvcfg) would set A/D in memory instead of faulting;
+    // this config leaves ADUE=0 so we score the fault half of the coverpoint.
+    cp_hgatp_adbit_behavior: cross priv_mode_vs, vsatp_mode, hgatp_mode, g_pte_ad_unset, read_write_acc, trap_set;
+    cp_hgatp_adbit_behavior_x: cross priv_mode_vs, vsatp_mode, hgatp_mode, g_pte_ad_unset_i, exec_acc, trap_set;
+    cp_hgatp_adbit_vs_ad_rw: cross priv_mode_vs, vsatp_mode, vs_pte_ad, read_write_acc;
+    cp_hgatp_adbit_vs_ad_x:  cross priv_mode_vs, vsatp_mode, vs_pte_ad_i, exec_acc;
 
-    // Coverpoint: cp_hgatp_vmid_scoping
+    // Write then read hgatp VMID. Test: svh_csr_hgatp_fields_*.S
     cp_hgatp_vmid_scoping:   cross priv_mode_hs, hgatp_mode, raw_csrrw_csrr, hgatp, vmid_field_prev;
 
-    // Coverpoint: cp_hgatp_u_mode_access — HS + vsatp Bare + G U bit on one sample.
+    // HS + vsatp Bare + G U bit. Test: svh_g_u_bit_HSmode.S
     cp_hgatp_u_mode_access_rw: cross priv_mode_hs, hgatp_mode, vsatp_bare, g_pte_d_u, read_write_acc;
     cp_hgatp_u_mode_access_x:  cross priv_mode_hs, hgatp_mode, vsatp_bare, g_pte_i_u, exec_acc;
 
-    // Coverpoint: cp_hgatp_pte_g_bit — HS HLV/HSV with G=1 leaf.
+    // HS HLV/HSV, G=1 leaf. Test: svh_g_perm / g_u_bit.
     cp_hgatp_pte_g_bit_rw: cross priv_mode_hs, hgatp_mode, g_pte_d_g_set, read_write_acc;
     cp_hgatp_pte_g_bit_x:  cross priv_mode_hs, hgatp_mode, g_pte_i_g_set, exec_acc;
 
 
-    //--------------------------------------------------------------------------
-    // Two-stage success / Bare / G-walk of VS PT
-    //--------------------------------------------------------------------------
-    // Coverpoint: two_stage_read
+    // Both stages on: VS load / store / fetch. Tests: svh_two_stage_*.S
     two_stage_read:  cross priv_mode_vs, vsatp_mode, hgatp_mode, read_write_acc {
         ignore_bins writes = binsof(read_write_acc.write_acc);
     }
-    // Coverpoint: two_stage_write
     two_stage_write: cross priv_mode_vs, vsatp_mode, hgatp_mode, read_write_acc {
         ignore_bins reads = binsof(read_write_acc.read_acc);
     }
-    // Coverpoint: two_stage_ifetch
     two_stage_ifetch: cross priv_mode_vs, vsatp_mode, hgatp_mode, exec_acc;
-    // Coverpoint: stage_both_bare
+    // Both Bare. Test: svh_stage_both_bare_VSmode.S
     stage_both_bare: cross priv_mode_vs, vsatp_bare, hgatp_bare, read_write_acc;
-    // Coverpoint: cp_hgatp_bare_trans
+    // vsatp on, hgatp Bare.
     cp_hgatp_bare_trans: cross priv_mode_vs, vsatp_mode, hgatp_bare, read_write_acc;
-    // Coverpoint: cp_h_vm_gstagetrans
+    // Both stages on (G walks VS page tables too).
     cp_h_vm_gstagetrans: cross priv_mode_vs, vsatp_mode, hgatp_mode, read_write_acc;
 
-    //--------------------------------------------------------------------------
-    // Two-stage MXR (distinct from cp_vsstatus_mxr_sum)
-    //--------------------------------------------------------------------------
-    // Coverpoint: cp_two_stage_mxr (MXR only affects loads of X-only pages)
-    // Stimulus: VS+G X-only; MXR=0 faults, MXR=1 loads. sstatus↔vsstatus track together.
+    // Two-stage load of X-only page. MXR=0 fault, MXR=1 allow. Not cp_vsstatus_mxr_sum.
+    // Test: svh_two_stage_mxr_*.S
     cp_two_stage_mxr: cross priv_mode_vs, vsatp_mode, hgatp_mode, mxr_vsstatus, vs_pte_xonly_d, read_write_acc {
         ignore_bins writes = binsof(read_write_acc.write_acc);
     }
 
-    //--------------------------------------------------------------------------
-    // P3 — structural / faults / X-only MXR=0 / VU two-stage
-    //--------------------------------------------------------------------------
+    // More fault / structure / VU two-stage / X-only MXR=0
     trap_set: coverpoint ins.trap {
         bins trapped = {1'b1};
     }
@@ -730,28 +689,23 @@ covergroup SvH_cg with function sample(ins_t ins);
         wildcard bins hfence_gvma = {HFENCE_GVMA};
     }
 
-    // Coverpoint: hgatp_exception_reporting — cause class matches access type via
-    // TRAP=1 + access flags + invalid G leaf on the faulting insn.
-    // sail_to_rvvi.py emits TRAP from Sail "trapping from …" lines.
-    // Stimulus: svh_hgatp_fault_VSmode.S (VS Bare r/w/x + HS HLV/HSV).
+    // Invalid G PTE + trap + load/store/fetch. Test: svh_hgatp_fault_VSmode.S
+    // Hit: 100% both. Our side fixed: sail_to_rvvi.py emits TRAP 1 from Sail
+    // "trapping from …" (testbench already parsed TRAP).
     hgatp_exception_reporting_rw: cross priv_mode_vs, hgatp_mode, g_pte_d_inv, read_write_acc, trap_set;
     hgatp_exception_reporting_x:  cross priv_mode_vs, hgatp_mode, g_pte_i_inv, exec_acc, trap_set;
 
-    // Coverpoint: VM_permission_invalid — two-stage V=0 deny.
-    // Stimulus parked: tests/priv/SvH/_park/svh_twostage_invalid_VSmode.S
-    // (trap-signature mismatch under both stages; reopen when stable).
+    // Two-stage V=0 deny. Test: svh_twostage_invalid_VSmode.S (and Sv39 twin).
 
-    // Coverpoint: mprv_sum_effect_hs_two_stage — MPRV×SUM with both stages paged.
-    // Stimulus: svh_mprv_sum_two_stage_Mmode.S (≠ Bare-G MPRV).
+    // MPRV+SUM with both stages paged (not Bare-G MPRV). Test: svh_mprv_sum_two_stage_Mmode.S
     mprv_sum_effect_hs_two_stage: cross priv_mode_m, mstatus_mprv_set, sum_vsstatus, vsatp_mode, hgatp_mode, read_write_acc;
 
-    // Coverpoint: RWX access on Umode pages in Umode — VU both-stage U=1.
-    // Stimulus: svh_vu_rwx_two_stage_VUmode.S
+    // VU, both stages, U=1 pages. Test: svh_vu_rwx_two_stage_VUmode.S
     rwx_umode_pages_umode_rw: cross priv_mode_vu, vsatp_mode, hgatp_mode, vs_pte_xwr111_u_d, read_write_acc;
     rwx_umode_pages_umode_x:  cross priv_mode_vu, vsatp_mode, hgatp_mode, vs_pte_xwr111_u_i, exec_acc;
 
-    // Coverpoint: X-only × MXR=0 (sheet R50–R53) — distinct from cp_two_stage_mxr.
-    // Stimulus: svh_xonly_mxr0_{HS,VS,VU,gstage}_*.S
+    // X-only page, MXR=0, load must fault. HS/VS/VU/G. Not cp_two_stage_mxr.
+    // Test: svh_xonly_mxr0_*.S
     xonly_mxr0_vs_hs: cross priv_mode_hs, mxr_vsstatus, vs_pte_xonly_d, read_write_acc {
         ignore_bins mxr1 = binsof(mxr_vsstatus.set);
         ignore_bins writes = binsof(read_write_acc.write_acc);
@@ -769,34 +723,21 @@ covergroup SvH_cg with function sample(ins_t ins);
         ignore_bins writes = binsof(read_write_acc.write_acc);
     }
 
-    // Coverpoint: hgatp_misaligned_superpage / root alignment (structural).
-    // Stimulus: svh_g_struct_HSmode.S (+ sv39 twin). Score via trap on bad GPA walk.
+    // Bad G superpage / root table. Trap on walk. Test: svh_g_struct_HSmode.S (+ Sv39).
     hgatp_misaligned_superpage: cross priv_mode_hs, hgatp_mode, read_write_acc, trap_set;
     hgatp_root_table_alignment_and_size: cross priv_mode_hs, hgatp_mode, hfence_gvma_insn;
 
-    // Coverpoint: cp_hgatp_gpa_width_checks (RV64 Sv39x4 non-canonical GPA).
-    // Stimulus: svh_gpa_width_VSmode.S
+    // RV64: GPA too wide / not canonical. Test: svh_gpa_width_VSmode.S
     `ifdef UDB_MXLEN_64
     cp_hgatp_gpa_width_checks: cross priv_mode_vs, hgatp_mode, read_write_acc, trap_set;
     `endif
 
-    //--------------------------------------------------------------------------
-    // P4 — HFENCE
-    //--------------------------------------------------------------------------
-    // Stimulus: svh_hfence_vvma_HSmode.S / svh_hfence_gvma_mode_HSmode.S /
-    //           svh_hfence_gvma_ops_HSmode.S (legal HS/M only — never VS/VU).
+    // HFENCE.VVMA / HFENCE.GVMA in HS (illegal in VS/VU). Tests: svh_hfence_*.S
     cp_hfence_functionality: cross priv_mode_hs, hfence_vvma_insn, vsatp_mode;
     cp_hfence_vvma_operand: cross priv_mode_hs, hfence_vvma_insn;
     cp_hgatp_mode_change_hfence: cross priv_mode_hs, hgatp_mode, hfence_gvma_insn;
     cp_hfence_gvma_operand: cross priv_mode_hs, hfence_gvma_insn;
 
-    //--------------------------------------------------------------------------
-    // Not implemented / Sail-blocked / waived
-    //--------------------------------------------------------------------------
-    // TODO: speculative A-bit — needs commit/squash visibility (Sail + RVVI), waived
-    // VSBE set bins: Sail legalize_hstatus hardwire (record only)
-    // vs_pte_ad_unset×g_ad: intentional omit (VS A=0 → page fault before G leaf)
-    //--------------------------------------------------------------------------
 
 endgroup
 

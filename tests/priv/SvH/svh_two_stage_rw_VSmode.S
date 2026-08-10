@@ -84,7 +84,7 @@ main:
   nop                                           // trap-skip padding after load
   RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
 
-  test1_vs:
+  test1_vs:                                     // signature dump point for case 1
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_vs, test1_vs_str)  // record case 1 VS lw result in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -93,7 +93,7 @@ main:
   // M-mode: SPA must show guest store (stronger than VS lw alone)
   la t1, test_region                            // t1 = SPA again
   lw t2, 0(t1)                                  // t2 expect 0x257A0005 (not DEADBEEF)
-  test2_spa:
+  test2_spa:                                    // signature dump point for case 2
   RVTEST_SIGUPD(x2, x5, x4, t2, test2_spa, test2_spa_str)  // record case 2 SPA readback in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------

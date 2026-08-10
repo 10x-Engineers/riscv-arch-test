@@ -69,7 +69,7 @@ main:
   nop                                           // trap-skip padding if previous access faults
   RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
 
-  test1_vs:
+  test1_vs:                                     // signature dump point for case 1
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_vs, test1_vs_str)  // record result in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -77,13 +77,13 @@ main:
 //---------------------------------------------------------------------------------------------------------------------------------
   la t1, test_region                            // SPA of data page
   lw t2, 0(t1)                                  // SPA expect 0x257A0031
-  test2_spa:
+  test2_spa:                                    // signature dump point for case 2
   RVTEST_SIGUPD(x2, x5, x4, t2, test2_spa, test2_spa_str)  // record result in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 3: hgatp readback still Bare | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
-  test3_hgatp:
+  test3_hgatp:                                  // signature dump point for case 3
   RVTEST_SIGUPD_CSR_READ(hgatp, a4, test3_hgatp, test3_hgatp_str)  // record hgatp CSR in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------

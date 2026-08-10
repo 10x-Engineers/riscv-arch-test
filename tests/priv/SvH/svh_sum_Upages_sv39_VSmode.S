@@ -40,14 +40,14 @@ main:
 
   // ---- VS-stage (vsatp Sv39): GVA -> PA  (hgatp Bare ⇒ PTE PPN fields are real PAs) ----
   // Code superpage stays U=0 so VS can fetch without SUM.
-  VS_PTE_SETUP(sv39, PA, rvtest_vlvl1_pg_tbl, (PTE_V), va_code, LEVEL2)
+  VS_PTE_SETUP(sv39, PA, rvtest_vlvl1_pg_tbl, (PTE_V), va_code, LEVEL2)  // VS non-leaf: va_code VPN2 → VS L1 table PA
   SUPERPAGE_VS_PTE_SETUP(sv39, rvtest_code_begin, (PTE_D | PTE_A | PTE_X | PTE_R | PTE_V), va_code, LEVEL1)  // leaf: va_code -> PA(code); LEVEL1 = 4 MiB X/R
 
   csrr a0, mscratch                             // a0 = Msave_area (required by next macro)
   V_SAVE_AREA_SETUP(va_code, rvtest_code_begin, code, LEVEL1)  // framework: VS entry PC is under va_code
 
   // Data page: U=1 leaf with full XWR (coverpoint vs_pte_xwr111_u_d = 8'b11?11111)
-  VS_PTE_SETUP(sv39, PA, rvtest_vlvl1_pg_tbl, (PTE_V), va_data, LEVEL2)
+  VS_PTE_SETUP(sv39, PA, rvtest_vlvl1_pg_tbl, (PTE_V), va_data, LEVEL2)  // VS non-leaf: va_data VPN2 → VS L1 table PA
   VS_PTE_SETUP(sv39, PA, rvtest_vlvl0_pg_tbl, (PTE_V), va_data, LEVEL1)  // non-leaf: va_data VPN1 -> VS L0 table PA
   VS_PTE_SETUP(sv39, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R | PTE_V), va_data, LEVEL0)  // leaf: va_data -> PA(test_region) U=1 R/W/X
 
@@ -77,7 +77,7 @@ main:
   nop                                           // trap-skip padding after store
   RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
 
-  test1_sum0_lw:
+  test1_sum0_lw:                                // signature dump point for case 1
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_sum0_lw, test1_sum0_lw_str)  // record case 1 fault sentinel in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -86,7 +86,7 @@ main:
   // M-mode: SPA must still be poison (SUM=0 guest store never committed)
   la t1, test_region                            // t1 = SPA again
   lw t2, 0(t1)                                  // t2 expect 0xDEADBEEF (not guest-written)
-  test2_sum0_spa:
+  test2_sum0_spa:                               // signature dump point for case 2
   RVTEST_SIGUPD(x2, x5, x4, t2, test2_sum0_spa, test2_sum0_spa_str)  // record case 2 SPA poison check in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -112,7 +112,7 @@ main:
   nop                                           // trap-skip padding after load
   RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
 
-  test3_sum1_lw:
+  test3_sum1_lw:                                // signature dump point for case 3
   RVTEST_SIGUPD(x2, x5, x4, a7, test3_sum1_lw, test3_sum1_lw_str)  // record case 3 lw result in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -121,7 +121,7 @@ main:
   // M-mode: SPA must show guest store (stronger than VS lw alone)
   la t1, test_region                            // t1 = SPA of U=1 page
   lw t3, 0(t1)                                  // t3 expect 0x257A0201
-  test4_sum1_spa:
+  test4_sum1_spa:                               // signature dump point for case 4
   RVTEST_SIGUPD(x2, x5, x4, t3, test4_sum1_spa, test4_sum1_spa_str)  // record case 4 SPA readback in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -136,9 +136,9 @@ test_region:                                    // real PA backing va_data (U=1 
   .word 0                                       // data word (initially 0)
 
 .align 12                                       // align to 4 KiB page
-.align 12
-rvtest_vlvl1_pg_tbl:
-  .zero(4096)
+.align 12                                       // 4 KiB page align
+rvtest_vlvl1_pg_tbl:                            // VS-stage L1 PTE storage
+  .zero(4096)                                   // 4 KiB page-table storage
 rvtest_vlvl0_pg_tbl:                            // VS-stage level-0 PTE storage
   .zero(4096)                                   // 4 KiB page-table storage
 

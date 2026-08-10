@@ -48,7 +48,7 @@ main:
   // cp_hgatp_mode_field bin: MODE=Sv39x4, PPN=0
   LI(t0, (HGATP_MODE_SV39X4 << 60))             // RV64 MODE in [63:60]
   csrw hgatp, t0                                // write hgatp (G-stage CSR)
-  test1_mode:
+  test1_mode:                                   // signature dump point for case 1
   RVTEST_SIGUPD_CSR_READ(hgatp, a4, test1_mode, test1_mode_str)  // signature: read hgatp after MODE=Sv39x4 write
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -56,10 +56,10 @@ main:
 //---------------------------------------------------------------------------------------------------------------------------------
   // cp_hgatp_mode_field bin: WARL walk — try MODE encodings 0..15, read back legal value
   LI(t3, 0)                                     // bit/index = 0
-mode_walk:
+mode_walk:                                      // loop: try each MODE encoding
   sll t0, t3, 60                                // MODE = t3
   csrw hgatp, t0                                // write hgatp (G-stage CSR)
-  test2_mode_walk:
+  test2_mode_walk:                              // signature dump point for case 2
   RVTEST_SIGUPD_CSR_READ(hgatp, a4, test2_mode_walk, test2_mode_walk_str)  // signature: read hgatp after each MODE WARL try
   addi t3, t3, 1                                // next MODE value
   LI(t4, 16)                                    // loop until 16 MODE values tried
@@ -71,7 +71,7 @@ mode_walk:
   // cp_hgatp_mode_field bin: unsupported MODE=1 sample (WARL should not keep illegal encoding)
   LI(t0, (1 << 60))                             // MODE = 1 sample
   csrw hgatp, t0                                // write hgatp (G-stage CSR)
-  test3_mode1:
+  test3_mode1:                                  // signature dump point for case 3
   RVTEST_SIGUPD_CSR_READ(hgatp, a4, test3_mode1, test3_mode1_str)  // signature: read hgatp after illegal MODE=1 sample
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -80,9 +80,9 @@ mode_walk:
   // cp_hgatp_vmidlen_detect + cp_hgatp_vmid_scoping bins: VMID all-1s (two readbacks)
   LI(t0, (HGATP_MODE_SV39X4 << 60) | HGATP64_VMID)  // MODE + VMID all-1s
   csrw hgatp, t0                                // write hgatp (G-stage CSR)
-  test4_vmid1:
+  test4_vmid1:                                  // signature dump point for case 4
   RVTEST_SIGUPD_CSR_READ(hgatp, a4, test4_vmid1, test4_vmid1_str)  // signature: VMIDLEN detect readback
-  test4_vmid2:
+  test4_vmid2:                                  // signature dump point for case 4
   RVTEST_SIGUPD_CSR_READ(hgatp, a4, test4_vmid2, test4_vmid2_str)  // signature: VMID scoping readback
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -97,7 +97,7 @@ mode_walk:
   andi t1, t1, -4                               // force PPN[1:0]=0
   or   t0, t0, t1                               // merge MODE with PPN/bit
   csrw hgatp, t0                                // write hgatp (G-stage CSR)
-  test5_ppn_ones:
+  test5_ppn_ones:                               // signature dump point for case 5
   RVTEST_SIGUPD_CSR_READ(hgatp, a4, test5_ppn_ones, test5_ppn_ones_str)  // signature: read hgatp after PPN all-ones write
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -106,13 +106,13 @@ mode_walk:
   // cp_hgatp_ppn_field bin: walking-1 on PPN[43:2] (PPN[1:0] WARL-0 for Sv*x4 root align)
   // PPN walking-1 bits 2..43
   LI(t3, 2)                                     // start PPN walk at bit 2 (bits 1:0 often WARL-0)
-ppn_walk:
+ppn_walk:                                       // loop: walking-1 across PPN bits
   LI(t0, (HGATP_MODE_SV39X4 << 60))             // t0 = MODE Sv39x4 only
   LI(t1, 1)                                     // t1 = 1 (will shift into one bit)
   sll t1, t1, t3                                // shift 1 into bit position t3
   or  t0, t0, t1                                // merge MODE with PPN/bit
   csrw hgatp, t0                                // write hgatp (G-stage CSR)
-  test6_ppn_walk:
+  test6_ppn_walk:                               // signature dump point for case 6
   RVTEST_SIGUPD_CSR_READ(hgatp, a4, test6_ppn_walk, test6_ppn_walk_str)  // signature: read hgatp after each PPN walk step
   addi t3, t3, 1                                // next bit/index
   LI(t4, 44)                                    // stop after bits 2..43 (42 iterations)

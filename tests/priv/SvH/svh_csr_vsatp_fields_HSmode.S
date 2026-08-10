@@ -46,7 +46,7 @@ main:
   // cp_vsatp_mode_field bin: MODE=Sv32, PPN=0
   LI(t0, (SATP_MODE_SV32 << 31))                // RV32: MODE bit 31, PPN clear
   csrw vsatp, t0                                // write guest page-table CSR
-  test1_mode:
+  test1_mode:                                   // signature dump point for case 1
   RVTEST_SIGUPD_CSR_READ(vsatp, a4, test1_mode, test1_mode_str)  // signature: read vsatp after MODE=Sv32 write
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -55,7 +55,7 @@ main:
   // cp_vsatp_asidlen_detect bin: write all ASID bits, read back WARL-truncated value
   LI(t0, (SATP_MODE_SV32 << 31) | SATP32_ASID)  // MODE + every ASID bit
   csrw vsatp, t0                                // write vsatp with MODE + all ASID bits (ASIDLEN detect)
-  test2_asid:
+  test2_asid:                                   // signature dump point for case 2
   RVTEST_SIGUPD_CSR_READ(vsatp, a4, test2_asid, test2_asid_str)  // signature: read vsatp after ASID all-ones write
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -64,7 +64,7 @@ main:
   // cp_vsatp_ppn_field bin: PPN all-ones (22 bits on RV32)
   LI(t0, (SATP_MODE_SV32 << 31) | 0x3FFFFF)     // MODE + PPN ones (22 bits)
   csrw vsatp, t0                                // write vsatp with MODE + PPN all-ones
-  test3_ppn_ones:
+  test3_ppn_ones:                               // signature dump point for case 3
   RVTEST_SIGUPD_CSR_READ(vsatp, a4, test3_ppn_ones, test3_ppn_ones_str)  // signature: read vsatp after PPN all-ones write
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -72,13 +72,13 @@ main:
 //---------------------------------------------------------------------------------------------------------------------------------
   // cp_vsatp_ppn_field bin: walking-1 on PPN[21:0] (one bit set per iteration)
   LI(t3, 0)                                     // bit index
-ppn_walk:
+ppn_walk:                                       // loop: walking-1 across PPN bits
   LI(t0, (SATP_MODE_SV32 << 31))                // MODE only
   LI(t1, 1)                                     // t1 = 1 (will shift into one PPN bit)
   sll t1, t1, t3                                // t1 = 1 << bit
   or  t0, t0, t1                                // merge MODE with this walking-1 PPN bit
   csrw vsatp, t0                                // write vsatp with MODE + one PPN bit
-  test4_ppn_walk:
+  test4_ppn_walk:                               // signature dump point for case 4
   RVTEST_SIGUPD_CSR_READ(vsatp, a4, test4_ppn_walk, test4_ppn_walk_str)  // signature: read vsatp after each PPN walk step
   addi t3, t3, 1                                // next PPN bit index
   LI(t4, 22)                                    // stop after bits 0..21 (22 iterations)

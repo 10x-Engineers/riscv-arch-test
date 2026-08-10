@@ -69,7 +69,7 @@ main:
   LI(a5, va_s)                                  // a5 = virtual-looking address, not a real PA
   lw   a3, 0(a5)                                // try M-mode load without vsatp translation
   nop                                           // trap-skip padding after load
-  test1_mprv0:
+  test1_mprv0:                                  // signature dump point for case 1
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_mprv0, test1_mprv0_str)  // record case 1 fault sentinel in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -91,7 +91,7 @@ main:
   LI(t0, MSTATUS_MPRV)                          // t0 = bit mask for MPRV
   csrc mstatus, t0                              // MPRV off: vsatp maps only va_s/va_u, so the
                                                 // signature access below must stay untranslated
-  test2_mprv_s:
+  test2_mprv_s:                                 // signature dump point for case 2
   RVTEST_SIGUPD(x2, x5, x4, a4, test2_mprv_s, test2_mprv_s_str)  // record case 2 S-page lw result in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -113,7 +113,7 @@ main:
   LI(t0, MSTATUS_MPV)                           // t0 = bit mask for MPV
   csrc mstatus, t0                              // clear MPV before finishing
 
-  test3_mprv_u:
+  test3_mprv_u:                                 // signature dump point for case 3
   RVTEST_SIGUPD(x2, x5, x4, a6, test3_mprv_u, test3_mprv_u_str)  // record case 3 U-page lw result in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------

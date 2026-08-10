@@ -54,7 +54,7 @@ main:
   nop                                           // pad (trap handler may skip prior insn)
   lw   a3, 0(a5)                                // load → a3
   nop                                           // pad (trap handler may skip prior insn)
-  test1_vs:
+  test1_vs:                                     // signature dump point for case 1
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_vs, test1_vs_str)  // record case 1 VS lw result in signature
 
   RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
@@ -64,7 +64,7 @@ main:
 //---------------------------------------------------------------------------------------------------------------------------------
   la t1, test_region                            // t1 = real address of test_region
   lw t2, 0(t1)                                  // expect 0x257A0021
-  test2_spa:
+  test2_spa:                                    // signature dump point for case 2
   RVTEST_SIGUPD(x2, x5, x4, t2, test2_spa, test2_spa_str)  // record case 2 SPA readback in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------

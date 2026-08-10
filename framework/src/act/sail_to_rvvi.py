@@ -40,7 +40,7 @@ def sailLog2Trace(inputLogFile: Path, outputTraceFile: Path) -> None:
     # Example: mem[R,0x08000C100] -> 0x20001801
     mem_r_pattern = re.compile(r"mem\[R,0x[0-9a-fA-F]+\] -> 0x([0-9a-fA-F]+)")
 
-    # Match a CSR *write* only (arrow left <-). Reads (->) must not flip flags.
+    # Match a CSR *write* only (arrow left <-). Reads (->) must not flip flags. CSR write only
     # Example: CSR vsatp (0x280) <- 0x80000000
     csr_wr_pattern = re.compile(r"CSR .* \(0x([0-9a-fA-F]+)\) <- 0x([0-9a-fA-F]+)")
 
@@ -314,6 +314,9 @@ def sailLog2Trace(inputLogFile: Path, outputTraceFile: Path) -> None:
                     # MXR=0 fault walk can end [..., G R+W PT, VS X-only]; swap once.
                     if (g_leaf & 0xE) == 0x8 and (vs_leaf & 0xE) == 0x6:
                         vs_leaf, g_leaf = g_leaf, vs_leaf        # fix swapped order
+                    # VS A/D (Svade) fault: walk ends [..., G U=1 R+W PT-map, VS U=0 leaf].
+                    elif (vs_leaf & 0x10) and not (g_leaf & 0x10) and (vs_leaf & 0xE) == 0x6:
+                        vs_leaf, g_leaf = g_leaf, vs_leaf
                     return vs_leaf, g_leaf
 
                 if vsatp_on and not hgatp_on:                   # VS-stage only

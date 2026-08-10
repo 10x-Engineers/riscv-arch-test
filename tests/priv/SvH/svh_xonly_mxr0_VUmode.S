@@ -27,49 +27,49 @@
 RVTEST_BEGIN
 
 main:
-  .set va_x_u,  0x008002000
-  .set va_code, 0x90000000
+  .set va_x_u,  0x008002000                     // GVA of U=1 X-only data page (VU lw target)
+  .set va_code, 0x90000000                      // GVA where VU executes this code (VA≠PA; U=1 X/R)
 
-  SUPERPAGE_VS_PTE_SETUP(sv32, rvtest_code_begin, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_R | PTE_V), va_code, LEVEL1)
-  csrr a0, mscratch
-  V_SAVE_AREA_SETUP(va_code, rvtest_code_begin, code, LEVEL1)
+  SUPERPAGE_VS_PTE_SETUP(sv32, rvtest_code_begin, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_R | PTE_V), va_code, LEVEL1)  // VS superpage: va_code → PA(code) U=1 X/R (VU ifetch OK)
+  csrr a0, mscratch                             // a0 = M save-area pointer (required by next macro)
+  V_SAVE_AREA_SETUP(va_code, rvtest_code_begin, code, LEVEL1)  // framework: VU entry PC is under va_code (VA≠PA)
 
-  VS_PTE_SETUP(sv32, PA, rvtest_vlvl0_pg_tbl, (PTE_V), va_x_u, LEVEL1)
-  VS_PTE_SETUP(sv32, PA, test_region_x, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_V), va_x_u, LEVEL0)
+  VS_PTE_SETUP(sv32, PA, rvtest_vlvl0_pg_tbl, (PTE_V), va_x_u, LEVEL1)  // VS non-leaf: va_x_u VPN1 → VS L0 table PA
+  VS_PTE_SETUP(sv32, PA, test_region_x, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_V), va_x_u, LEVEL0)  // VS leaf: va_x_u → PA(test_region_x) U=1 X-only (R=0 W=0)
 
-  VSATP_SETUP(sv32, PA)
-  csrw hgatp, x0
-  hfence.vvma
-  hfence.gvma
+  VSATP_SETUP(sv32, PA)                         // vsatp = Sv32, PPN = PA of VS root
+  csrw hgatp, x0                                // hgatp Bare — GVA→PA only
+  hfence.vvma                                   // flush VS-stage TLB after PTE install
+  hfence.gvma                                   // flush G-stage TLB (none, but keep walks coherent)
 
-  LI(t0, SSTATUS_MXR | SSTATUS_SUM)
-  csrc sstatus, t0
-  csrc vsstatus, t0
+  LI(t0, SSTATUS_MXR | SSTATUS_SUM)             // bits to clear: MXR (X-as-R) and SUM
+  csrc sstatus, t0                              // HS sstatus: MXR=0 SUM=0
+  csrc vsstatus, t0                             // vsstatus: MXR=0 so VU cannot read X-only
 
-  LI(t0, 0xDEADBEEF)
-  la t1, test_region_x
-  sw t0, 0(t1)
+  LI(t0, 0xDEADBEEF)                            // poison at SPA — successful lw would copy this into a3
+  la t1, test_region_x                          // t1 = SPA of X-only U page
+  sw t0, 0(t1)                                  // M can store via PA (no VS perms)
 
-  LI(a5, va_x_u)
-  LI(a3, 0)
-  RVTEST_GOTO_LOWER_MODE VUmode
-  lw   a3, 0(a5)
-  nop
-  RVTEST_TSBI_GOTO_MMODE
-  test1_mxr0_vu:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_mxr0_vu, test1_mxr0_vu_str)
+  LI(a5, va_x_u)                                // a5 = GVA of U=1 X-only page
+  LI(a3, 0)                                     // sentinel — stays 0 if load page-faults
+  RVTEST_GOTO_LOWER_MODE VUmode                 // M→VU mret + PA↔VA relocate (guest code VA≠PA)
+  lw   a3, 0(a5)                                // VU load X-only U-page with MXR=0 → load page-fault (a3 stays 0)
+  nop                                           // trap-skip padding after faulting load
+  RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA)
+  test1_mxr0_vu:                                // signature dump point for case 1
+  RVTEST_SIGUPD(x2, x5, x4, a3, test1_mxr0_vu, test1_mxr0_vu_str)  // dump a3 (expect 0)
 
 RVTEST_CODE_END
 RVTEST_DATA_BEGIN
-.align 12
-test_region_x:
-  .word 0
-  .word 0
-  .word 0
-  .word 0
-.align 12
-rvtest_vlvl0_pg_tbl:
-  .zero(4096)
+.align 12                                       // 4 KiB page align
+test_region_x:                                  // SPA backing va_x_u (U=1 X-only VS leaf)
+  .word 0                                       // payload word (preloaded in M; VU must not read)
+  .word 0                                       // padding in same page
+  .word 0                                       // padding in same page
+  .word 0                                       // padding in same page
+.align 12                                       // 4 KiB page align
+rvtest_vlvl0_pg_tbl:                            // VS-stage L0 PTE storage
+  .zero(4096)                                   // reserve 4 KiB page-table page
 test1_mxr0_vu_str: .string "\"Mismatch on VU X-only MXR=0 lw (expect fault) in Test Case 1!\""
 RVTEST_DATA_END
 RVTEST_SIG_SETUP

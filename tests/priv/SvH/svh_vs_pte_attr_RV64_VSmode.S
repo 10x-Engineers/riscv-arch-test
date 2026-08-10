@@ -139,8 +139,8 @@ main:
   nop                                           // trap-skip padding after load
   RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
 
-  test1_rsw00:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_rsw00, test1_rsw00_str)  // record case 1 lw result in signature
+  test1_rsw00:                                  // signature dump point for case 1
+  RVTEST_SIGUPD(x2, x5, x4, a3, test1_rsw00, test1_rsw00_str)  // dump a3 (expect 0x257A0301)
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: RSW=01 VS sw+lw | Expected: Successful
@@ -154,21 +154,21 @@ main:
   nop                                           // trap-skip padding after load
   RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
 
-  test2_rsw01:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test2_rsw01, test2_rsw01_str)  // signature: dump a4 (test2_rsw01) for PASS/FAIL
+  test2_rsw01:                                  // signature dump point for case 2
+  RVTEST_SIGUPD(x2, x5, x4, a4, test2_rsw01, test2_rsw01_str)  // dump a4 (expect 0x257A0302)
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 2b: RSW=01 VS lw only (fresh hop) | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
-  hfence.vvma                                   // flush VS-stage TLB
-  LI(a5, va_rsw01)
+  hfence.vvma                                   // flush VS TLB so lw rewalks (RSW read bin)
+  LI(a5, va_rsw01)                              // a5 = GVA of RSW=01 leaf
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS mret + PA↔VA relocate (guest code VA≠PA)
-  lw   s2, 0(a5)                                // guest load through current PTE perms (expect allow)
-  nop
-  RVTEST_TSBI_GOTO_MMODE                        // return to M (T-SBI ecall a0=1; rtn2mmode relocates EPC)
+  lw   s2, 0(a5)                                // VS load through RSW=01 leaf; expect 0x257A0302
+  nop                                           // trap-skip padding after load
+  RVTEST_TSBI_GOTO_MMODE                        // return to M
 
-  test2b_rsw01_lw:
-  RVTEST_SIGUPD(x2, x5, x4, s2, test2b_rsw01_lw, test2b_rsw01_lw_str)  // signature: dump s2 (test2b_rsw01_lw) for PASS/FAIL
+  test2b_rsw01_lw:                              // signature dump point for case 2b
+  RVTEST_SIGUPD(x2, x5, x4, s2, test2b_rsw01_lw, test2b_rsw01_lw_str)  // dump s2 (expect 0x257A0302)
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 3: RSW=10 VS sw+lw | Expected: Successful
@@ -182,21 +182,21 @@ main:
   nop                                           // trap-skip padding after load
   RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
 
-  test3_rsw10:
-  RVTEST_SIGUPD(x2, x5, x4, a6, test3_rsw10, test3_rsw10_str)  // signature: dump a6 (test3_rsw10) for PASS/FAIL
+  test3_rsw10:                                  // signature dump point for case 3
+  RVTEST_SIGUPD(x2, x5, x4, a6, test3_rsw10, test3_rsw10_str)  // dump a6 (expect 0x257A0303)
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 3b: RSW=10 VS lw only (fresh hop) | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
-  hfence.vvma                                   // flush VS-stage TLB
-  LI(a5, va_rsw10)
-  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS mret + PA↔VA relocate (guest code VA≠PA)
-  lw   s3, 0(a5)                                // guest load through current PTE perms (expect allow)
-  nop
-  RVTEST_TSBI_GOTO_MMODE                        // return to M (T-SBI ecall a0=1; rtn2mmode relocates EPC)
+  hfence.vvma                                   // flush VS TLB so lw rewalks (RSW read bin)
+  LI(a5, va_rsw10)                              // a5 = GVA of RSW=10 leaf
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS mret + PA↔VA relocate
+  lw   s3, 0(a5)                                // VS load through RSW=10 leaf; expect 0x257A0303
+  nop                                           // trap-skip padding after load
+  RVTEST_TSBI_GOTO_MMODE                        // return to M
 
-  test3b_rsw10_lw:
-  RVTEST_SIGUPD(x2, x5, x4, s3, test3b_rsw10_lw, test3b_rsw10_lw_str)  // signature: dump s3 (test3b_rsw10_lw) for PASS/FAIL
+  test3b_rsw10_lw:                              // signature dump point for case 3b
+  RVTEST_SIGUPD(x2, x5, x4, s3, test3b_rsw10_lw, test3b_rsw10_lw_str)  // dump s3 (expect 0x257A0303)
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 4: RSW=11 (PTE_SOFT) VS sw+lw | Expected: Successful
@@ -210,215 +210,217 @@ main:
   nop                                           // trap-skip padding after load
   RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
 
-  test4_rsw11:
-  RVTEST_SIGUPD(x2, x5, x4, a7, test4_rsw11, test4_rsw11_str)  // record case 4 lw result in signature
+  test4_rsw11:                                  // signature dump point for case 4
+  RVTEST_SIGUPD(x2, x5, x4, a7, test4_rsw11, test4_rsw11_str)  // dump a7 (expect 0x257A0304)
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 4b: RSW=11 VS lw only (fresh hop) | Expected: Successful
 // Separate hop so .rvvi keeps VS_PTE_D for cp_vsatp_pte_rsw <auto[3],read_acc>.
 //---------------------------------------------------------------------------------------------------------------------------------
-  hfence.vvma
-  LI(a5, va_rsw11)
-  RVTEST_GOTO_LOWER_MODE VSmode
-  lw   s4, 0(a5)
-  nop
-  RVTEST_TSBI_GOTO_MMODE
-  test4b_rsw11_lw:
-  RVTEST_SIGUPD(x2, x5, x4, s4, test4b_rsw11_lw, test4b_rsw11_lw_str)
+  hfence.vvma                                   // flush VS TLB so lw rewalks (RSW read bin)
+  LI(a5, va_rsw11)                              // a5 = GVA of RSW=11 leaf
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS
+  lw   s4, 0(a5)                                // VS load through RSW=11 leaf; expect 0x257A0304
+  nop                                           // trap-skip padding after load
+  RVTEST_TSBI_GOTO_MMODE                       // return to M
+  test4b_rsw11_lw:                              // signature dump point for case 4b
+  RVTEST_SIGUPD(x2, x5, x4, s4, test4b_rsw11_lw, test4b_rsw11_lw_str)  // dump s4 (expect 0x257A0304)
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 5a–5h: Reserved PTE[60:54] walking-ones + all-ones VS lw | Expected: Expected Fault
+// Macro lines use /* */ then `\`: `//` would eat the backslash and break continuation.
 //---------------------------------------------------------------------------------------------------------------------------------
-#define RSVD_LW_CASE(bitmask, reg, label, strlabel)                 \
-  VS_PTE_SETUP(sv39, PA, test_region4, (PTE_D | PTE_A | PTE_W | PTE_R | PTE_V | (bitmask)), va_rsvd, LEVEL0); \
-  hfence.vvma;                                                      \
-  LI(a5, va_rsvd);                                                  \
-  LI(reg, 0);                                                       \
-  RVTEST_GOTO_LOWER_MODE VSmode;                                    \
-  lw   reg, 0(a5);                                                  \
-  nop;                                                              \
-  RVTEST_TSBI_GOTO_MMODE;                                           \
-  label:                                                            \
-  RVTEST_SIGUPD(x2, x5, x4, reg, label, strlabel)
+#define RSVD_LW_CASE(bitmask, reg, label, strlabel)                 /* one reserved-bit VS lw case */ \
+  VS_PTE_SETUP(sv39, PA, test_region4, (PTE_D | PTE_A | PTE_W | PTE_R | PTE_V | (bitmask)), va_rsvd, LEVEL0); /* VS leaf A=D=1 R/W + reserved bitmask */ \
+  hfence.vvma;                                                      /* flush VS TLB so lw rewalks */ \
+  LI(a5, va_rsvd);                                                  /* a5 = GVA of reserved leaf */ \
+  LI(reg, 0);                                                       /* sentinel — stays 0 if load faults */ \
+  RVTEST_GOTO_LOWER_MODE VSmode;                                    /* M→VS mret + PA↔VA relocate */ \
+  lw   reg, 0(a5);                                                  /* VS load through reserved leaf */ \
+  nop;                                                              /* trap-skip padding after load */ \
+  RVTEST_TSBI_GOTO_MMODE;                                           /* back to M */ \
+  label:                                                            /* signature dump point for this bit */ \
+  RVTEST_SIGUPD(x2, x5, x4, reg, label, strlabel)                   /* dump load result (0 if page-fault) */
 
-  RSVD_LW_CASE(PTE_BIT54, a6, test5a_b54, test5a_b54_str)
-  RSVD_LW_CASE(PTE_BIT55, a7, test5b_b55, test5b_b55_str)
-  RSVD_LW_CASE(PTE_BIT56, s2, test5c_b56, test5c_b56_str)
-  RSVD_LW_CASE(PTE_BIT57, s3, test5d_b57, test5d_b57_str)
-  RSVD_LW_CASE(PTE_BIT58, s4, test5e_b58, test5e_b58_str)
-  RSVD_LW_CASE(PTE_BIT59, s5, test5f_b59, test5f_b59_str)
-  RSVD_LW_CASE(PTE_BIT60, s6, test5g_b60, test5g_b60_str)
-  RSVD_LW_CASE(PTE_RSVD_ALL, s7, test5h_all, test5h_all_str)
+  RSVD_LW_CASE(PTE_BIT54, a6, test5a_b54, test5a_b54_str)  // VS lw reserved bit54; expect fault (a6 stays 0)
+  RSVD_LW_CASE(PTE_BIT55, a7, test5b_b55, test5b_b55_str)  // VS lw reserved bit55; expect fault (a7 stays 0)
+  RSVD_LW_CASE(PTE_BIT56, s2, test5c_b56, test5c_b56_str)  // VS lw reserved bit56; expect fault (s2 stays 0)
+  RSVD_LW_CASE(PTE_BIT57, s3, test5d_b57, test5d_b57_str)  // VS lw reserved bit57; expect fault (s3 stays 0)
+  RSVD_LW_CASE(PTE_BIT58, s4, test5e_b58, test5e_b58_str)  // VS lw reserved bit58; expect fault (s4 stays 0)
+  RSVD_LW_CASE(PTE_BIT59, s5, test5f_b59, test5f_b59_str)  // VS lw soft-RSW bit59; dump result (may succeed)
+  RSVD_LW_CASE(PTE_BIT60, s6, test5g_b60, test5g_b60_str)  // VS lw soft-RSW bit60; dump result (may succeed)
+  RSVD_LW_CASE(PTE_RSVD_ALL, s7, test5h_all, test5h_all_str)  // VS lw reserved [60:54] all-ones; expect fault
 
 #undef RSVD_LW_CASE
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 6a–6f: Reserved bits 54–58 + all-ones VS sw | Expected: Expected Fault
+// Macro lines use /* */ then `\`: `//` would eat the backslash and break continuation.
 //---------------------------------------------------------------------------------------------------------------------------------
-#define RSVD_SW_CASE(bitmask, label, strlabel)                      \
-  VS_PTE_SETUP(sv39, PA, test_region4, (PTE_D | PTE_A | PTE_W | PTE_R | PTE_V | (bitmask)), va_rsvd, LEVEL0); \
-  hfence.vvma;                                                      \
-  LI(a5, va_rsvd);                                                  \
-  LI(t0, 0xBAD00FAD);                                               \
-  RVTEST_GOTO_LOWER_MODE VSmode;                                    \
-  sw   t0, 0(a5);                                                   \
-  nop;                                                              \
-  RVTEST_TSBI_GOTO_MMODE;                                           \
-  la t1, test_region4;                                              \
-  lw a3, 0(t1);                                                     \
-  label:                                                            \
-  RVTEST_SIGUPD(x2, x5, x4, a3, label, strlabel)
+#define RSVD_SW_CASE(bitmask, label, strlabel)                      /* one reserved-bit VS sw case */ \
+  VS_PTE_SETUP(sv39, PA, test_region4, (PTE_D | PTE_A | PTE_W | PTE_R | PTE_V | (bitmask)), va_rsvd, LEVEL0); /* VS leaf A=D=1 R/W + reserved bitmask */ \
+  hfence.vvma;                                                      /* flush VS TLB so sw rewalks */ \
+  LI(a5, va_rsvd);                                                  /* a5 = GVA of reserved leaf */ \
+  LI(t0, 0xBAD00FAD);                                               /* payload that must not land if fault */ \
+  RVTEST_GOTO_LOWER_MODE VSmode;                                    /* M→VS mret + PA↔VA relocate */ \
+  sw   t0, 0(a5);                                                   /* VS store through reserved leaf */ \
+  nop;                                                              /* trap-skip padding after store */ \
+  RVTEST_TSBI_GOTO_MMODE;                                           /* back to M */ \
+  la t1, test_region4;                                              /* t1 = SPA behind va_rsvd */ \
+  lw a3, 0(t1);                                                     /* SPA must stay preload if store faulted */ \
+  label:                                                            /* signature dump point for this bit */ \
+  RVTEST_SIGUPD(x2, x5, x4, a3, label, strlabel)                   /* dump SPA word */
 
-  LI(t0, 0x257A0305)
-  la t1, test_region4
-  sw t0, 0(t1)
+  LI(t0, 0x257A0305)                            // SPA preload — must stay if reserved-bit store faults
+  la t1, test_region4                           // t1 = SPA behind va_rsvd
+  sw t0, 0(t1)                                  // write preload before reserved-bit store cases
 
-  RSVD_SW_CASE(PTE_BIT54, test6a_sw54, test6a_sw54_str)
-  RSVD_SW_CASE(PTE_BIT55, test6b_sw55, test6b_sw55_str)
-  RSVD_SW_CASE(PTE_BIT56, test6c_sw56, test6c_sw56_str)
-  RSVD_SW_CASE(PTE_BIT57, test6d_sw57, test6d_sw57_str)
-  RSVD_SW_CASE(PTE_BIT58, test6e_sw58, test6e_sw58_str)
-  RSVD_SW_CASE(PTE_RSVD_ALL, test6f_sw_all, test6f_sw_all_str)
+  RSVD_SW_CASE(PTE_BIT54, test6a_sw54, test6a_sw54_str)  // VS sw reserved bit54; expect fault (SPA unchanged)
+  RSVD_SW_CASE(PTE_BIT55, test6b_sw55, test6b_sw55_str)  // VS sw reserved bit55; expect fault (SPA unchanged)
+  RSVD_SW_CASE(PTE_BIT56, test6c_sw56, test6c_sw56_str)  // VS sw reserved bit56; expect fault (SPA unchanged)
+  RSVD_SW_CASE(PTE_BIT57, test6d_sw57, test6d_sw57_str)  // VS sw reserved bit57; expect fault (SPA unchanged)
+  RSVD_SW_CASE(PTE_BIT58, test6e_sw58, test6e_sw58_str)  // VS sw reserved bit58; expect fault (SPA unchanged)
+  RSVD_SW_CASE(PTE_RSVD_ALL, test6f_sw_all, test6f_sw_all_str)  // VS sw reserved all-ones; expect fault (SPA unchanged)
 #undef RSVD_SW_CASE
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 6g–6h: Soft-RSW bits 59/60 VS sw | Expected: Successful (Svrsw60t59b)
 //---------------------------------------------------------------------------------------------------------------------------------
-  VS_PTE_SETUP(sv39, PA, test_region4, (PTE_D | PTE_A | PTE_W | PTE_R | PTE_V | PTE_BIT59), va_rsvd, LEVEL0)
-  hfence.vvma
-  LI(a5, va_rsvd)
-  LI(t0, 0x257A0359)
-  RVTEST_GOTO_LOWER_MODE VSmode
-  sw   t0, 0(a5)
-  nop
-  lw   a3, 0(a5)
-  nop
-  RVTEST_TSBI_GOTO_MMODE
-  test6g_sw59:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test6g_sw59, test6g_sw59_str)
+  VS_PTE_SETUP(sv39, PA, test_region4, (PTE_D | PTE_A | PTE_W | PTE_R | PTE_V | PTE_BIT59), va_rsvd, LEVEL0)  // VS leaf soft-RSW bit59 R/W (Svrsw60t59b allow)
+  hfence.vvma                                   // flush VS TLB after PTE rewrite
+  LI(a5, va_rsvd)                               // a5 = GVA of reserved/soft-RSW leaf
+  LI(t0, 0x257A0359)                            // payload for soft-RSW bit59 store
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS
+  sw   t0, 0(a5)                                // VS store through bit59 leaf — expect success
+  nop                                           // trap-skip padding after store
+  lw   a3, 0(a5)                                // VS load; expect 0x257A0359
+  nop                                           // trap-skip padding after load
+  RVTEST_TSBI_GOTO_MMODE                       // return to M
+  test6g_sw59:                                  // signature dump point for case 6g
+  RVTEST_SIGUPD(x2, x5, x4, a3, test6g_sw59, test6g_sw59_str)  // dump a3 (expect 0x257A0359)
 
-  VS_PTE_SETUP(sv39, PA, test_region4, (PTE_D | PTE_A | PTE_W | PTE_R | PTE_V | PTE_BIT60), va_rsvd, LEVEL0)
-  hfence.vvma
-  LI(a5, va_rsvd)
-  LI(t0, 0x257A0360)
-  RVTEST_GOTO_LOWER_MODE VSmode
-  sw   t0, 0(a5)
-  nop
-  lw   a4, 0(a5)
-  nop
-  RVTEST_TSBI_GOTO_MMODE
-  test6h_sw60:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test6h_sw60, test6h_sw60_str)
+  VS_PTE_SETUP(sv39, PA, test_region4, (PTE_D | PTE_A | PTE_W | PTE_R | PTE_V | PTE_BIT60), va_rsvd, LEVEL0)  // VS leaf soft-RSW bit60 R/W
+  hfence.vvma                                   // flush VS TLB after PTE rewrite
+  LI(a5, va_rsvd)                               // a5 = GVA of soft-RSW leaf
+  LI(t0, 0x257A0360)                            // payload for soft-RSW bit60 store
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS
+  sw   t0, 0(a5)                                // VS store through bit60 leaf — expect success
+  nop                                           // trap-skip padding after store
+  lw   a4, 0(a5)                                // VS load; expect 0x257A0360
+  nop                                           // trap-skip padding after load
+  RVTEST_TSBI_GOTO_MMODE                       // return to M
+  test6h_sw60:                                  // signature dump point for case 6h
+  RVTEST_SIGUPD(x2, x5, x4, a4, test6h_sw60, test6h_sw60_str)  // dump a4 (expect 0x257A0360)
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 7: Reserved bit54 X-leaf VS jalr | Expected: Expected Fault
 //---------------------------------------------------------------------------------------------------------------------------------
-  VS_PTE_SETUP(sv39, PA, test_region4, (PTE_D | PTE_A | PTE_X | PTE_R | PTE_V | PTE_BIT54), va_rsvd, LEVEL0)
-  hfence.vvma
-  LI(a5, va_rsvd)
-  LI(a4, 0)
-  RVTEST_GOTO_LOWER_MODE VSmode
-  nop
-  jalr ra, a5, 0
-  nop
-  RVTEST_TSBI_GOTO_MMODE
-  test7_rsvd_jalr:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test7_rsvd_jalr, test7_rsvd_jalr_str)
+  VS_PTE_SETUP(sv39, PA, test_region4, (PTE_D | PTE_A | PTE_X | PTE_R | PTE_V | PTE_BIT54), va_rsvd, LEVEL0)  // VS X-leaf + reserved bit54 (must fetch-fault)
+  hfence.vvma                                   // flush VS TLB after PTE rewrite
+  LI(a5, va_rsvd)                               // a5 = GVA fetch target
+  LI(a4, 0)                                     // sentinel — stays 0 if target never runs
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS
+  nop                                           // pad so priv_mode_vs samples prev=VS on jalr
+  jalr ra, a5, 0                                // VS ifetch reserved bit54 X-leaf → fetch page-fault
+  nop                                           // trap-skip padding (not reached)
+  RVTEST_TSBI_GOTO_MMODE                       // return to M
+  test7_rsvd_jalr:                              // signature dump point for case 7
+  RVTEST_SIGUPD(x2, x5, x4, a4, test7_rsvd_jalr, test7_rsvd_jalr_str)  // dump a4 (expect 0)
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 7b–7c: Soft-RSW bits 59/60 X-leaf VS jalr | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
-  LI(t0, 0x00008067)                            // ret
-  la t1, test_region4
-  sw t0, 0(t1)
-  VS_PTE_SETUP(sv39, PA, test_region4, (PTE_D | PTE_A | PTE_X | PTE_R | PTE_V | PTE_BIT59), va_rsvd, LEVEL0)
-  hfence.vvma
-  LI(a5, va_rsvd)
-  LI(s2, 0)
-  RVTEST_GOTO_LOWER_MODE VSmode
-  nop
-  jalr ra, a5, 0
-  LI(s2, 0x257A0759)
-  nop
-  RVTEST_TSBI_GOTO_MMODE
-  test7b_jalr59:
-  RVTEST_SIGUPD(x2, x5, x4, s2, test7b_jalr59, test7b_jalr59_str)
+  LI(t0, 0x00008067)                            // ret opcode planted at SPA (jalr target returns)
+  la t1, test_region4                           // t1 = SPA behind va_rsvd
+  sw t0, 0(t1)                                  // write ret so successful ifetch can return
+  VS_PTE_SETUP(sv39, PA, test_region4, (PTE_D | PTE_A | PTE_X | PTE_R | PTE_V | PTE_BIT59), va_rsvd, LEVEL0)  // VS X-leaf + soft-RSW bit59 (allow)
+  hfence.vvma                                   // flush VS TLB after PTE rewrite
+  LI(a5, va_rsvd)                               // a5 = GVA fetch target
+  LI(s2, 0)                                     // sentinel — stays 0 if jalr faults
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS
+  nop                                           // pad so priv_mode_vs samples prev=VS on jalr
+  jalr ra, a5, 0                                // VS ifetch soft-RSW bit59 — expect success + ret
+  LI(s2, 0x257A0759)                            // reached only if jalr returned; success marker
+  nop                                           // trap-skip padding
+  RVTEST_TSBI_GOTO_MMODE                       // return to M
+  test7b_jalr59:                                // signature dump point for case 7b
+  RVTEST_SIGUPD(x2, x5, x4, s2, test7b_jalr59, test7b_jalr59_str)  // dump s2 (expect 0x257A0759)
 
-  LI(t0, 0x00008067)
-  la t1, test_region4
-  sw t0, 0(t1)
-  VS_PTE_SETUP(sv39, PA, test_region4, (PTE_D | PTE_A | PTE_X | PTE_R | PTE_V | PTE_BIT60), va_rsvd, LEVEL0)
-  hfence.vvma
-  LI(a5, va_rsvd)
-  LI(s3, 0)
-  RVTEST_GOTO_LOWER_MODE VSmode
-  nop
-  jalr ra, a5, 0
-  LI(s3, 0x257A0760)
-  nop
-  RVTEST_TSBI_GOTO_MMODE
-  test7c_jalr60:
-  RVTEST_SIGUPD(x2, x5, x4, s3, test7c_jalr60, test7c_jalr60_str)
+  LI(t0, 0x00008067)                            // ret opcode planted at SPA again
+  la t1, test_region4                           // t1 = SPA
+  sw t0, 0(t1)                                  // rewrite ret (prior store/ifetch may have dirtied page)
+  VS_PTE_SETUP(sv39, PA, test_region4, (PTE_D | PTE_A | PTE_X | PTE_R | PTE_V | PTE_BIT60), va_rsvd, LEVEL0)  // VS X-leaf + soft-RSW bit60 (allow)
+  hfence.vvma                                   // flush VS TLB after PTE rewrite
+  LI(a5, va_rsvd)                               // a5 = GVA fetch target
+  LI(s3, 0)                                     // sentinel — stays 0 if jalr faults
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS
+  nop                                           // pad so priv_mode_vs samples prev=VS on jalr
+  jalr ra, a5, 0                                // VS ifetch soft-RSW bit60 — expect success + ret
+  LI(s3, 0x257A0760)                            // reached only if jalr returned; success marker
+  nop                                           // trap-skip padding
+  RVTEST_TSBI_GOTO_MMODE                       // return to M
+  test7c_jalr60:                                // signature dump point for case 7c
+  RVTEST_SIGUPD(x2, x5, x4, s3, test7c_jalr60, test7c_jalr60_str)  // dump s3 (expect 0x257A0760)
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 8a–8c: PBMT=1/2/3 with PBMTE=0 (covergroup bins only no_support={0})
 // Expect fault; scores cp_vsatp_svpbmt_* × no_support × auto[1/2/3].
 //---------------------------------------------------------------------------------------------------------------------------------
-  LI(t0, MENVCFG_PBMTE)
-  csrc menvcfg, t0
-  LI(t0, HENVCFG_PBMTE)
-  csrc henvcfg, t0
+  LI(t0, MENVCFG_PBMTE)                         // t0 = menvcfg.PBMTE mask
+  csrc menvcfg, t0                              // clear menvcfg.PBMTE — PBMT encodings unsupported
+  LI(t0, HENVCFG_PBMTE)                         // t0 = henvcfg.PBMTE mask
+  csrc henvcfg, t0                              // clear henvcfg.PBMTE (VS-stage PBMT also off)
 
-  VS_PTE_SETUP(sv39, PA, test_region5, (PTE_D | PTE_A | PTE_W | PTE_R | PTE_V | PTE_PBMT1), va_pbmt, LEVEL0)
-  hfence.vvma
-  LI(a5, va_pbmt)
-  LI(a6, 0)
-  RVTEST_GOTO_LOWER_MODE VSmode
-  lw   a6, 0(a5)
-  nop
-  sw   a6, 0(a5)
-  nop
-  RVTEST_TSBI_GOTO_MMODE
-  test8a_pbmt1_nosup:
-  RVTEST_SIGUPD(x2, x5, x4, a6, test8a_pbmt1_nosup, test8a_pbmt1_nosup_str)
+  VS_PTE_SETUP(sv39, PA, test_region5, (PTE_D | PTE_A | PTE_W | PTE_R | PTE_V | PTE_PBMT1), va_pbmt, LEVEL0)  // VS leaf PBMT=1 R/W with PBMTE=0
+  hfence.vvma                                   // flush VS TLB after PTE rewrite
+  LI(a5, va_pbmt)                               // a5 = GVA of PBMT leaf
+  LI(a6, 0)                                     // sentinel — stays 0 if load faults
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS
+  lw   a6, 0(a5)                                // VS load PBMT=1 PBMTE=0 → expect fault
+  nop                                           // trap-skip padding after load
+  sw   a6, 0(a5)                                // VS store same leaf → expect fault if load trapped
+  nop                                           // trap-skip padding after store
+  RVTEST_TSBI_GOTO_MMODE                       // return to M
+  test8a_pbmt1_nosup:                           // signature dump point for case 8a
+  RVTEST_SIGUPD(x2, x5, x4, a6, test8a_pbmt1_nosup, test8a_pbmt1_nosup_str)  // dump a6 (expect 0)
 
-  VS_PTE_SETUP(sv39, PA, test_region5, (PTE_D | PTE_A | PTE_W | PTE_R | PTE_V | PTE_PBMT2), va_pbmt, LEVEL0)
-  hfence.vvma
-  LI(a5, va_pbmt)
-  LI(a7, 0)
-  RVTEST_GOTO_LOWER_MODE VSmode
-  lw   a7, 0(a5)
-  nop
-  sw   a7, 0(a5)
-  nop
-  RVTEST_TSBI_GOTO_MMODE
-  test8b_pbmt2_nosup:
-  RVTEST_SIGUPD(x2, x5, x4, a7, test8b_pbmt2_nosup, test8b_pbmt2_nosup_str)
+  VS_PTE_SETUP(sv39, PA, test_region5, (PTE_D | PTE_A | PTE_W | PTE_R | PTE_V | PTE_PBMT2), va_pbmt, LEVEL0)  // VS leaf PBMT=2 R/W with PBMTE=0
+  hfence.vvma                                   // flush VS TLB after PTE rewrite
+  LI(a5, va_pbmt)                               // a5 = GVA of PBMT leaf
+  LI(a7, 0)                                     // sentinel — stays 0 if load faults
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS
+  lw   a7, 0(a5)                                // VS load PBMT=2 PBMTE=0 → expect fault
+  nop                                           // trap-skip padding after load
+  sw   a7, 0(a5)                                // VS store same leaf → expect fault
+  nop                                           // trap-skip padding after store
+  RVTEST_TSBI_GOTO_MMODE                       // return to M
+  test8b_pbmt2_nosup:                           // signature dump point for case 8b
+  RVTEST_SIGUPD(x2, x5, x4, a7, test8b_pbmt2_nosup, test8b_pbmt2_nosup_str)  // dump a7 (expect 0)
 
-  VS_PTE_SETUP(sv39, PA, test_region5, (PTE_D | PTE_A | PTE_W | PTE_R | PTE_V | PTE_PBMT3), va_pbmt, LEVEL0)
-  hfence.vvma
-  LI(a5, va_pbmt)
-  LI(s2, 0)
-  RVTEST_GOTO_LOWER_MODE VSmode
-  lw   s2, 0(a5)
-  nop
-  sw   s2, 0(a5)
-  nop
-  RVTEST_TSBI_GOTO_MMODE
-  test8c_pbmt3_nosup:
-  RVTEST_SIGUPD(x2, x5, x4, s2, test8c_pbmt3_nosup, test8c_pbmt3_nosup_str)
+  VS_PTE_SETUP(sv39, PA, test_region5, (PTE_D | PTE_A | PTE_W | PTE_R | PTE_V | PTE_PBMT3), va_pbmt, LEVEL0)  // VS leaf PBMT=3 R/W with PBMTE=0
+  hfence.vvma                                   // flush VS TLB after PTE rewrite
+  LI(a5, va_pbmt)                               // a5 = GVA of PBMT leaf
+  LI(s2, 0)                                     // sentinel — stays 0 if load faults
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS
+  lw   s2, 0(a5)                                // VS load PBMT=3 PBMTE=0 → expect fault
+  nop                                           // trap-skip padding after load
+  sw   s2, 0(a5)                                // VS store same leaf → expect fault
+  nop                                           // trap-skip padding after store
+  RVTEST_TSBI_GOTO_MMODE                       // return to M
+  test8c_pbmt3_nosup:                           // signature dump point for case 8c
+  RVTEST_SIGUPD(x2, x5, x4, s2, test8c_pbmt3_nosup, test8c_pbmt3_nosup_str)  // dump s2 (expect 0)
 
-  VS_PTE_SETUP(sv39, PA, test_region5, (PTE_D | PTE_A | PTE_X | PTE_R | PTE_V | PTE_PBMT1), va_pbmt, LEVEL0)
-  hfence.vvma
-  LI(a5, va_pbmt)
-  LI(s3, 0)
-  RVTEST_GOTO_LOWER_MODE VSmode
-  nop
-  jalr ra, a5, 0
-  nop
-  RVTEST_TSBI_GOTO_MMODE
-  test8d_pbmt1_nosup_x:
-  RVTEST_SIGUPD(x2, x5, x4, s3, test8d_pbmt1_nosup_x, test8d_pbmt1_nosup_x_str)
+  VS_PTE_SETUP(sv39, PA, test_region5, (PTE_D | PTE_A | PTE_X | PTE_R | PTE_V | PTE_PBMT1), va_pbmt, LEVEL0)  // VS X-leaf PBMT=1 with PBMTE=0
+  hfence.vvma                                   // flush VS TLB after PTE rewrite
+  LI(a5, va_pbmt)                               // a5 = GVA fetch target
+  LI(s3, 0)                                     // sentinel — stays 0 if jalr faults
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS
+  nop                                           // pad so priv_mode_vs samples prev=VS on jalr
+  jalr ra, a5, 0                                // VS ifetch PBMT=1 PBMTE=0 → expect fetch fault
+  nop                                           // trap-skip padding (not reached)
+  RVTEST_TSBI_GOTO_MMODE                       // return to M
+  test8d_pbmt1_nosup_x:                         // signature dump point for case 8d
+  RVTEST_SIGUPD(x2, x5, x4, s3, test8d_pbmt1_nosup_x, test8d_pbmt1_nosup_x_str)  // dump s3 (expect 0)
 
 //---------------------------------------------------------------------------------------------------------------------------------
 RVTEST_CODE_END

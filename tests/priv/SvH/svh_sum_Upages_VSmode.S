@@ -74,7 +74,7 @@ main:
   nop                                           // trap-skip padding after store
   RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
 
-  test1_sum0_lw:
+  test1_sum0_lw:                                // signature dump point for case 1
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_sum0_lw, test1_sum0_lw_str)  // record case 1 fault sentinel in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -83,7 +83,7 @@ main:
   // M-mode: SPA must still be poison (SUM=0 guest store never committed)
   la t1, test_region                            // t1 = SPA again
   lw t2, 0(t1)                                  // t2 expect 0xDEADBEEF (not guest-written)
-  test2_sum0_spa:
+  test2_sum0_spa:                               // signature dump point for case 2
   RVTEST_SIGUPD(x2, x5, x4, t2, test2_sum0_spa, test2_sum0_spa_str)  // record case 2 SPA poison check in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -109,7 +109,7 @@ main:
   nop                                           // trap-skip padding after load
   RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
 
-  test3_sum1_lw:
+  test3_sum1_lw:                                // signature dump point for case 3
   RVTEST_SIGUPD(x2, x5, x4, a7, test3_sum1_lw, test3_sum1_lw_str)  // record case 3 lw result in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -118,7 +118,7 @@ main:
   // M-mode: SPA must show guest store (stronger than VS lw alone)
   la t1, test_region                            // t1 = SPA of U=1 page
   lw t3, 0(t1)                                  // t3 expect 0x257A0201
-  test4_sum1_spa:
+  test4_sum1_spa:                               // signature dump point for case 4
   RVTEST_SIGUPD(x2, x5, x4, t3, test4_sum1_spa, test4_sum1_spa_str)  // record case 4 SPA readback in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------

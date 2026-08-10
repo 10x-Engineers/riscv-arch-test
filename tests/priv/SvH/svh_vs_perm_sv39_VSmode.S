@@ -66,14 +66,14 @@ main:
   .set va_code,                 0x0000000090000000                     // GVA where VS executes this code
 
   // ---- VS-stage (vsatp Sv39): GVA -> PA  (hgatp Bare ⇒ PTE PPN fields are real PAs) ----
-  VS_PTE_SETUP(sv39, PA, rvtest_vlvl1_pg_tbl, (PTE_V), va_code, LEVEL2)
+  VS_PTE_SETUP(sv39, PA, rvtest_vlvl1_pg_tbl, (PTE_V), va_code, LEVEL2)  // VS non-leaf: va_code VPN2 → L1 table PA(rvtest_vlvl1_pg_tbl) V=1
   SUPERPAGE_VS_PTE_SETUP(sv39, rvtest_code_begin, (PTE_D | PTE_A | PTE_X | PTE_R | PTE_V), va_code, LEVEL1)  // leaf: va_code -> PA(code); LEVEL1 megapage X/R
 
   csrr a0, mscratch                             // a0 = Msave_area (required by next macro)
   V_SAVE_AREA_SETUP(va_code, rvtest_code_begin, code, LEVEL1)  // framework: entry PC under va_code
 
   // Shared L2+L1 non-leafs (same VPN2/VPN1 for all data VAs under 0x00800x000)
-  VS_PTE_SETUP(sv39, PA, rvtest_vlvl1_pg_tbl, (PTE_V), va_rwx, LEVEL2)
+  VS_PTE_SETUP(sv39, PA, rvtest_vlvl1_pg_tbl, (PTE_V), va_rwx, LEVEL2)  // VS non-leaf: va_rwx VPN2 → L1 table PA(rvtest_vlvl1_pg_tbl) V=1
   VS_PTE_SETUP(sv39, PA, rvtest_vlvl0_pg_tbl, (PTE_V), va_rwx, LEVEL1)  // non-leaf: data VPN1 -> VS L0 table PA
 
   // Case 1: S-page R/W/X (U=0, XWR=111)
@@ -95,13 +95,13 @@ main:
   VS_PTE_SETUP(sv39, PA, test_region_rx, (PTE_D | PTE_A | PTE_X | PTE_R | PTE_V), va_rx, LEVEL0)  // VS leaf U=0 R/X
 
   // Case 9: U=1 V-only (XWR=000) — hits VS urwx1000×write
-  VS_PTE_SETUP(sv39, PA, test_region_u_vonly, (PTE_D | PTE_A | PTE_U | PTE_V), va_u_vonly, LEVEL0)
+  VS_PTE_SETUP(sv39, PA, test_region_u_vonly, (PTE_D | PTE_A | PTE_U | PTE_V), va_u_vonly, LEVEL0)  // VS leaf: va_u_vonly → PA(test_region_u_vonly) U=1 XWR=000 V-only A=D=1
 
   // Case 10: U=0 V-only
-  VS_PTE_SETUP(sv39, PA, test_region_s_vonly, (PTE_D | PTE_A | PTE_V), va_s_vonly, LEVEL0)
+  VS_PTE_SETUP(sv39, PA, test_region_s_vonly, (PTE_D | PTE_A | PTE_V), va_s_vonly, LEVEL0)  // VS leaf: va_s_vonly → PA(test_region_s_vonly) U=0 XWR=000 V-only A=D=1
 
   // Case 14: executable X-only page for SUM=1 ifetch (same PTE shape as va_xonly)
-  VS_PTE_SETUP(sv39, PA, xonly_exec_page, (PTE_D | PTE_A | PTE_X | PTE_V), va_xexec, LEVEL0)
+  VS_PTE_SETUP(sv39, PA, xonly_exec_page, (PTE_D | PTE_A | PTE_X | PTE_V), va_xexec, LEVEL0)  // VS leaf: va_xexec → PA(xonly_exec_page) U=0 XWR=001 X-only A=D=1
 
 
   VSATP_SETUP(sv39, PA)                         // turn on VS-stage paging (vsatp MODE + root PPN)
@@ -146,7 +146,7 @@ main:
   nop                                           // trap-skip padding after load
   RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
 
-  test1_rwx:
+  test1_rwx:                                    // signature dump point for case 1
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_rwx, test1_rwx_str)  // record case 1 lw result in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -159,7 +159,7 @@ main:
   nop                                           // trap-skip padding after load
   RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
 
-  test2_xonly_lw:
+  test2_xonly_lw:                               // signature dump point for case 2
   RVTEST_SIGUPD(x2, x5, x4, a4, test2_xonly_lw, test2_xonly_lw_str)  // record case 2 fault sentinel in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -172,9 +172,9 @@ main:
   nop                                           // trap-skip padding after store
   RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
 
-  la t1, test_region_xonly
+  la t1, test_region_xonly                      // t1 = SPA of S-page X-only region
   lw a3, 0(t1)                                  // expect preload 0x257A0402 unchanged
-  test3_xonly_sw:
+  test3_xonly_sw:                               // signature dump point for case 3
   RVTEST_SIGUPD(x2, x5, x4, a3, test3_xonly_sw, test3_xonly_sw_str)  // record case 3 SPA in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -186,24 +186,24 @@ main:
   nop                                           // trap-skip padding after load
   RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
 
-  test4_ronly:
+  test4_ronly:                                  // signature dump point for case 4
   RVTEST_SIGUPD(x2, x5, x4, a3, test4_ronly, test4_ronly_str)  // record case 4 lw result in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 4b: S-page R-only VS sw | Expected: Expected Fault (fresh walk; not TLB-hit after lw)
 //---------------------------------------------------------------------------------------------------------------------------------
-  hfence.vvma
-  LI(a5, va_ronly)
-  LI(t0, 0xDEADBEEF)
-  RVTEST_GOTO_LOWER_MODE VSmode
+  hfence.vvma                                   // flush VS-stage TLB after flag/PTE change
+  LI(a5, va_ronly)                              // a5 = S-page R-only GVA (U=0 XWR=011)
+  LI(t0, 0xDEADBEEF)                            // payload that must not land at SPA if store faults
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS mret + PA↔VA relocate (guest code VA≠PA)
   sw   t0, 0(a5)                                // no write perm → store-page-fault; emits VS_PTE_D
-  nop
-  RVTEST_TSBI_GOTO_MMODE
-  la t1, test_region_ronly
+  nop                                           // trap-skip padding after store
+  RVTEST_TSBI_GOTO_MMODE                        // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
+  la t1, test_region_ronly                      // t1 = SPA of S-page R-only region
   lw a4, 0(t1)                                  // expect preload 0x257A0403 unchanged
 
-  test4b_ronly_sw:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test4b_ronly_sw, test4b_ronly_sw_str)
+  test4b_ronly_sw:                              // signature dump point for case 4b
+  RVTEST_SIGUPD(x2, x5, x4, a4, test4b_ronly_sw, test4b_ronly_sw_str)  // dump a4 SPA (case 4b; expect preload unchanged)
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 5: S-page R/W (XWR=110) VS sw+lw | Expected: Successful
@@ -217,7 +217,7 @@ main:
   nop                                           // trap-skip padding after load
   RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
 
-  test5_rw:
+  test5_rw:                                     // signature dump point for case 5
   RVTEST_SIGUPD(x2, x5, x4, a3, test5_rw, test5_rw_str)  // record case 5 lw result in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -229,24 +229,24 @@ main:
   nop                                           // trap-skip padding after load
   RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
 
-  test6_rx:
+  test6_rx:                                     // signature dump point for case 6
   RVTEST_SIGUPD(x2, x5, x4, a3, test6_rx, test6_rx_str)  // record case 6 lw result in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 6b: S-page R/X VS sw | Expected: Expected Fault
 //---------------------------------------------------------------------------------------------------------------------------------
-  hfence.vvma
-  LI(a5, va_rx)
-  LI(t0, 0xDEADBEEF)
-  RVTEST_GOTO_LOWER_MODE VSmode
-  sw   t0, 0(a5)
-  nop
-  RVTEST_TSBI_GOTO_MMODE
-  la t1, test_region_rx
-  lw a4, 0(t1)
+  hfence.vvma                                   // flush VS-stage TLB after flag/PTE change
+  LI(a5, va_rx)                                 // a5 = S-page R/X GVA (U=0 XWR=101)
+  LI(t0, 0xDEADBEEF)                            // payload that must not land at SPA if store faults
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS mret + PA↔VA relocate (guest code VA≠PA)
+  sw   t0, 0(a5)                                // VS store to S-page R/X: SUM=0 → store-page-fault (no W)
+  nop                                           // trap-skip padding after store
+  RVTEST_TSBI_GOTO_MMODE                        // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
+  la t1, test_region_rx                         // t1 = SPA of S-page R/X region
+  lw a4, 0(t1)                                  // M-mode SPA readback; expect preload unchanged (SPA of S-page R/X region)
 
-  test6b_rx_sw:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test6b_rx_sw, test6b_rx_sw_str)
+  test6b_rx_sw:                                 // signature dump point for case 6b
+  RVTEST_SIGUPD(x2, x5, x4, a4, test6b_rx_sw, test6b_rx_sw_str)  // dump a4 SPA (case 6b; expect preload unchanged)
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 7: U=1 XWR=111 SUM=0 VS lw | Expected: Expected Fault
@@ -258,7 +258,7 @@ main:
   nop                                           // trap-skip padding after load
   RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
 
-  test7_u_lw:
+  test7_u_lw:                                   // signature dump point for case 7
   RVTEST_SIGUPD(x2, x5, x4, a6, test7_u_lw, test7_u_lw_str)  // record case 7 fault sentinel in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -272,216 +272,216 @@ main:
   nop                                           // trap-skip padding after store
   RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
 
-  la t1, test_region_u
+  la t1, test_region_u                          // t1 = SPA of U-page RWX region
   lw a7, 0(t1)                                  // expect preload 0x257A0404 unchanged
-  test8_u_sw:
+  test8_u_sw:                                   // signature dump point for case 8
   RVTEST_SIGUPD(x2, x5, x4, a7, test8_u_sw, test8_u_sw_str)  // signature: dump a7 (test8_u_sw) for PASS/FAIL
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 9: U=1 V-only VS sw | Expected: Expected Fault (VS urwx1000×write)
 //---------------------------------------------------------------------------------------------------------------------------------
-  LI(a5, va_u_vonly)
-  LI(t0, 0xDEADBEEF)
-  RVTEST_GOTO_LOWER_MODE VSmode
+  LI(a5, va_u_vonly)                            // a5 = U-page V-only GVA (U=1 XWR=000)
+  LI(t0, 0xDEADBEEF)                            // payload that must not land at SPA if store faults
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS mret + PA↔VA relocate (guest code VA≠PA)
   sw   t0, 0(a5)                                // V-only U=1 → store-page-fault
-  nop
-  RVTEST_TSBI_GOTO_MMODE
+  nop                                           // trap-skip padding after store
+  RVTEST_TSBI_GOTO_MMODE                        // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
 
-  la t1, test_region_u_vonly
+  la t1, test_region_u_vonly                    // t1 = SPA of U-page V-only region
   lw a3, 0(t1)                                  // SPA must stay 0
-  test9_u_vonly_sw:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test9_u_vonly_sw, test9_u_vonly_sw_str)
+  test9_u_vonly_sw:                             // signature dump point for case 9
+  RVTEST_SIGUPD(x2, x5, x4, a3, test9_u_vonly_sw, test9_u_vonly_sw_str)  // dump a3 SPA (case 9; expect preload unchanged)
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 9b: U=1 V-only VS lw | Expected: Expected Fault (VS urwx1000×read)
 //---------------------------------------------------------------------------------------------------------------------------------
-  hfence.vvma
-  LI(a5, va_u_vonly)
-  LI(s8, 0)
-  RVTEST_GOTO_LOWER_MODE VSmode
-  lw   s8, 0(a5)
-  nop
-  RVTEST_TSBI_GOTO_MMODE
+  hfence.vvma                                   // flush VS-stage TLB after flag/PTE change
+  LI(a5, va_u_vonly)                            // a5 = U-page V-only GVA (U=1 XWR=000)
+  LI(s8, 0)                                     // sentinel — s8 stays 0 if load page-faults
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS mret + PA↔VA relocate (guest code VA≠PA)
+  lw   s8, 0(a5)                                // VS load from U-page V-only: SUM=0 → load-page-fault (U=1 blocked without SUM); s8 stays 0
+  nop                                           // trap-skip padding after load
+  RVTEST_TSBI_GOTO_MMODE                        // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
 
-  test9b_u_vonly_lw:
-  RVTEST_SIGUPD(x2, x5, x4, s8, test9b_u_vonly_lw, test9b_u_vonly_lw_str)
+  test9b_u_vonly_lw:                            // signature dump point for case 9b
+  RVTEST_SIGUPD(x2, x5, x4, s8, test9b_u_vonly_lw, test9b_u_vonly_lw_str)  // dump s8 (case 9b; expect 0 / fault sentinel)
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 10: U=0 V-only VS lw | Expected: Expected Fault
 //---------------------------------------------------------------------------------------------------------------------------------
-  LI(a5, va_s_vonly)
-  LI(s2, 0)
-  RVTEST_GOTO_LOWER_MODE VSmode
+  LI(a5, va_s_vonly)                            // a5 = S-page V-only GVA (U=0 XWR=000)
+  LI(s2, 0)                                     // sentinel — s2 stays 0 if load page-faults
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS mret + PA↔VA relocate (guest code VA≠PA)
   lw   s2, 0(a5)                                // V-only U=0 → load-page-fault
-  nop
-  RVTEST_TSBI_GOTO_MMODE
+  nop                                           // trap-skip padding after load
+  RVTEST_TSBI_GOTO_MMODE                        // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
 
-  test10_s_vonly_lw:
-  RVTEST_SIGUPD(x2, x5, x4, s2, test10_s_vonly_lw, test10_s_vonly_lw_str)
+  test10_s_vonly_lw:                            // signature dump point for case 10
+  RVTEST_SIGUPD(x2, x5, x4, s2, test10_s_vonly_lw, test10_s_vonly_lw_str)  // dump s2 (case 10; expect 0 / fault sentinel)
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 11: SUM=1 S-page XWR=111 VS sw | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
-  LI(t0, SSTATUS_SUM)
-  csrs sstatus, t0
-  csrs vsstatus, t0
-  hfence.vvma
+  LI(t0, SSTATUS_SUM)                           // t0 = SUM bit mask (sstatus[18])
+  csrs sstatus, t0                              // set HS SUM
+  csrs vsstatus, t0                             // set VS SUM — guest sees these
+  hfence.vvma                                   // flush VS-stage TLB after flag/PTE change
 
-  LI(a5, va_rwx)
-  LI(t0, 0x257A040B)
-  RVTEST_GOTO_LOWER_MODE VSmode
-  sw   t0, 0(a5)
-  nop
-  lw   a3, 0(a5)
-  nop
-  RVTEST_TSBI_GOTO_MMODE
+  LI(a5, va_rwx)                                // a5 = S-page RWX GVA (U=0 XWR=111)
+  LI(t0, 0x257A040B)                            // SPA pattern / store value for case 11 (0x257A040B)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS mret + PA↔VA relocate (guest code VA≠PA)
+  sw   t0, 0(a5)                                // VS store to S-page RWX: SUM=1 → success (W allowed)
+  nop                                           // trap-skip padding after store
+  lw   a3, 0(a5)                                // VS load from S-page RWX: SUM=1 → success
+  nop                                           // trap-skip padding after load
+  RVTEST_TSBI_GOTO_MMODE                        // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
 
-  test11_sum1_rwx_sw:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test11_sum1_rwx_sw, test11_sum1_rwx_sw_str)
+  test11_sum1_rwx_sw:                           // signature dump point for case 11
+  RVTEST_SIGUPD(x2, x5, x4, a3, test11_sum1_rwx_sw, test11_sum1_rwx_sw_str)  // dump a3 (case 11 result) for PASS/FAIL
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 12: SUM=1 S-page R/W VS sw+lw | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
-  LI(a5, va_rw)
-  LI(t0, 0x257A040C)
-  RVTEST_GOTO_LOWER_MODE VSmode
-  sw   t0, 0(a5)
-  nop
-  lw   a3, 0(a5)
-  nop
-  RVTEST_TSBI_GOTO_MMODE
+  LI(a5, va_rw)                                 // a5 = S-page R/W GVA (U=0 XWR=110)
+  LI(t0, 0x257A040C)                            // SPA pattern / store value for case 12 (0x257A040C)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS mret + PA↔VA relocate (guest code VA≠PA)
+  sw   t0, 0(a5)                                // VS store to S-page R/W: SUM=1 → success (W allowed)
+  nop                                           // trap-skip padding after store
+  lw   a3, 0(a5)                                // VS load from S-page R/W: SUM=1 → success
+  nop                                           // trap-skip padding after load
+  RVTEST_TSBI_GOTO_MMODE                        // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
 
-  test12_sum1_rw:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test12_sum1_rw, test12_sum1_rw_str)
+  test12_sum1_rw:                               // signature dump point for case 12
+  RVTEST_SIGUPD(x2, x5, x4, a3, test12_sum1_rw, test12_sum1_rw_str)  // dump a3 (case 12 result) for PASS/FAIL
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 13: SUM=1 S-page R/X VS lw | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
-  LI(t0, 0x257A040D)
-  la t1, test_region_rx
-  sw t0, 0(t1)
+  LI(t0, 0x257A040D)                            // SPA pattern / store value for case 13 (0x257A040D)
+  la t1, test_region_rx                         // t1 = SPA of S-page R/X region
+  sw t0, 0(t1)                                  // M-mode preload/write at SPA of S-page R/X region (case 13)
 
-  LI(a5, va_rx)
-  RVTEST_GOTO_LOWER_MODE VSmode
-  lw   a3, 0(a5)
-  nop
-  RVTEST_TSBI_GOTO_MMODE
+  LI(a5, va_rx)                                 // a5 = S-page R/X GVA (U=0 XWR=101)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS mret + PA↔VA relocate (guest code VA≠PA)
+  lw   a3, 0(a5)                                // VS load from S-page R/X: SUM=1 → success
+  nop                                           // trap-skip padding after load
+  RVTEST_TSBI_GOTO_MMODE                        // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
 
-  test13_sum1_rx:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test13_sum1_rx, test13_sum1_rx_str)
+  test13_sum1_rx:                               // signature dump point for case 13
+  RVTEST_SIGUPD(x2, x5, x4, a3, test13_sum1_rx, test13_sum1_rx_str)  // dump a3 (case 13 result) for PASS/FAIL
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 14: SUM=1 S-page X-only ifetch | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
   // xonly_exec_page holds: addi a3,x0,imm ; jalr x0, ra, 0  (return)
   // Build return path: save ra, jalr to va_xexec, then SIGUPD a3.
-  LI(t0, SSTATUS_SUM)
-  csrs sstatus, t0
-  csrs vsstatus, t0
-  hfence.vvma
+  LI(t0, SSTATUS_SUM)                           // t0 = SUM bit mask (sstatus[18])
+  csrs sstatus, t0                              // set HS SUM
+  csrs vsstatus, t0                             // set VS SUM — guest sees these
+  hfence.vvma                                   // flush VS-stage TLB after flag/PTE change
 
-  LI(a5, va_xexec)
-  RVTEST_GOTO_LOWER_MODE VSmode
+  LI(a5, va_xexec)                              // a5 = S-page X-only ifetch GVA (SUM=1 trampoline)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS mret + PA↔VA relocate (guest code VA≠PA)
   jalr ra, a5, 0                                // ifetch X-only leaf (SUM=1 irrelevant for exec)
-  nop
-  RVTEST_TSBI_GOTO_MMODE
+  nop                                           // trap-skip padding after jalr return
+  RVTEST_TSBI_GOTO_MMODE                        // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
 
-  test14_sum1_x_ifetch:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test14_sum1_x_ifetch, test14_sum1_x_ifetch_str)
+  test14_sum1_x_ifetch:                         // signature dump point for case 14
+  RVTEST_SIGUPD(x2, x5, x4, a3, test14_sum1_x_ifetch, test14_sum1_x_ifetch_str)  // dump a3 (case 14 result) for PASS/FAIL
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 12b: SUM=1 S-page R/W VS lw only | Expected: Successful (set×rwx110×read with fresh walk)
 //---------------------------------------------------------------------------------------------------------------------------------
-  hfence.vvma
-  LI(t0, 0x257A040C)
-  la t1, test_region_rw
-  sw t0, 0(t1)
-  LI(a5, va_rw)
-  RVTEST_GOTO_LOWER_MODE VSmode
-  lw   a3, 0(a5)
-  nop
-  RVTEST_TSBI_GOTO_MMODE
+  hfence.vvma                                   // flush VS-stage TLB after flag/PTE change
+  LI(t0, 0x257A040C)                            // SPA pattern / store value for case 12b (0x257A040C)
+  la t1, test_region_rw                         // t1 = SPA of S-page R/W region
+  sw t0, 0(t1)                                  // M-mode preload/write at SPA of S-page R/W region (case 12b)
+  LI(a5, va_rw)                                 // a5 = S-page R/W GVA (U=0 XWR=110)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS mret + PA↔VA relocate (guest code VA≠PA)
+  lw   a3, 0(a5)                                // VS load from S-page R/W: SUM=1 → success
+  nop                                           // trap-skip padding after load
+  RVTEST_TSBI_GOTO_MMODE                        // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
 
-  test12b_sum1_rw_lw:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test12b_sum1_rw_lw, test12b_sum1_rw_lw_str)
+  test12b_sum1_rw_lw:                           // signature dump point for case 12b
+  RVTEST_SIGUPD(x2, x5, x4, a3, test12b_sum1_rw_lw, test12b_sum1_rw_lw_str)  // dump a3 (case 12b result) for PASS/FAIL
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 13b: SUM=1 S-page R/X VS sw | Expected: Expected Fault
 //---------------------------------------------------------------------------------------------------------------------------------
-  hfence.vvma
-  LI(a5, va_rx)
-  LI(t0, 0xDEADBEEF)
-  RVTEST_GOTO_LOWER_MODE VSmode
-  sw   t0, 0(a5)
-  nop
-  RVTEST_TSBI_GOTO_MMODE
-  la t1, test_region_rx
-  lw a4, 0(t1)
+  hfence.vvma                                   // flush VS-stage TLB after flag/PTE change
+  LI(a5, va_rx)                                 // a5 = S-page R/X GVA (U=0 XWR=101)
+  LI(t0, 0xDEADBEEF)                            // payload that must not land at SPA if store faults
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS mret + PA↔VA relocate (guest code VA≠PA)
+  sw   t0, 0(a5)                                // VS store to S-page R/X: SUM=1 → store-page-fault (no W)
+  nop                                           // trap-skip padding after store
+  RVTEST_TSBI_GOTO_MMODE                        // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
+  la t1, test_region_rx                         // t1 = SPA of S-page R/X region
+  lw a4, 0(t1)                                  // M-mode SPA readback; expect preload unchanged (SPA of S-page R/X region)
 
-  test13b_sum1_rx_sw:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test13b_sum1_rx_sw, test13b_sum1_rx_sw_str)
+  test13b_sum1_rx_sw:                           // signature dump point for case 13b
+  RVTEST_SIGUPD(x2, x5, x4, a4, test13b_sum1_rx_sw, test13b_sum1_rx_sw_str)  // dump a4 SPA (case 13b; expect preload unchanged)
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 15: SUM=1 S-page R-only VS lw | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
-  hfence.vvma
-  LI(t0, 0x257A040F)
-  la t1, test_region_ronly
-  sw t0, 0(t1)
-  LI(a5, va_ronly)
-  RVTEST_GOTO_LOWER_MODE VSmode
-  lw   a3, 0(a5)
-  nop
-  RVTEST_TSBI_GOTO_MMODE
+  hfence.vvma                                   // flush VS-stage TLB after flag/PTE change
+  LI(t0, 0x257A040F)                            // SPA pattern / store value for case 15 (0x257A040F)
+  la t1, test_region_ronly                      // t1 = SPA of S-page R-only region
+  sw t0, 0(t1)                                  // M-mode preload/write at SPA of S-page R-only region (case 15)
+  LI(a5, va_ronly)                              // a5 = S-page R-only GVA (U=0 XWR=011)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS mret + PA↔VA relocate (guest code VA≠PA)
+  lw   a3, 0(a5)                                // VS load from S-page R-only: SUM=1 → success
+  nop                                           // trap-skip padding after load
+  RVTEST_TSBI_GOTO_MMODE                        // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
 
-  test15_sum1_ronly_lw:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test15_sum1_ronly_lw, test15_sum1_ronly_lw_str)
+  test15_sum1_ronly_lw:                         // signature dump point for case 15
+  RVTEST_SIGUPD(x2, x5, x4, a3, test15_sum1_ronly_lw, test15_sum1_ronly_lw_str)  // dump a3 (case 15 result) for PASS/FAIL
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 16: SUM=1 S-page R-only VS sw | Expected: Expected Fault
 //---------------------------------------------------------------------------------------------------------------------------------
-  hfence.vvma
-  LI(a5, va_ronly)
-  LI(t0, 0xDEADBEEF)
-  RVTEST_GOTO_LOWER_MODE VSmode
-  sw   t0, 0(a5)
-  nop
-  RVTEST_TSBI_GOTO_MMODE
-  la t1, test_region_ronly
-  lw a4, 0(t1)
+  hfence.vvma                                   // flush VS-stage TLB after flag/PTE change
+  LI(a5, va_ronly)                              // a5 = S-page R-only GVA (U=0 XWR=011)
+  LI(t0, 0xDEADBEEF)                            // payload that must not land at SPA if store faults
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS mret + PA↔VA relocate (guest code VA≠PA)
+  sw   t0, 0(a5)                                // VS store to S-page R-only: SUM=1 → store-page-fault (no W)
+  nop                                           // trap-skip padding after store
+  RVTEST_TSBI_GOTO_MMODE                        // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
+  la t1, test_region_ronly                      // t1 = SPA of S-page R-only region
+  lw a4, 0(t1)                                  // M-mode SPA readback; expect preload unchanged (SPA of S-page R-only region)
 
-  test16_sum1_ronly_sw:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test16_sum1_ronly_sw, test16_sum1_ronly_sw_str)
+  test16_sum1_ronly_sw:                         // signature dump point for case 16
+  RVTEST_SIGUPD(x2, x5, x4, a4, test16_sum1_ronly_sw, test16_sum1_ronly_sw_str)  // dump a4 SPA (case 16; expect preload unchanged)
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 17: SUM=1 S-page R-only VS jalr | Expected: Expected Fault (no X)
 //---------------------------------------------------------------------------------------------------------------------------------
-  hfence.vvma
-  LI(a5, va_ronly)
-  LI(s2, 0)
-  RVTEST_GOTO_LOWER_MODE VSmode
-  nop
-  jalr ra, a5, 0
-  nop
-  RVTEST_TSBI_GOTO_MMODE
+  hfence.vvma                                   // flush VS-stage TLB after flag/PTE change
+  LI(a5, va_ronly)                              // a5 = S-page R-only GVA (U=0 XWR=011)
+  LI(s2, 0)                                     // sentinel — s2 stays 0 if target never runs
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS mret + PA↔VA relocate (guest code VA≠PA)
+  nop                                           // pad so priv_mode samples prev=VS on jalr
+  jalr ra, a5, 0                                // VS ifetch of S-page R-only: SUM=1 → fetch-page-fault (no X)
+  nop                                           // trap-skip padding after faulting jalr (not reached)
+  RVTEST_TSBI_GOTO_MMODE                        // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
 
-  test17_sum1_ronly_jalr:
-  RVTEST_SIGUPD(x2, x5, x4, s2, test17_sum1_ronly_jalr, test17_sum1_ronly_jalr_str)
+  test17_sum1_ronly_jalr:                       // signature dump point for case 17
+  RVTEST_SIGUPD(x2, x5, x4, s2, test17_sum1_ronly_jalr, test17_sum1_ronly_jalr_str)  // dump s2 (case 17; expect 0 / fault sentinel)
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 18: SUM=1 S-page R/W VS jalr | Expected: Expected Fault (no X)
 //---------------------------------------------------------------------------------------------------------------------------------
-  hfence.vvma
-  LI(a5, va_rw)
-  LI(s3, 0)
-  RVTEST_GOTO_LOWER_MODE VSmode
-  nop
-  jalr ra, a5, 0
-  nop
-  RVTEST_TSBI_GOTO_MMODE
+  hfence.vvma                                   // flush VS-stage TLB after flag/PTE change
+  LI(a5, va_rw)                                 // a5 = S-page R/W GVA (U=0 XWR=110)
+  LI(s3, 0)                                     // sentinel — s3 stays 0 if target never runs
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS mret + PA↔VA relocate (guest code VA≠PA)
+  nop                                           // pad so priv_mode samples prev=VS on jalr
+  jalr ra, a5, 0                                // VS ifetch of S-page R/W: SUM=1 → fetch-page-fault (no X)
+  nop                                           // trap-skip padding after faulting jalr (not reached)
+  RVTEST_TSBI_GOTO_MMODE                        // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
 
-  test18_sum1_rw_jalr:
-  RVTEST_SIGUPD(x2, x5, x4, s3, test18_sum1_rw_jalr, test18_sum1_rw_jalr_str)
+  test18_sum1_rw_jalr:                          // signature dump point for case 18
+  RVTEST_SIGUPD(x2, x5, x4, s3, test18_sum1_rw_jalr, test18_sum1_rw_jalr_str)  // dump s3 (case 18; expect 0 / fault sentinel)
 
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -518,37 +518,37 @@ test_region_rw:                                 // real PA backing va_rw (S-page
   .word 0                                       // padding in same page
   .word 0                                       // padding in same page
   .word 0                                       // padding in same page
-.align 12
-test_region_rx:
-  .word 0
-  .word 0
-  .word 0
-  .word 0
-.align 12
-test_region_u_vonly:
-  .word 0
-  .word 0
-  .word 0
-  .word 0
-.align 12
-test_region_s_vonly:
-  .word 0
-  .word 0
-  .word 0
-  .word 0
-.align 12
-xonly_exec_page:
+.align 12                                       // 4 KiB page align
+test_region_rx:                                 // SPA backing va_rx (S-page R/X)
+  .word 0                                       // data word (initially 0 / preloaded in M)
+  .word 0                                       // padding in same page
+  .word 0                                       // padding in same page
+  .word 0                                       // padding in same page
+.align 12                                       // 4 KiB page align
+test_region_u_vonly:                            // SPA backing va_u_vonly (U=1 V-only)
+  .word 0                                       // data word (initially 0 / preloaded in M)
+  .word 0                                       // padding in same page
+  .word 0                                       // padding in same page
+  .word 0                                       // padding in same page
+.align 12                                       // 4 KiB page align
+test_region_s_vonly:                            // SPA backing va_s_vonly (U=0 V-only)
+  .word 0                                       // data word (initially 0 / preloaded in M)
+  .word 0                                       // padding in same page
+  .word 0                                       // padding in same page
+  .word 0                                       // padding in same page
+.align 12                                       // 4 KiB page align
+xonly_exec_page:                                // SPA trampoline: X-only ifetch target (SUM=1)
   LI(a3, 0x257A040E)                            // payload proving ifetch of this X-only page
-  jalr x0, ra, 0                                // return to caller in VS
-  nop
-  nop
+  jalr x0, ra, 0                                // return to caller after X-only ifetch payload
+  nop                                           // pad remainder of trampoline page
+  nop                                           // pad remainder of trampoline page
 
-.align 12
-rvtest_vlvl1_pg_tbl:
-  .zero(4096)
-.align 12
-rvtest_vlvl0_pg_tbl:
-  .zero(4096)
+.align 12                                       // 4 KiB page align
+rvtest_vlvl1_pg_tbl:                            // VS-stage L1 PTE storage
+  .zero(4096)                                   // reserve 4 KiB page-table page
+.align 12                                       // 4 KiB page align
+rvtest_vlvl0_pg_tbl:                            // VS-stage L0 PTE storage
+  .zero(4096)                                   // reserve 4 KiB page-table page
 
 test1_rwx_str:         .string "\"Mismatch on S-page R/W/X VS lw in Test Case 1!\""
 test2_xonly_lw_str:    .string "\"Mismatch on S-page X-only VS lw (expect fault) in Test Case 2!\""

@@ -35,114 +35,114 @@
 RVTEST_BEGIN
 
 main:
-  .set gpa_data, 0x00C002000                    // GPA HS HLV/HSV will use
+  .set gpa_data, 0x00C002000                    // GPA HS HLV/HSV will use (vsatp Bare ⇒ address-as-GPA)
   .set gpa_code, 0x80000000                     // identity code GPA (optional for HS-only)
 
-  SUPERPAGE_G_PTE_SETUP(sv32x4, rvtest_code_begin, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_R | PTE_V), gpa_code, LEVEL1)  // G-stage superpage: code/data GPA → PA
+  SUPERPAGE_G_PTE_SETUP(sv32x4, rvtest_code_begin, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_R | PTE_V), gpa_code, LEVEL1)  // G superpage: gpa_code → PA(code); U=1 X/R A=D=1
 
-  G_PTE_SETUP(sv32x4, rvtest_hlvl0_pg_tbl, (PTE_V), gpa_data, LEVEL1)  // non-leaf → G L0
-  G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V), gpa_data, LEVEL0)  // RSW=00 leaf
+  G_PTE_SETUP(sv32x4, rvtest_hlvl0_pg_tbl, (PTE_V), gpa_data, LEVEL1)  // G non-leaf: VPN1 for data GPA → G L0
+  G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V), gpa_data, LEVEL0)  // G leaf: gpa_data → PA(test_region) R/W U=1 RSW=00
 
   csrw vsatp, x0                                // VS Bare — isolate G-stage RSW bins
-  HGATP_SETUP(sv32x4)                           // turn on G-stage paging (hgatp MODE + root PPN)
+  HGATP_SETUP(sv32x4)                           // hgatp = Sv32x4, PPN = G root
   hfence.vvma                                   // flush VS-stage TLB
   hfence.gvma                                   // flush G-stage TLB (must be M or HS — illegal in VS/VU)
 
-  LI(t0, 0x257A0210)
-  la t1, test_region
-  sw t0, 0(t1)                                  // SPA preload (known pattern before guest access)
+  LI(t0, 0x257A0210)                            // known SPA preload for case 1
+  la t1, test_region                            // t1 = SPA of data page
+  sw t0, 0(t1)                                  // SPA preload (known pattern before HS HLV/HSV)
 
   LI(t1, gpa_data)                              // t1 = GPA for all HS HLV/HSV
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 1: G leaf RSW=00 HS HLV+HSV | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
-  G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V), gpa_data, LEVEL0)  // RSW=00
-  hfence.gvma                                   // M flush before HS hop
+  G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V), gpa_data, LEVEL0)  // G leaf RSW=00 R/W U=1 A=D=1
+  hfence.gvma                                   // M flush before HS hop so walk sees this leaf
 
-  RVTEST_TSBI_GOTO_SMODE                        // M→HS
-  LI(t0, 0x257A0210)
-  hsv.w t0, (t1)                                // write_acc with RSW=00
-  nop
-  hfence.gvma                                   // legal in HS — force HLV to rewalk
-  hlv.w a3, (t1)                                // read_acc with RSW=00; expect 0x257A0210
-  nop
-  RVTEST_TSBI_GOTO_MMODE                        // return to M (T-SBI ecall a0=1; rtn2mmode relocates EPC)
+  RVTEST_TSBI_GOTO_SMODE                        // T-SBI: ecall a0=2 → HS (PA / identity enter)
+  LI(t0, 0x257A0210)                            // payload for RSW=00 HSV
+  hsv.w t0, (t1)                                // HS hyper-store GPA → SPA through RSW=00 leaf
+  nop                                           // trap-skip padding after store
+  hfence.gvma                                   // legal in HS — force HLV to rewalk (not TLB-hit)
+  hlv.w a3, (t1)                                // HS hyper-load; expect 0x257A0210
+  nop                                           // trap-skip padding after load
+  RVTEST_TSBI_GOTO_MMODE                        // T-SBI: ecall a0=1 → M
 
-  test1_rsw00:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_rsw00, test1_rsw00_str)  // signature: dump a3 (test1_rsw00) for PASS/FAIL
+  test1_rsw00:                                  // signature dump point for case 1
+  RVTEST_SIGUPD(x2, x5, x4, a3, test1_rsw00, test1_rsw00_str)  // dump a3 (expect 0x257A0210)
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: G leaf RSW=01 HS HLV+HSV | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
-  G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V | 0x100), gpa_data, LEVEL0)  // RSW=01 (bit 8)
-  hfence.gvma                                   // flush G-stage TLB (must be M or HS — illegal in VS/VU)
+  G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V | 0x100), gpa_data, LEVEL0)  // G leaf RSW=01 (bit 8) R/W U=1
+  hfence.gvma                                   // flush G TLB after PTE rewrite
 
-  RVTEST_TSBI_GOTO_SMODE                        // M→HS (T-SBI ecall a0=2; PA/identity enter)
-  LI(t0, 0x257A0211)
-  LI(t1, gpa_data)
-  hsv.w t0, (t1)                                // HS hyper-store to guest address
-  nop
-  hfence.gvma                                   // flush G-stage TLB (must be M or HS — illegal in VS/VU)
-  hlv.w a4, (t1)                                // expect 0x257A0211
-  nop
-  RVTEST_TSBI_GOTO_MMODE                        // return to M (T-SBI ecall a0=1; rtn2mmode relocates EPC)
+  RVTEST_TSBI_GOTO_SMODE                        // M→HS identity hop
+  LI(t0, 0x257A0211)                            // payload for RSW=01 HSV
+  LI(t1, gpa_data)                              // t1 = GPA (reload after hop)
+  hsv.w t0, (t1)                                // HS hyper-store through RSW=01 leaf
+  nop                                           // trap-skip padding after store
+  hfence.gvma                                   // flush G TLB so HLV rewalks
+  hlv.w a4, (t1)                                // HS hyper-load; expect 0x257A0211
+  nop                                           // trap-skip padding after load
+  RVTEST_TSBI_GOTO_MMODE                        // return to M
 
-  test2_rsw01:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test2_rsw01, test2_rsw01_str)  // signature: dump a4 (test2_rsw01) for PASS/FAIL
+  test2_rsw01:                                  // signature dump point for case 2
+  RVTEST_SIGUPD(x2, x5, x4, a4, test2_rsw01, test2_rsw01_str)  // dump a4 (expect 0x257A0211)
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 3: G leaf RSW=10 HS HLV+HSV | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
-  G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V | 0x200), gpa_data, LEVEL0)  // RSW=10 (bit 9)
-  hfence.gvma                                   // flush G-stage TLB (must be M or HS — illegal in VS/VU)
+  G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V | 0x200), gpa_data, LEVEL0)  // G leaf RSW=10 (bit 9) R/W U=1
+  hfence.gvma                                   // flush G TLB after PTE rewrite
 
-  RVTEST_TSBI_GOTO_SMODE                        // M→HS (T-SBI ecall a0=2; PA/identity enter)
-  LI(t0, 0x257A0212)
-  LI(t1, gpa_data)
-  hsv.w t0, (t1)                                // HS hyper-store to guest address
-  nop
-  hfence.gvma                                   // flush G-stage TLB (must be M or HS — illegal in VS/VU)
-  hlv.w a6, (t1)                                // expect 0x257A0212
-  nop
-  RVTEST_TSBI_GOTO_MMODE                        // return to M (T-SBI ecall a0=1; rtn2mmode relocates EPC)
+  RVTEST_TSBI_GOTO_SMODE                        // M→HS identity hop
+  LI(t0, 0x257A0212)                            // payload for RSW=10 HSV
+  LI(t1, gpa_data)                              // t1 = GPA
+  hsv.w t0, (t1)                                // HS hyper-store through RSW=10 leaf
+  nop                                           // trap-skip padding after store
+  hfence.gvma                                   // flush G TLB so HLV rewalks
+  hlv.w a6, (t1)                                // HS hyper-load; expect 0x257A0212
+  nop                                           // trap-skip padding after load
+  RVTEST_TSBI_GOTO_MMODE                        // return to M
 
-  test3_rsw10:
-  RVTEST_SIGUPD(x2, x5, x4, a6, test3_rsw10, test3_rsw10_str)  // signature: dump a6 (test3_rsw10) for PASS/FAIL
+  test3_rsw10:                                  // signature dump point for case 3
+  RVTEST_SIGUPD(x2, x5, x4, a6, test3_rsw10, test3_rsw10_str)  // dump a6 (expect 0x257A0212)
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 4: G leaf RSW=11 HS HLV+HSV | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
-  G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V | PTE_SOFT), gpa_data, LEVEL0)  // RSW=11
-  hfence.gvma                                   // flush G-stage TLB (must be M or HS — illegal in VS/VU)
+  G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V | PTE_SOFT), gpa_data, LEVEL0)  // G leaf RSW=11 (PTE_SOFT bits 9:8)
+  hfence.gvma                                   // flush G TLB after PTE rewrite
 
-  RVTEST_TSBI_GOTO_SMODE                        // M→HS (T-SBI ecall a0=2; PA/identity enter)
-  LI(t0, 0x257A0213)
-  LI(t1, gpa_data)
-  hsv.w t0, (t1)                                // HS hyper-store to guest address
-  nop
-  hfence.gvma                                   // flush G-stage TLB (must be M or HS — illegal in VS/VU)
-  hlv.w a7, (t1)                                // expect 0x257A0213
-  nop
-  RVTEST_TSBI_GOTO_MMODE                        // return to M (T-SBI ecall a0=1; rtn2mmode relocates EPC)
+  RVTEST_TSBI_GOTO_SMODE                        // M→HS identity hop
+  LI(t0, 0x257A0213)                            // payload for RSW=11 HSV
+  LI(t1, gpa_data)                              // t1 = GPA
+  hsv.w t0, (t1)                                // HS hyper-store through RSW=11 leaf
+  nop                                           // trap-skip padding after store
+  hfence.gvma                                   // flush G TLB so HLV rewalks
+  hlv.w a7, (t1)                                // HS hyper-load; expect 0x257A0213
+  nop                                           // trap-skip padding after load
+  RVTEST_TSBI_GOTO_MMODE                        // return to M
 
-  test4_rsw11:
-  RVTEST_SIGUPD(x2, x5, x4, a7, test4_rsw11, test4_rsw11_str)  // signature: dump a7 (test4_rsw11) for PASS/FAIL
+  test4_rsw11:                                  // signature dump point for case 4
+  RVTEST_SIGUPD(x2, x5, x4, a7, test4_rsw11, test4_rsw11_str)  // dump a7 (expect 0x257A0213)
 
 //---------------------------------------------------------------------------------------------------------------------------------
 RVTEST_CODE_END
 RVTEST_DATA_BEGIN
 
-.align 12
-test_region:
-  .word 0
-  .word 0
-  .word 0
-  .word 0
+.align 12                                       // 4 KiB page align
+test_region:                                    // SPA backing gpa_data
+  .word 0                                       // payload word (HS HSV / M preload)
+  .word 0                                       // padding in same page
+  .word 0                                       // padding in same page
+  .word 0                                       // padding in same page
 
-.align 12
-rvtest_hlvl0_pg_tbl:
-  .zero(4096)
+.align 12                                       // 4 KiB page align
+rvtest_hlvl0_pg_tbl:                            // G-stage L0 PTE storage
+  .zero(4096)                                   // reserve 4 KiB page-table page
 
 test1_rsw00_str: .string "\"Mismatch on HS HLV/HSV with G RSW=00 in Test Case 1!\""
 test2_rsw01_str: .string "\"Mismatch on HS HLV/HSV with G RSW=01 in Test Case 2!\""

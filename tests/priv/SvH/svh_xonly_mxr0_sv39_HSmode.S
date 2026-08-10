@@ -28,55 +28,55 @@
 RVTEST_BEGIN
 
 main:
-  .set va_x, 0x008001000
+  .set va_x, 0x008001000                        // GVA of X-only VS leaf (HS HLV address)
 
-  VS_PTE_SETUP(sv39, PA, rvtest_vlvl1_pg_tbl, (PTE_V), va_x, LEVEL2)
-  VS_PTE_SETUP(sv39, PA, rvtest_vlvl0_pg_tbl, (PTE_V), va_x, LEVEL1)
-  VS_PTE_SETUP(sv39, PA, test_region_x, (PTE_D | PTE_A | PTE_X | PTE_V), va_x, LEVEL0)
+  VS_PTE_SETUP(sv39, PA, rvtest_vlvl1_pg_tbl, (PTE_V), va_x, LEVEL2)  // VS non-leaf: va_x VPN2 → VS L1 table PA
+  VS_PTE_SETUP(sv39, PA, rvtest_vlvl0_pg_tbl, (PTE_V), va_x, LEVEL1)  // VS non-leaf: va_x VPN1 → VS L0 table PA
+  VS_PTE_SETUP(sv39, PA, test_region_x, (PTE_D | PTE_A | PTE_X | PTE_V), va_x, LEVEL0)  // VS leaf: va_x → PA(test_region_x) X-only (R=0 W=0) U=0
 
-  VSATP_SETUP(sv39, PA)
-  csrw hgatp, x0
-  hfence.vvma
-  hfence.gvma
+  VSATP_SETUP(sv39, PA)                         // vsatp = Sv39 — HLV walks VS-stage with this root
+  csrw hgatp, x0                                // hgatp Bare — VS GVA→PA only
+  hfence.vvma                                   // flush VS-stage TLB after PTE install
+  hfence.gvma                                   // flush G-stage TLB
 
-  LI(t0, SSTATUS_MXR | SSTATUS_SUM)
-  csrc sstatus, t0
-  csrc vsstatus, t0
+  LI(t0, SSTATUS_MXR | SSTATUS_SUM)             // bits to clear: MXR (X-as-R) and SUM
+  csrc sstatus, t0                              // sstatus MXR=0 SUM=0 (HLV uses these for VS-stage checks)
+  csrc vsstatus, t0                             // vsstatus MXR=0 SUM=0
 
-  LI(t0, HSTATUS_SPVP)
-  csrs hstatus, t0
+  LI(t0, HSTATUS_SPVP)                          // SPVP=1 → HLV checks perms as VS (not VU)
+  csrs hstatus, t0                              // set hstatus.SPVP so HLV acts like VS on U=0 leaf
 
-  LI(t0, 0x257A0811)
-  la t1, test_region_x
-  sw t0, 0(t1)
+  LI(t0, 0x257A0811)                            // poison at SPA — successful HLV would copy this into a3
+  la t1, test_region_x                          // t1 = SPA of X-only page
+  sw t0, 0(t1)                                  // M store via PA
 
-  LI(a5, va_x)
-  LI(a3, 0)
-  RVTEST_TSBI_GOTO_SMODE
-  hlv.w a3, (a5)
-  nop
-  RVTEST_TSBI_GOTO_MMODE
+  LI(a5, va_x)                                  // a5 = GVA for HLV
+  LI(a3, 0)                                     // sentinel — stays 0 if HLV page-faults
+  RVTEST_TSBI_GOTO_SMODE                       // T-SBI: ecall a0=2 → HS (HLV legal in HS; code at PA)
+  hlv.w a3, (a5)                                // HS HLV of VS X-only leaf, MXR=0 SPVP=1 → load page-fault
+  nop                                           // trap-skip padding after faulting HLV
+  RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M
 
-  LI(t0, HSTATUS_SPVP)
-  csrc hstatus, t0
+  LI(t0, HSTATUS_SPVP)                          // restore SPVP after the case
+  csrc hstatus, t0                              // clear hstatus.SPVP
 
-  test1_hlv:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_hlv, test1_hlv_str)
+  test1_hlv:                                    // signature dump point for case 1
+  RVTEST_SIGUPD(x2, x5, x4, a3, test1_hlv, test1_hlv_str)  // dump a3 (expect 0)
 
 RVTEST_CODE_END
 RVTEST_DATA_BEGIN
-.align 12
-test_region_x:
-  .word 0
-  .word 0
-  .word 0
-  .word 0
-.align 12
-rvtest_vlvl1_pg_tbl:
-  .zero(4096)
-.align 12
-rvtest_vlvl0_pg_tbl:
-  .zero(4096)
+.align 12                                       // 4 KiB page align
+test_region_x:                                  // SPA backing va_x (X-only VS leaf)
+  .word 0                                       // payload word (preloaded in M; HLV must not read)
+  .word 0                                       // padding in same page
+  .word 0                                       // padding in same page
+  .word 0                                       // padding in same page
+.align 12                                       // 4 KiB page align
+rvtest_vlvl1_pg_tbl:                            // VS-stage L1 (mid) PTE storage
+  .zero(4096)                                   // reserve 4 KiB page-table page
+.align 12                                       // 4 KiB page align
+rvtest_vlvl0_pg_tbl:                            // VS-stage L0 PTE storage
+  .zero(4096)                                   // reserve 4 KiB page-table page
 test1_hlv_str: .string "\"Mismatch on HS HLV X-only MXR=0 (expect fault) in Test Case 1!\""
 RVTEST_DATA_END
 RVTEST_SIG_SETUP

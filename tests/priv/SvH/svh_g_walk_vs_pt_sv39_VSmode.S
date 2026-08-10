@@ -82,7 +82,7 @@ main:
   nop                                           // trap-skip padding if previous access faults
   RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
 
-  test1_allow:
+  test1_allow:                                  // signature dump point for case 1
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_allow, test1_allow_str)  // record result in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -99,7 +99,7 @@ main:
   nop                                           // trap-skip padding if previous access faults
   RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
 
-  test2_deny:
+  test2_deny:                                   // signature dump point for case 2
   RVTEST_SIGUPD(x2, x5, x4, a4, test2_deny, test2_deny_str)  // record result in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------

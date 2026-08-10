@@ -67,7 +67,7 @@ main:
   nop                                              // pad (trap handler may skip prior insn)
   RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
 
-  test1_ifetch:
+  test1_ifetch:                                 // signature dump point for case 1
   RVTEST_SIGUPD(x2, x5, x4, a2, test1_ifetch, test1_ifetch_str)  // record case 1 ifetch result in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------

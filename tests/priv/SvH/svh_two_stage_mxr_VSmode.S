@@ -82,7 +82,7 @@ main:
   nop                                           // trap-skip padding after load
   RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
 
-  test1_mxr0:
+  test1_mxr0:                                   // signature dump point for case 1
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_mxr0, test1_mxr0_str)  // record case 1 fault sentinel in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -99,7 +99,7 @@ main:
   nop                                           // trap-skip padding after load
   RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
 
-  test2_mxr1:
+  test2_mxr1:                                   // signature dump point for case 2
   RVTEST_SIGUPD(x2, x5, x4, a4, test2_mxr1, test2_mxr1_str)  // record case 2 lw result in signature
 
 //---------------------------------------------------------------------------------------------------------------------------------

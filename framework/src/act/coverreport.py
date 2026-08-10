@@ -186,6 +186,8 @@ def _questa_report_to_summary(report_path: Path, summary_path: Path) -> None:
             continue
 
         parts = metrics_line.split()
+        if len(parts) == 3:  # Metric Goal Status (no Bins column)
+            parts.insert(2, "-")
         if len(parts) < 4:
             raise ValueError(f"Unexpected metric line format: '{metrics_line}'")
 

@@ -34,17 +34,24 @@
 #define TRAP_SIGUPD_COUNT 16
 #define RVTEST_HYPERVISOR
 
-// Mode hops (T-SBI) — return-to-M always uses RVTEST_TSBI_GOTO_MMODE (ecall a0=1;
-//   handler rtn2mmode relocates EPC VA→PA). Enter:
-//   • Code at PA / identity: RVTEST_TSBI_GOTO_VSMODE / _SMODE (ecall a0=4/2)
-//   • Guest code VA≠PA (V_SAVE_AREA_*): RVTEST_GOTO_LOWER_MODE (mret + PA↔VA relocate)
+// Mode hops (Sv-style GOTO_* plus H T-SBI):
+//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
+//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
+//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
 
 RVTEST_BEGIN
 
 main:
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                   Virtual addresses / GPA definitions
+// --------------------------------------------------------------------------------------------------------------------------------
   .set va_data,                 0x008001000     // GVA for endian probe data page
   .set va_code,                 0x90000000      // GVA where VS executes this code
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                   Page-table setup (G-stage and/or VS-stage)
+// --------------------------------------------------------------------------------------------------------------------------------
 
   // ---- VS-stage (vsatp Sv32): GVA -> PA  (hgatp Bare ⇒ PTE PPN fields are real PAs) ----
   SUPERPAGE_VS_PTE_SETUP(sv32, rvtest_code_begin, (PTE_D | PTE_A | PTE_X | PTE_R | PTE_V), va_code, LEVEL1)  // leaf: va_code -> PA(code); LEVEL1 = 4 MiB X/R
@@ -56,6 +63,10 @@ main:
   VS_PTE_SETUP(sv32, PA, rvtest_vlvl0_pg_tbl, (PTE_V), va_data, LEVEL1)  // non-leaf: va_data VPN1 -> VS L0 table PA
   VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V), va_data, LEVEL0)  // leaf: va_data -> PA(test_region) R/W/X
 
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                   Enable translation / TLB fences / preloads
+// --------------------------------------------------------------------------------------------------------------------------------
   VSATP_SETUP(sv32, PA)                         // vsatp = Sv32, PPN = PA of VS root
   csrw hgatp, x0                                // hgatp = Bare (no G-stage)
   hfence.vvma                                   // invalidate VS-stage TLB entries
@@ -64,6 +75,10 @@ main:
   LI(a5, va_data)                               // a5 = GVA pointer for guest stores/loads
   LI(s1, 0xA1B2C3D4)                            // known pattern — byte order reveals endianness
 
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                               Test Cases Start from here
+// --------------------------------------------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 1: VSBE=0 VS lw after sw | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -72,18 +87,18 @@ main:
   la t1, test_region                            // t1 = SPA (M-mode always sees LE byte order)
   sw x0, 0(t1)                                  // zero SPA before guest store (baseline)
 
-  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VSmode mret + PA↔VA relocate (guest code VA≠PA; T-SBI enter lacks relocate)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   sw   s1, 0(a5)                                // VS LE store of 0xA1B2C3D4 into SPA
-  nop                                           // trap-skip padding after store
-  RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
+  nop                                           // trap-skip pad
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
   hfence.vvma                                   // re-walk for next VS load (coverpoint sampling)
-  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VSmode mret + PA↔VA relocate (guest code VA≠PA; T-SBI enter lacks relocate)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   a3, 0(a5)                                // VS LE load; architectural value expect 0xA1B2C3D4
-  nop                                           // trap-skip padding after load
-  RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
+  nop                                           // trap-skip pad
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
 
-  test1_vsbe0_lw:                               // signature dump point for case 1
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_vsbe0_lw, test1_vsbe0_lw_str)  // record case 1 VS lw result in signature
+  test1_vsbe0_lw:                                  // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, a3, test1_vsbe0_lw, test1_vsbe0_lw_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: VSBE=0 M-mode SPA readback (LE) | Expected: Successful
@@ -91,15 +106,15 @@ main:
   // M-mode: confirm bytes landed in SPA as little-endian
   la t1, test_region                            // t1 = SPA of data page
   lw t2, 0(t1)                                  // M (LE) read; expect 0xA1B2C3D4
-  test2_vsbe0_spa:                              // signature dump point for case 2
-  RVTEST_SIGUPD(x2, x5, x4, t2, test2_vsbe0_spa, test2_vsbe0_spa_str)  // record case 2 SPA readback in signature
+  test2_vsbe0_spa:                                  // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, t2, test2_vsbe0_spa, test2_vsbe0_spa_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 3: VSBE=1 hstatus readback | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
   LI(t0, HSTATUS_VSBE)                          // t0 = VSBE bit mask (hstatus[7])
   csrs hstatus, t0                              // try to set VSBE (Sail may WARL it back to 0)
-  test3_vsbe1_hstatus:                          // signature dump point for case 3
+  test3_vsbe1_hstatus:                              // SIGUPD label
   RVTEST_SIGUPD_CSR_READ(hstatus, a4, test3_vsbe1_hstatus, test3_vsbe1_hstatus_str)  // record hstatus after VSBE set attempt
 
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -108,18 +123,18 @@ main:
   la t1, test_region                            // t1 = SPA
   sw x0, 0(t1)                                  // clear SPA again for a clean BE/LE comparison
 
-  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VSmode mret + PA↔VA relocate (guest code VA≠PA; T-SBI enter lacks relocate)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   sw   s1, 0(a5)                                // VS store under current hstatus.VSBE
-  nop                                           // trap-skip padding after store
-  RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
+  nop                                           // trap-skip pad
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
   hfence.vvma                                   // re-walk for next VS load
-  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VSmode mret + PA↔VA relocate (guest code VA≠PA; T-SBI enter lacks relocate)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   a4, 0(a5)                                // VS load — same architectural value if BE not implemented
-  nop                                           // trap-skip padding after load
-  RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
+  nop                                           // trap-skip pad
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
 
-  test4_vsbe1_lw:                               // signature dump point for case 4
-  RVTEST_SIGUPD(x2, x5, x4, a4, test4_vsbe1_lw, test4_vsbe1_lw_str)  // record case 4 VS lw result in signature
+  test4_vsbe1_lw:                                  // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, a4, test4_vsbe1_lw, test4_vsbe1_lw_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 5: VSBE=1 attempt M-mode SPA byte view | Expected: Successful
@@ -128,8 +143,8 @@ main:
   la t1, test_region                            // t1 = SPA
   lw t3, 0(t1)                                  // M LE view of stored bytes
                                                 // Ideal VSBE=1: 0xD4C3B2A1; Sail today: 0xA1B2C3D4
-  test5_vsbe1_spa:                              // signature dump point for case 5
-  RVTEST_SIGUPD(x2, x5, x4, t3, test5_vsbe1_spa, test5_vsbe1_spa_str)  // record case 5 SPA byte view in signature
+  test5_vsbe1_spa:                                  // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, t3, test5_vsbe1_spa, test5_vsbe1_spa_str) // SIGUPD
 
   // Leave VSBE clear for any follow-on tests in the harness
   LI(t0, HSTATUS_VSBE)                          // t0 = VSBE bit mask (hstatus[7])
@@ -139,6 +154,9 @@ main:
 RVTEST_CODE_END
 RVTEST_DATA_BEGIN
 
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                            PHYSICAL ADDRESS REGION FOR TESTING
+// --------------------------------------------------------------------------------------------------------------------------------
 .align 12                                       // 4 KiB page align
 test_region:                                    // real PA backing va_data (endian probe target)
   .word 0                                       // data word (initially 0)
@@ -146,10 +164,18 @@ test_region:                                    // real PA backing va_data (endi
   .word 0                                       // data word (initially 0)
   .word 0                                       // data word (initially 0)
 
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                            Page-table storage
+// --------------------------------------------------------------------------------------------------------------------------------
 .align 12                                       // align to 4 KiB page
 rvtest_vlvl0_pg_tbl:                            // VS-stage level-0 PTE storage
   .zero(4096)                                   // 4 KiB page-table storage
 
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                            Mismatch strings (SIGUPD)
+// --------------------------------------------------------------------------------------------------------------------------------
 test1_vsbe0_lw_str:       .string "\"Mismatch on VSBE=0 VS lw in Test Case 1!\""
 test2_vsbe0_spa_str:      .string "\"Mismatch on VSBE=0 SPA LE readback in Test Case 2!\""
 test3_vsbe1_hstatus_str:  .string "\"Mismatch on hstatus after VSBE set attempt in Test Case 3!\""

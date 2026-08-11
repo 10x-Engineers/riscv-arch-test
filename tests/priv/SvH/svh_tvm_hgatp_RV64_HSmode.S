@@ -24,10 +24,10 @@
 #define TRAP_SIGUPD_COUNT 256
 #define RVTEST_HYPERVISOR
 
-// Mode hops (T-SBI) — return-to-M always uses RVTEST_TSBI_GOTO_MMODE (ecall a0=1;
-//   handler rtn2mmode relocates EPC VA→PA). Enter:
-//   • Code at PA / identity: RVTEST_TSBI_GOTO_VSMODE / _SMODE (ecall a0=4/2)
-//   • Guest code VA≠PA (V_SAVE_AREA_*): RVTEST_GOTO_LOWER_MODE (mret + PA↔VA relocate)
+// Mode hops (Sv-style GOTO_* plus H T-SBI):
+//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
+//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
+//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
 
 RVTEST_BEGIN
@@ -39,18 +39,22 @@ main:
   csrw medeleg, x0                              // keep traps in M (simpler TVM fault handling)
   csrw hedeleg, x0                              // do not delegate to HS/VS
 
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                               Test Cases Start from here
+// --------------------------------------------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 1: TVM=0 write hgatp allowed | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
   // cp_hgatp_tvm_effects bin: TVM=0 allows HS to write hgatp
   LI(t0, MSTATUS_TVM)                           // t0 = TVM bit mask
   csrc mstatus, t0                              // clear TVM bit
-  RVTEST_TSBI_GOTO_SMODE                       // T-SBI: ecall a0=2 → HS/S (code at PA / identity)
+  RVTEST_TSBI_GOTO_SMODE                       // M→HS (T-SBI)
   LI(t0, (HGATP_MODE_SV39X4 << 60))             // t0 = MODE Sv39x4 only (RV64 MODE in [63:60])
   csrw hgatp, t0                                // should succeed under TVM=0
-  test1_hgatp:                                  // signature dump point for case 1
-  RVTEST_SIGUPD_CSR_READ(hgatp, a4, test1_hgatp, test1_hgatp_str)  // signature: read hgatp after TVM=0 write
-  RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
+  test1_hgatp:                                      // SIGUPD label
+  RVTEST_SIGUPD_CSR_READ(hgatp, a4, test1_hgatp, test1_hgatp_str) // SIGUPD
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: TVM=1 write hgatp illegal | Expected: Expected Fault
@@ -59,23 +63,27 @@ main:
   LI(t0, MSTATUS_TVM)                           // t0 = TVM bit mask
   csrs mstatus, t0                              // set TVM
   LI(a4, 0x257A0131)                            // marker: stays 0x257A0131 if csrw is skipped by trap
-  RVTEST_TSBI_GOTO_SMODE                       // T-SBI: ecall a0=2 → HS/S (code at PA / identity)
+  RVTEST_TSBI_GOTO_SMODE                       // M→HS (T-SBI)
   csrw hgatp, x0                                // illegal; trap handler skips this insn
   nop                                           // pad after possible skip
   addi a4, a4, 1                                // if we continued → 0x257A0132
-  RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
 
   LI(t0, MSTATUS_TVM)                           // t0 = TVM bit mask
   csrc mstatus, t0                              // clear TVM again (tidy)
 
-  test2_marker:                                 // signature dump point for case 2
-  RVTEST_SIGUPD(x2, x5, x4, a4, test2_marker, test2_marker_str)  // signature: marker proves TVM=1 blocked csrw
+  test2_marker:                                    // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, a4, test2_marker, test2_marker_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 RVTEST_CODE_END
 RVTEST_DATA_BEGIN
 // PASS/FAIL message strings for signature compares
 
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                            Mismatch strings (SIGUPD)
+// --------------------------------------------------------------------------------------------------------------------------------
 test1_hgatp_str:  .string "\"Mismatch on hgatp write with TVM=0 in Test Case 1!\""
 test2_marker_str: .string "\"Mismatch on TVM=1 illegal hgatp write marker in Test Case 2!\""
 

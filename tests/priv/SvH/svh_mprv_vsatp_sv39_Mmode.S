@@ -27,16 +27,26 @@
 
 // Mode hops: none — stimulus stays in M. MPRV×MPP×MPV make M loads walk vsatp
 // as if they were VS S/U; clear MPRV before every SIGUPD (signature not guest-mapped).
+// Mode hops (Sv-style GOTO_* plus H T-SBI):
+//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
+//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
+//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
 
 RVTEST_BEGIN
 
 main:
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                   Virtual addresses / GPA definitions
+// --------------------------------------------------------------------------------------------------------------------------------
   .set va_s, 0x0000000080010000                 // guest VA for supervisor-style page (U=0)
   .set va_u, 0x0000000080020000                 // guest VA for user-style page (U=1)
 
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                   Page-table setup (G-stage and/or VS-stage)
+// --------------------------------------------------------------------------------------------------------------------------------
+
   // ---- VS-stage (vsatp Sv39): two pages — S (U=0) and U (U=1) for MPP matrix ----
-  // Three levels: LEVEL2 root → LEVEL1 mid → LEVEL0 leaf
   VS_PTE_SETUP(sv39, PA, rvtest_vlvl1_pg_tbl, (PTE_V), va_s, LEVEL2)  // va_s VPN2 points at VS L1 table
   VS_PTE_SETUP(sv39, PA, rvtest_vlvl0_pg_tbl, (PTE_V), va_s, LEVEL1)  // va_s VPN1 points at VS L0 table
   VS_PTE_SETUP(sv39, PA, test_region_s, (PTE_D | PTE_A | PTE_W | PTE_R | PTE_V), va_s, LEVEL0)  // S leaf: R/W, U=0
@@ -44,6 +54,10 @@ main:
   VS_PTE_SETUP(sv39, PA, rvtest_vlvl0_pg_tbl, (PTE_V), va_u, LEVEL1)  // va_u VPN1 points at VS L0 table
   VS_PTE_SETUP(sv39, PA, test_region_u, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V), va_u, LEVEL0)  // U leaf: R/W, U=1
 
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                   Enable translation / TLB fences / preloads
+// --------------------------------------------------------------------------------------------------------------------------------
   VSATP_SETUP(sv39, PA)                         // write vsatp so VS-stage Sv39 translation can be used
   csrw hgatp, x0                                // G Bare — isolate vsatp MPRV effects
   csrw satp, x0                                 // S Bare — no HS satp walk during M-mode loads
@@ -57,6 +71,10 @@ main:
   la t1, test_region_u                          // t1 = real PA for user-style data
   sw t0, 0(t1)                                  // store expected user-page value in memory
 
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                               Test Cases Start from here
+// --------------------------------------------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 1: MPRV=0 load without vsatp | Expected: Expected Fault
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -68,9 +86,9 @@ main:
   LI(a3, 0)                                     // a3 stays 0 if raw-address load is skipped by trap
   LI(a5, va_s)                                  // a5 = virtual-looking address, not a real PA
   lw   a3, 0(a5)                                // try M-mode load without vsatp translation
-  nop                                           // trap-skip padding after load
-  test1_mprv0:                                  // signature dump point for case 1
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_mprv0, test1_mprv0_str)  // record case 1 fault sentinel in signature
+  nop                                           // trap-skip pad
+  test1_mprv0:                                      // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, a3, test1_mprv0, test1_mprv0_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: MPRV=1, MPP=S, MPV=1 load S-page | Expected: Successful
@@ -87,12 +105,12 @@ main:
   LI(a4, 0)                                     // a4 should receive the supervisor-page value
   LI(a5, va_s)                                  // a5 = supervisor-page guest virtual address
   lw   a4, 0(a5)                                // load through vsatp as virtualized S-mode
-  nop                                           // trap-skip padding after load
+  nop                                           // trap-skip pad
   LI(t0, MSTATUS_MPRV)                          // t0 = bit mask for MPRV
   csrc mstatus, t0                              // MPRV off: vsatp maps only va_s/va_u, so the
                                                 // signature access below must stay untranslated
-  test2_mprv_s:                                 // signature dump point for case 2
-  RVTEST_SIGUPD(x2, x5, x4, a4, test2_mprv_s, test2_mprv_s_str)  // record case 2 S-page lw result in signature
+  test2_mprv_s:                                     // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, a4, test2_mprv_s, test2_mprv_s_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 3: MPRV=1, MPP=U, MPV=1 load U-page | Expected: Successful
@@ -106,19 +124,22 @@ main:
   LI(a6, 0)                                     // a6 should receive the user-page value
   LI(a5, va_u)                                  // a5 = user-page guest virtual address
   lw   a6, 0(a5)                                // load through vsatp as virtualized U-mode
-  nop                                           // trap-skip padding after load
+  nop                                           // trap-skip pad
 
   LI(t0, MSTATUS_MPRV)                          // t0 = bit mask for MPRV
   csrc mstatus, t0                              // clear MPRV before finishing
   LI(t0, MSTATUS_MPV)                           // t0 = bit mask for MPV
   csrc mstatus, t0                              // clear MPV before finishing
 
-  test3_mprv_u:                                 // signature dump point for case 3
-  RVTEST_SIGUPD(x2, x5, x4, a6, test3_mprv_u, test3_mprv_u_str)  // record case 3 U-page lw result in signature
+  test3_mprv_u:                                    // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, a6, test3_mprv_u, test3_mprv_u_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 RVTEST_CODE_END
 RVTEST_DATA_BEGIN
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                            PHYSICAL ADDRESS REGION FOR TESTING
+// --------------------------------------------------------------------------------------------------------------------------------
 .align 12                                       // 4 KiB page align
 test_region_s:                                  // real PA backing the supervisor-style page
   .word 0                                       // data slot for va_s
@@ -131,6 +152,10 @@ test_region_u:                                  // real PA backing the user-styl
   .word 0                                       // padding in the same page
   .word 0                                       // padding in the same page
   .word 0                                       // padding in the same page
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                            Page-table storage
+// --------------------------------------------------------------------------------------------------------------------------------
 .align 12                                       // 4 KiB page align
 rvtest_vlvl1_pg_tbl:                            // VS-stage level-1 PTE storage
   .zero(4096)                                   // reserve one page for VS L1 table
@@ -138,6 +163,10 @@ rvtest_vlvl1_pg_tbl:                            // VS-stage level-1 PTE storage
 rvtest_vlvl0_pg_tbl:                            // VS-stage level-0 PTE storage
   .zero(4096)                                   // reserve one page for VS L0 table
 
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                            Mismatch strings (SIGUPD)
+// --------------------------------------------------------------------------------------------------------------------------------
 test1_mprv0_str: .string "\"Mismatch on MPRV=0 load (expect fault) in Test Case 1!\""
 test2_mprv_s_str: .string "\"Mismatch on MPRV=1 MPP=S load in Test Case 2!\""
 test3_mprv_u_str: .string "\"Mismatch on MPRV=1 MPP=U load in Test Case 3!\""

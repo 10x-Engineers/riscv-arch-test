@@ -27,27 +27,31 @@
 #define TRAP_SIGUPD_COUNT 16
 #define RVTEST_HYPERVISOR
 
-// Mode hops (T-SBI) — return-to-M always uses RVTEST_TSBI_GOTO_MMODE (ecall a0=1;
-//   handler rtn2mmode relocates EPC VA→PA). Enter:
-//   • Code at PA / identity: RVTEST_TSBI_GOTO_VSMODE / _SMODE (ecall a0=4/2)
-//   • Guest code VA≠PA (V_SAVE_AREA_*): RVTEST_GOTO_LOWER_MODE (mret + PA↔VA relocate)
+// Mode hops (Sv-style GOTO_* plus H T-SBI):
+//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
+//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
+//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
 
 RVTEST_BEGIN
 
 main:
-  // Partner stage off (sheet rule for hgatp CSR tests)
+  // Partner stage off (isolate hgatp field bins)
   csrw vsatp, x0                                // vsatp Bare (no VS walk; isolate hgatp field bins)
   hfence.vvma                                   // flush VS TLB after vsatp clear
-  RVTEST_TSBI_GOTO_SMODE                       // T-SBI: ecall a0=2 → HS/S (code at PA / identity)
+  RVTEST_TSBI_GOTO_SMODE                       // M→HS (T-SBI)
 
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                               Test Cases Start from here
+// --------------------------------------------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 1: Set hgatp.MODE=Bare | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
   // cp_hgatp_mode_field bin: MODE=Bare
   csrw hgatp, x0                                // write Bare MODE (rs1=0)
-  test1_bare:                                   // signature dump point for case 1
-  RVTEST_SIGUPD_CSR_READ(hgatp, a4, test1_bare, test1_bare_str)  // signature: read hgatp after Bare write
+  test1_bare:                                       // SIGUPD label
+  RVTEST_SIGUPD_CSR_READ(hgatp, a4, test1_bare, test1_bare_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: Set hgatp.MODE=Sv32x4, PPN=0 | Expected: Successful
@@ -55,8 +59,8 @@ main:
   // cp_hgatp_mode_field bin: MODE=Sv32x4, PPN=0
   LI(t0, (HGATP_MODE_SV32X4 << 31))             // G-stage Sv32x4 MODE, PPN clear
   csrw hgatp, t0                                // write hgatp (G-stage CSR)
-  test2_mode:                                   // signature dump point for case 2
-  RVTEST_SIGUPD_CSR_READ(hgatp, a4, test2_mode, test2_mode_str)  // signature: read hgatp after MODE=Sv32x4 write
+  test2_mode:                                       // SIGUPD label
+  RVTEST_SIGUPD_CSR_READ(hgatp, a4, test2_mode, test2_mode_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 3: hgatp.VMID = all ones | Expected: Successful
@@ -64,10 +68,10 @@ main:
   // cp_hgatp_vmidlen_detect + cp_hgatp_vmid_scoping bins: VMID all-1s (two readbacks)
   LI(t0, (HGATP_MODE_SV32X4 << 31) | HGATP32_VMID)  // MODE + VMID all-1s
   csrw hgatp, t0                                // write hgatp (G-stage CSR)
-  test3_vmid1:                                  // signature dump point for case 3
-  RVTEST_SIGUPD_CSR_READ(hgatp, a4, test3_vmid1, test3_vmid1_str)  // signature: VMIDLEN detect readback
-  test3_vmid2:                                  // signature dump point for case 3
-  RVTEST_SIGUPD_CSR_READ(hgatp, a4, test3_vmid2, test3_vmid2_str)  // signature: VMID scoping readback
+  test3_vmid1:                                      // SIGUPD label
+  RVTEST_SIGUPD_CSR_READ(hgatp, a4, test3_vmid1, test3_vmid1_str) // SIGUPD
+  test3_vmid2:                                      // SIGUPD label
+  RVTEST_SIGUPD_CSR_READ(hgatp, a4, test3_vmid2, test3_vmid2_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 4: hgatp.PPN = all ones | Expected: Successful
@@ -75,8 +79,8 @@ main:
   // cp_hgatp_ppn_field bin: PPN all-ones (22 bits on RV32)
   LI(t0, (HGATP_MODE_SV32X4 << 31) | 0x3FFFFF)  // MODE + PPN all-1s
   csrw hgatp, t0                                // write hgatp (G-stage CSR)
-  test4_ppn_ones:                               // signature dump point for case 4
-  RVTEST_SIGUPD_CSR_READ(hgatp, a4, test4_ppn_ones, test4_ppn_ones_str)  // signature: read hgatp after PPN all-ones write
+  test4_ppn_ones:                                   // SIGUPD label
+  RVTEST_SIGUPD_CSR_READ(hgatp, a4, test4_ppn_ones, test4_ppn_ones_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 5: Walking ones on hgatp.PPN bits [21:2] | Expected: Successful
@@ -90,19 +94,23 @@ ppn_walk:                                       // loop: walking-1 across PPN bi
   sll t1, t1, t3                                // shift 1 into bit position t3
   or  t0, t0, t1                                // merge MODE with PPN/bit
   csrw hgatp, t0                                // write hgatp (G-stage CSR)
-  test5_ppn_walk:                               // signature dump point for case 5
-  RVTEST_SIGUPD_CSR_READ(hgatp, a4, test5_ppn_walk, test5_ppn_walk_str)  // signature: read hgatp after each PPN walk step
+  test5_ppn_walk:                                   // SIGUPD label
+  RVTEST_SIGUPD_CSR_READ(hgatp, a4, test5_ppn_walk, test5_ppn_walk_str) // SIGUPD
   addi t3, t3, 1                                // next bit/index
   LI(t4, 22)                                    // stop after bits 2..21 (20 iterations)
   blt t3, t4, ppn_walk                          // repeat until all PPN bits tried
 
-  RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
 
 //---------------------------------------------------------------------------------------------------------------------------------
 RVTEST_CODE_END
 RVTEST_DATA_BEGIN
 // PASS/FAIL message strings for signature compares
 
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                            Mismatch strings (SIGUPD)
+// --------------------------------------------------------------------------------------------------------------------------------
 test1_bare_str:     .string "\"Mismatch on setting hgatp.MODE=Bare in Test Case 1!\""
 test2_mode_str:     .string "\"Mismatch on setting hgatp.MODE=Sv32x4 (PPN=0) in Test Case 2!\""
 test3_vmid1_str:    .string "\"Mismatch on hgatp.VMID=all-ones (VMIDLEN) in Test Case 3!\""

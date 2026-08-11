@@ -31,15 +31,18 @@
 #define TRAP_SIGUPD_COUNT 256
 #define RVTEST_HYPERVISOR
 
-// Mode hops (T-SBI) — return-to-M always uses RVTEST_TSBI_GOTO_MMODE (ecall a0=1;
-//   handler rtn2mmode relocates EPC VA→PA). Enter:
-//   • Code at PA / identity: RVTEST_TSBI_GOTO_VSMODE / _SMODE (ecall a0=4/2)
-//   • Guest code VA≠PA (V_SAVE_AREA_*): RVTEST_GOTO_LOWER_MODE (mret + PA↔VA relocate)
+// Mode hops (Sv-style GOTO_* plus H T-SBI):
+//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
+//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
+//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
 
 RVTEST_BEGIN
 
 main:
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                   Virtual addresses / GPA definitions
+// --------------------------------------------------------------------------------------------------------------------------------
   .set va_data,                 0x008001000     // GVA VS lw/sw/jalr will use (data + fetch target)
   .set va_code,                 0x0000000090000000  // GVA where VS executes this test code (VA≠PA)
   .set gpa_data,                0x00C002000     // GPA behind va_data (G leaf → test_region SPA)
@@ -52,6 +55,10 @@ main:
   csrw medeleg, x0                              // clear M delegation — page/guest-page stay in M
   csrw hedeleg, x0                              // clear HS delegation so they do not land in HS
 
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                   Page-table setup (G-stage and/or VS-stage)
+// --------------------------------------------------------------------------------------------------------------------------------
   G_PTE_SETUP(sv39x4, rvtest_hlvl1_pg_tbl, (PTE_V), gpa_code, LEVEL2)  // G non-leaf: shared VPN2 → G L1 table
   SUPERPAGE_G_PTE_SETUP(sv39x4, rvtest_code_begin, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_R | PTE_V), gpa_code, LEVEL1)  // gpa_code → PA(code); LEVEL1 = 2 MiB leaf U=1 X/R
   G_PTE_SETUP(sv39x4, rvtest_hlvl0_pg_tbl, (PTE_V), gpa_rvtest_Vroot_pg_tbl, LEVEL1)  // G non-leaf: VPN1 for VS-root GPA → G L0
@@ -72,6 +79,10 @@ main:
   VS_PTE_SETUP(sv39, GPA, gpa_data, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V), va_data, LEVEL0)  // VS leaf: va_data → gpa_data XWR=111 A=D=1 U=0
 
   csrw satp, x0                                 // HS satp Bare (only vsatp+hgatp translate)
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                   Enable translation / TLB fences / preloads
+// --------------------------------------------------------------------------------------------------------------------------------
   VSATP_SETUP(sv39, GPA)                        // vsatp = Sv39, PPN = GPA of VS root
   HGATP_SETUP(sv39x4)                           // hgatp = Sv39x4, PPN = G root
   hfence.vvma                                   // flush VS-stage TLB (must be M or HS)
@@ -82,17 +93,21 @@ main:
   la t1, test_region                            // t1 = SPA of data page
   sw t0, 0(t1)                                  // write preload so a successful store would change it
 
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                               Test Cases Start from here
+// --------------------------------------------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 1: implicit G A=D=0 on VS-PT map — VS lw | Expected: Expected Fault
 //---------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)                               // a5 = GVA to load (walk reads VS L0 via G A=0)
   LI(a3, 0)                                     // sentinel — stays 0 if load guest-page-faults
-  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS mret + PA↔VA relocate (guest code VA≠PA)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   a3, 0(a5)                                // VS load: implicit G read of VS L0 PTE A=0 → guest-page
-  nop                                           // trap-skip padding after faulting load
-  RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA)
-  test1_impl_g_lw:                              // signature dump point for case 1
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_impl_g_lw, test1_impl_g_lw_str)  // dump a3 (expect 0)
+  nop                                           // trap-skip pad
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  test1_impl_g_lw:                                  // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, a3, test1_impl_g_lw, test1_impl_g_lw_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: implicit G A=D=0 on VS-PT map — VS sw | Expected: Expected Fault
@@ -102,14 +117,14 @@ main:
   sfence.vma                                    // clear any leftover translations
   LI(a5, va_data)                               // a5 = GVA to store
   LI(t0, 0xBAD00FAD)                            // payload that must not land at SPA
-  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS mret + PA↔VA relocate
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   sw   t0, 0(a5)                                // VS store: implicit G read of VS L0 PTE A=0 → guest-page
-  nop                                           // trap-skip padding after faulting store
-  RVTEST_TSBI_GOTO_MMODE                       // return to M
+  nop                                           // trap-skip pad
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
   la t3, test_region                            // t3 = SPA
   lw s3, 0(t3)                                  // expect preload 0x257A0251 unchanged
-  test2_impl_g_sw:                              // signature dump point for case 2
-  RVTEST_SIGUPD(x2, x5, x4, s3, test2_impl_g_sw, test2_impl_g_sw_str)  // dump SPA word
+  test2_impl_g_sw:                                  // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, s3, test2_impl_g_sw, test2_impl_g_sw_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 3: implicit G A=D=0 on VS-PT map — VS jalr | Expected: Expected Fault
@@ -119,13 +134,13 @@ main:
   sfence.vma                                    // clear leftover translations
   LI(a5, va_data)                               // a5 = GVA fetch target (same data page, X on VS leaf)
   LI(s4, 0)                                     // sentinel — stays 0 if target never runs
-  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   nop                                           // pad so priv_mode_vs samples prev=VS on jalr
   jalr ra, a5, 0                                // VS ifetch of va_data: implicit G A=0 → fetch guest-page
-  nop                                           // trap-skip padding (not reached)
-  RVTEST_TSBI_GOTO_MMODE                       // return to M
-  test3_impl_g_jalr:                            // signature dump point for case 3
-  RVTEST_SIGUPD(x2, x5, x4, s4, test3_impl_g_jalr, test3_impl_g_jalr_str)  // dump s4 (expect 0)
+  nop                                           // trap-skip pad
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  test3_impl_g_jalr:                                // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, s4, test3_impl_g_jalr, test3_impl_g_jalr_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Restore G-for-VS-L0 A=D=1; set VS leaf A=D=00 (Svade → page fault on original access)
@@ -141,12 +156,12 @@ main:
 //---------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)                               // a5 = GVA to load
   LI(a4, 0)                                     // sentinel — stays 0 if load page-faults
-  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   a4, 0(a5)                                // VS load: VS leaf A=0 → load page-fault (not guest-page)
-  nop                                           // trap-skip padding
-  RVTEST_TSBI_GOTO_MMODE                       // return to M
-  test4_vs_ad00_lw:                             // signature dump point for case 4
-  RVTEST_SIGUPD(x2, x5, x4, a4, test4_vs_ad00_lw, test4_vs_ad00_lw_str)  // dump a4 (expect 0)
+  nop                                           // trap-skip pad
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  test4_vs_ad00_lw:                                 // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, a4, test4_vs_ad00_lw, test4_vs_ad00_lw_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 5: VS leaf A=D=00 — VS sw | Expected: Expected Fault
@@ -156,14 +171,14 @@ main:
   sfence.vma                                    // clear leftover translations
   LI(a5, va_data)                               // a5 = GVA to store
   LI(t0, 0xBAD00FAD)                            // payload that must not land
-  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   sw   t0, 0(a5)                                // VS store: VS leaf A=0 D=0 → store page-fault
-  nop                                           // trap-skip padding
-  RVTEST_TSBI_GOTO_MMODE                       // return to M
+  nop                                           // trap-skip pad
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
   la t3, test_region                            // t3 = SPA
   lw s3, 0(t3)                                  // expect preload 0x257A0251 unchanged
-  test5_vs_ad00_sw:                             // signature dump point for case 5
-  RVTEST_SIGUPD(x2, x5, x4, s3, test5_vs_ad00_sw, test5_vs_ad00_sw_str)  // dump SPA word
+  test5_vs_ad00_sw:                                 // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, s3, test5_vs_ad00_sw, test5_vs_ad00_sw_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 6: VS leaf A=D=00 — VS jalr | Expected: Expected Fault
@@ -173,17 +188,20 @@ main:
   sfence.vma                                    // clear leftover translations
   LI(a5, va_data)                               // a5 = GVA fetch target
   LI(s5, 0)                                     // sentinel — stays 0 if target never runs
-  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   nop                                           // pad so priv_mode_vs samples prev=VS on jalr
   jalr ra, a5, 0                                // VS ifetch: VS leaf A=0 → fetch page-fault
-  nop                                           // trap-skip padding (not reached)
-  RVTEST_TSBI_GOTO_MMODE                       // return to M
-  test6_vs_ad00_jalr:                           // signature dump point for case 6
-  RVTEST_SIGUPD(x2, x5, x4, s5, test6_vs_ad00_jalr, test6_vs_ad00_jalr_str)  // dump s5 (expect 0)
+  nop                                           // trap-skip pad
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  test6_vs_ad00_jalr:                               // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, s5, test6_vs_ad00_jalr, test6_vs_ad00_jalr_str) // SIGUPD
 
 RVTEST_CODE_END
 RVTEST_DATA_BEGIN
 
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                            PHYSICAL ADDRESS REGION FOR TESTING
+// --------------------------------------------------------------------------------------------------------------------------------
 .align 12                                       // 4 KiB page align
 test_region:                                    // SPA backing gpa_data
   .word 0                                       // payload word (preloaded in M)
@@ -191,6 +209,10 @@ test_region:                                    // SPA backing gpa_data
   .word 0                                       // padding in same page
   .word 0                                       // padding in same page
 
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                            Page-table storage
+// --------------------------------------------------------------------------------------------------------------------------------
 .align 12                                       // 4 KiB page align
 rvtest_hlvl1_pg_tbl:                            // G-stage L1 PTE storage (Sv39x4)
   .zero(4096)                                   // reserve 4 KiB page-table page
@@ -204,6 +226,10 @@ rvtest_vlvl1_pg_tbl:                            // VS-stage L1 PTE storage
 rvtest_vlvl0_pg_tbl:                            // VS-stage L0 PTE storage (implicit G maps this GPA)
   .zero(4096)                                   // reserve 4 KiB page-table page
 
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                            Mismatch strings (SIGUPD)
+// --------------------------------------------------------------------------------------------------------------------------------
 test1_impl_g_lw_str:    .string "\"Mismatch on implicit G A=0 VS lw (expect fault) in Test Case 1!\""
 test2_impl_g_sw_str:    .string "\"Mismatch on implicit G A=0 VS sw (SPA must stay) in Test Case 2!\""
 test3_impl_g_jalr_str:  .string "\"Mismatch on implicit G A=0 VS jalr (expect fault) in Test Case 3!\""

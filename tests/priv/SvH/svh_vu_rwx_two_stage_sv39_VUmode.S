@@ -24,11 +24,18 @@
 #define TRAP_SIGUPD_COUNT 256
 #define RVTEST_HYPERVISOR
 
+// Mode hops (Sv-style GOTO_* plus H T-SBI):
+//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
+//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
+//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
 
 RVTEST_BEGIN
 
 main:
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                   Virtual addresses / GPA definitions
+// --------------------------------------------------------------------------------------------------------------------------------
   .set va_data,                 0x008001000     // GVA VU sw/lw will use (allow path; U=1 both stages)
   .set va_deny,                 0x008002000     // GVA VU lw deny path (VS leaf U=0)
   .set va_code,                 0x0000000090000000  // GVA where VU executes this code (VA≠PA)
@@ -39,6 +46,10 @@ main:
   .set gpa_rvtest_vlvl1_pg_tbl, 0x000000001000C000 // GPA of VS mid (LEVEL1) table
   .set gpa_rvtest_vlvl0_pg_tbl, 0x01000B000     // GPA of VS L0 table
 
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                   Page-table setup (G-stage and/or VS-stage)
+// --------------------------------------------------------------------------------------------------------------------------------
   G_PTE_SETUP(sv39x4, rvtest_hlvl1_pg_tbl, (PTE_V), gpa_code, LEVEL2)  // G non-leaf: shared VPN2 → G L1 table
   SUPERPAGE_G_PTE_SETUP(sv39x4, rvtest_code_begin, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_R | PTE_V), gpa_code, LEVEL1)  // G superpage: gpa_code → PA(code) U=1 X/R; LEVEL1 = 2 MiB
   G_PTE_SETUP(sv39x4, rvtest_hlvl0_pg_tbl, (PTE_V), gpa_rvtest_Vroot_pg_tbl, LEVEL1)  // G non-leaf: VPN1 for VS-root GPA → G L0
@@ -59,6 +70,10 @@ main:
   VS_PTE_SETUP(sv39, GPA, gpa_data, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R | PTE_V), va_data, LEVEL0)  // VS leaf: va_data → gpa_data U=1 XWR=111 (VU allow)
   VS_PTE_SETUP(sv39, GPA, gpa_deny, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V), va_deny, LEVEL0)  // VS leaf: va_deny → gpa_deny U=0 XWR=111 (VU must fault)
 
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                   Enable translation / TLB fences / preloads
+// --------------------------------------------------------------------------------------------------------------------------------
   VSATP_SETUP(sv39, GPA)                        // vsatp = Sv39, PPN = GPA of VS root
   HGATP_SETUP(sv39x4)                           // hgatp = Sv39x4, PPN = G root
   hfence.vvma                                   // flush VS-stage TLB
@@ -68,28 +83,38 @@ main:
   la t1, test_region                            // t1 = SPA of allow page
   sw t0, 0(t1)                                  // SPA starts as 0x257A0B01
 
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                               Test Cases Start from here
+// --------------------------------------------------------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------------------------------------------------------
+// Test case 1: Both U=1 XWR=111: VU sw+lw | Expected: Successful (0x257A0B01)
+//---------------------------------------------------------------------------------------------------------------------------------
+
   LI(a5, va_data)                               // a5 = GVA allow pointer (U=1 both stages)
   LI(t0, 0x257A0B01)                            // payload VU will store (same as preload)
-  RVTEST_GOTO_LOWER_MODE VUmode                 // M→VU mret + PA↔VA relocate (guest code VA≠PA)
+  RVTEST_GOTO_LOWER_MODE VUmode                 // M→VU (VA≠PA relocate)
   sw   t0, 0(a5)                                // VU store: GVA→GPA→SPA through U=1 XWR=111; expect success
-  nop                                           // trap-skip padding after store
+  nop                                           // trap-skip pad
   lw   a3, 0(a5)                                // VU load same GVA; expect 0x257A0B01
-  nop                                           // trap-skip padding after load
-  RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA)
-  test1_allow:                                  // signature dump point for case 1
+  nop                                           // trap-skip pad
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  test1_allow:                                      // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_allow, test1_allow_str)  // record VU lw (expect 0x257A0B01)
 
   LI(a5, va_deny)                               // a5 = GVA deny pointer (VS leaf U=0)
   LI(a4, 0)                                     // sentinel — stays 0 if VU load page-faults
-  RVTEST_GOTO_LOWER_MODE VUmode                 // M→VU
+  RVTEST_GOTO_LOWER_MODE VUmode                 // M→VU (VA≠PA relocate)
   lw   a4, 0(a5)                                // VU load of U=0 VS leaf → page-fault (a4 stays 0)
-  nop                                           // trap-skip padding after faulting load
-  RVTEST_TSBI_GOTO_MMODE                       // return to M
-  test2_deny:                                   // signature dump point for case 2
-  RVTEST_SIGUPD(x2, x5, x4, a4, test2_deny, test2_deny_str)  // dump a4 (expect 0)
+  nop                                           // trap-skip pad
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  test2_deny:                                       // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, a4, test2_deny, test2_deny_str) // SIGUPD
 
 RVTEST_CODE_END
 RVTEST_DATA_BEGIN
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                            PHYSICAL ADDRESS REGION FOR TESTING
+// --------------------------------------------------------------------------------------------------------------------------------
 .align 12                                       // 4 KiB page align
 test_region:                                    // SPA backing gpa_data (VU allow path)
   .word 0                                       // payload word (preloaded / stored by VU)
@@ -102,6 +127,10 @@ test_region_deny:                               // SPA backing gpa_deny (G allow
   .word 0                                       // padding in same page
   .word 0                                       // padding in same page
   .word 0                                       // padding in same page
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                            Page-table storage
+// --------------------------------------------------------------------------------------------------------------------------------
 .align 12                                       // 4 KiB page align
 rvtest_vlvl1_pg_tbl:                            // VS-stage L1 (mid) PTE storage
   .zero(4096)                                   // reserve 4 KiB page-table page
@@ -114,6 +143,10 @@ rvtest_hlvl1_pg_tbl:                            // G-stage L1 (mid) PTE storage
 .align 12                                       // 4 KiB page align
 rvtest_hlvl0_pg_tbl:                            // G-stage L0 PTE storage
   .zero(4096)                                   // reserve 4 KiB page-table page
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                            Mismatch strings (SIGUPD)
+// --------------------------------------------------------------------------------------------------------------------------------
 test1_allow_str: .string "\"Mismatch on VU two-stage U=1 RWX in Test Case 1!\""
 test2_deny_str:  .string "\"Mismatch on VU two-stage U=0 deny in Test Case 2!\""
 RVTEST_DATA_END

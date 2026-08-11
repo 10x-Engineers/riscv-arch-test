@@ -24,15 +24,18 @@
 #define TRAP_SIGUPD_COUNT 16
 #define RVTEST_HYPERVISOR
 
-// Mode hops (T-SBI) — return-to-M always uses RVTEST_TSBI_GOTO_MMODE (ecall a0=1;
-//   handler rtn2mmode relocates EPC VA→PA). Enter:
-//   • Code at PA / identity: RVTEST_TSBI_GOTO_VSMODE / _SMODE (ecall a0=4/2)
-//   • Guest code VA≠PA (V_SAVE_AREA_*): RVTEST_GOTO_LOWER_MODE (mret + PA↔VA relocate)
+// Mode hops (Sv-style GOTO_* plus H T-SBI):
+//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
+//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
+//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
 
 RVTEST_BEGIN
 
 main:
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                   Virtual addresses / GPA definitions
+// --------------------------------------------------------------------------------------------------------------------------------
   .set va_data,                 0x0000000080010000 // GVA for VS lw
   .set va_code,                 0x0000000090000000 // GVA for VS code
   .set gpa_data,                0x0000000000C002000 // GPA behind va_data
@@ -40,6 +43,10 @@ main:
   .set gpa_rvtest_Vroot_pg_tbl, 0x000000001000A000 // GPA of VS root (LEVEL2) table
   .set gpa_rvtest_vlvl1_pg_tbl, 0x000000001000C000 // GPA of VS mid (LEVEL1) table
   .set gpa_rvtest_vlvl0_pg_tbl, 0x000000001000B000 // GPA of VS leaf (LEVEL0) table
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                   Page-table setup (G-stage and/or VS-stage)
+// --------------------------------------------------------------------------------------------------------------------------------
 
   // ---- G-stage (hgatp Sv39x4): must map VS PT GPAs or VS walk guest-faults ----
   G_PTE_SETUP(sv39x4, rvtest_hlvl1_pg_tbl, (PTE_V), gpa_code, LEVEL2)  // non-leaf: shared VPN2 -> G L1 table
@@ -63,6 +70,10 @@ main:
   VS_PTE_SETUP(sv39, GPA, gpa_rvtest_vlvl0_pg_tbl, (PTE_V), va_data, LEVEL1)  // point VS data VPN1 to VS L0 table GPA
   VS_PTE_SETUP(sv39, GPA, gpa_data, (PTE_D | PTE_A | PTE_W | PTE_R | PTE_V), va_data, LEVEL0)  // map va_data -> gpa_data for the VS load
 
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                   Enable translation / TLB fences / preloads
+// --------------------------------------------------------------------------------------------------------------------------------
   VSATP_SETUP(sv39, GPA)                        // write vsatp so VS-stage translation is on
   HGATP_SETUP(sv39x4)                           // hgatp = Sv39x4, PPN = G root
   hfence.vvma                                   // flush VS TLB
@@ -74,16 +85,20 @@ main:
 
   LI(a5, va_data)                               // a5 = guest virtual address to load
 
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                               Test Cases Start from here
+// --------------------------------------------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 1: G allows VS-PT GPA walk | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
-  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VSmode mret + PA↔VA relocate (guest code VA≠PA; T-SBI enter lacks relocate)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   a3, 0(a5)                                // cp_h_vm_gstagetrans: VS walk hits G-mapped VS L0 PT GPA
-  nop                                           // trap-skip padding if previous access faults
-  RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
+  nop                                           // trap-skip pad
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
 
-  test1_allow:                                  // signature dump point for case 1
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_allow, test1_allow_str)  // record result in signature
+  test1_allow:                                     // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, a3, test1_allow, test1_allow_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: G denies VS L0 PT GPA | Expected: Expected Fault
@@ -94,18 +109,21 @@ main:
   hfence.gvma                                   // flush G TLB so next access rewalks
 
   LI(a4, 0)                                     // sentinel: stays 0 if trap fires
-  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VSmode mret + PA↔VA relocate (guest code VA≠PA; T-SBI enter lacks relocate)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   a4, 0(a5)                                // expect guest-page fault (handler skips)
-  nop                                           // trap-skip padding if previous access faults
-  RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
+  nop                                           // trap-skip pad
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
 
-  test2_deny:                                   // signature dump point for case 2
-  RVTEST_SIGUPD(x2, x5, x4, a4, test2_deny, test2_deny_str)  // record result in signature
+  test2_deny:                                      // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, a4, test2_deny, test2_deny_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 RVTEST_CODE_END
 RVTEST_DATA_BEGIN
 
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                            PHYSICAL ADDRESS REGION FOR TESTING
+// --------------------------------------------------------------------------------------------------------------------------------
 .align 12                                      // 4 KiB page align
 test_region:                                  // SPA backing for gpa_data leaf
   .word 0                                     // payload word (preloaded in M)
@@ -113,6 +131,10 @@ test_region:                                  // SPA backing for gpa_data leaf
   .word 0                                     // padding in same page
   .word 0                                     // padding in same page
 
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                            Page-table storage
+// --------------------------------------------------------------------------------------------------------------------------------
 .align 12                                      // 4 KiB page align
 rvtest_hlvl1_pg_tbl:                          // G-stage L1 PTE storage (4 KiB)
   .zero(4096)                                  // reserve 4 KiB page-table storage
@@ -126,6 +148,10 @@ rvtest_vlvl1_pg_tbl:                          // VS-stage L1 PTE storage (4 KiB)
 rvtest_vlvl0_pg_tbl:                          // VS-stage L0 PTE storage (4 KiB)
   .zero(4096)                                  // reserve 4 KiB page-table storage
 
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                            Mismatch strings (SIGUPD)
+// --------------------------------------------------------------------------------------------------------------------------------
 test1_allow_str: .string "\"Mismatch on VS lw with G allowing VS-PT walk in Test Case 1!\""
 test2_deny_str:  .string "\"Mismatch on VS lw with G denying VS-PT walk in Test Case 2!\""
 

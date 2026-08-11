@@ -36,11 +36,18 @@
 // Mode hops (T-SBI) — return-to-M always uses RVTEST_TSBI_GOTO_MMODE (ecall a0=1;
 //   handler rtn2mmode relocates EPC VA→PA). Enter:
 //   • Guest code VA≠PA (V_SAVE_AREA_*): RVTEST_GOTO_LOWER_MODE VUmode
+// Mode hops (Sv-style GOTO_* plus H T-SBI):
+//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
+//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
+//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
 
 RVTEST_BEGIN
 
 main:
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                   Virtual addresses / GPA definitions
+// --------------------------------------------------------------------------------------------------------------------------------
   .set va_u_rwx,  0x008001000                   // GVA: U=1 XWR=111
   .set va_u_xonly,0x008002000                   // GVA: U=1 X-only
   .set va_u_ronly,0x008003000                   // GVA: U=1 R-only
@@ -51,8 +58,11 @@ main:
   .set va_s_vonly,0x008008000                   // GVA: U=0 V-only
   .set va_code,   0x90000000                    // GVA code (U=1 for VU)
 
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                   Page-table setup (G-stage and/or VS-stage)
+// --------------------------------------------------------------------------------------------------------------------------------
+
   // ---- VS-stage (vsatp Sv32): GVA -> PA  (hgatp Bare ⇒ PTE PPN fields are real PAs) ----
-  // VU ifetch requires U=1 on the code leaf (unlike VS which uses U=0).
   SUPERPAGE_VS_PTE_SETUP(sv32, rvtest_code_begin, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_R | PTE_V), va_code, LEVEL1)  // VS-stage superpage: code GVA → PA/GPA
 
   csrr a0, mscratch                             // a0 = Msave_area (required by next macro)
@@ -70,6 +80,10 @@ main:
   VS_PTE_SETUP(sv32, PA, test_region_u_vonly, (PTE_D | PTE_A | PTE_U | PTE_V), va_u_vonly, LEVEL0)  // VS leaf U=1 V-only (XWR=000 → fault)
   VS_PTE_SETUP(sv32, PA, test_region_s_vonly, (PTE_D | PTE_A | PTE_V), va_s_vonly, LEVEL0)  // VS leaf U=0 V-only (deny)
 
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                   Enable translation / TLB fences / preloads
+// --------------------------------------------------------------------------------------------------------------------------------
   VSATP_SETUP(sv32, PA)                         // VS-stage ON
   csrw hgatp, x0                                // G Bare
   hfence.vvma                                   // flush VS-stage TLB
@@ -99,33 +113,37 @@ main:
   la t1, test_region_u_rx                       // t1 = SPA of test_region_u_rx
   sw t0, 0(t1)                                  // SPA preload (known pattern before guest access)
 
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                               Test Cases Start from here
+// --------------------------------------------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 1: U=1 XWR=111 VU sw+lw | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_u_rwx)                              // a5 = U-page RWX GVA (U=1 XWR=111)
   LI(t0, 0x257A0701)                            // SPA pattern / store value for case 1 (0x257A0701)
-  RVTEST_GOTO_LOWER_MODE VUmode                 // M→VU mret + PA↔VA relocate (U=1 code leaf)
+  RVTEST_GOTO_LOWER_MODE VUmode                 // M→VU (VA≠PA relocate)
   sw   t0, 0(a5)                                // guest store through current PTE perms (expect allow)
-  nop                                           // trap-skip padding after store
+  nop                                           // trap-skip pad
   lw   a3, 0(a5)                                // guest load through current PTE perms (expect allow)
-  nop                                           // trap-skip padding after load
-  RVTEST_TSBI_GOTO_MMODE                        // return to M (T-SBI ecall a0=1; rtn2mmode relocates EPC)
+  nop                                           // trap-skip pad
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
 
-  test1_urw_rwx:                                // signature dump point for case 1
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_urw_rwx, test1_urw_rwx_str)  // signature: dump a3 (test1_urw_rwx) for PASS/FAIL
+  test1_urw_rwx:                                   // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, a3, test1_urw_rwx, test1_urw_rwx_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: U=1 X-only VU lw | Expected: Expected Fault
 //---------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_u_xonly)                            // a5 = U-page X-only GVA (U=1 XWR=001)
   LI(a4, 0)                                     // sentinel — a4 stays 0 if load page-faults
-  RVTEST_GOTO_LOWER_MODE VUmode                 // M→VU mret + PA↔VA relocate (U=1 code leaf)
+  RVTEST_GOTO_LOWER_MODE VUmode                 // M→VU (VA≠PA relocate)
   lw   a4, 0(a5)                                // guest load (expect fault; sentinel stays 0)
-  nop                                           // trap-skip padding after load
-  RVTEST_TSBI_GOTO_MMODE                        // return to M (T-SBI ecall a0=1; rtn2mmode relocates EPC)
+  nop                                           // trap-skip pad
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
 
-  test2_ux_lw:                                  // signature dump point for case 2
-  RVTEST_SIGUPD(x2, x5, x4, a4, test2_ux_lw, test2_ux_lw_str)  // signature: dump a4 (test2_ux_lw) for PASS/FAIL
+  test2_ux_lw:                                     // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, a4, test2_ux_lw, test2_ux_lw_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 3: U=1 X-only VU sw | Expected: Expected Fault
@@ -133,149 +151,152 @@ main:
 //---------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_u_xonly)                            // a5 = U-page X-only GVA (U=1 XWR=001)
   LI(t0, 0xDEADBEEF)                            // must not appear in SPA
-  RVTEST_GOTO_LOWER_MODE VUmode                 // M→VU mret + PA↔VA relocate (U=1 code leaf)
+  RVTEST_GOTO_LOWER_MODE VUmode                 // M→VU (VA≠PA relocate)
   sw   t0, 0(a5)                                // X-only → store-page-fault
-  nop                                           // trap-skip padding after store
-  RVTEST_TSBI_GOTO_MMODE                        // return to M (T-SBI ecall a0=1; rtn2mmode relocates EPC)
+  nop                                           // trap-skip pad
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
 
   la t1, test_region_u_xonly                    // t1 = SPA of U-page X-only region
   lw a3, 0(t1)                                  // expect preload 0x257A0702
-  test3_ux_sw:                                  // signature dump point for case 3
-  RVTEST_SIGUPD(x2, x5, x4, a3, test3_ux_sw, test3_ux_sw_str)  // signature: dump a3 (test3_ux_sw) for PASS/FAIL
+  test3_ux_sw:                                      // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, a3, test3_ux_sw, test3_ux_sw_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 4: U=1 R-only VU lw OK, VU sw fault | Expected: Successful (lw) + Expected Fault (sw)
 //---------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_u_ronly)                            // a5 = U-page R-only GVA (U=1 XWR=011)
-  RVTEST_GOTO_LOWER_MODE VUmode                 // M→VU mret + PA↔VA relocate (U=1 code leaf)
+  RVTEST_GOTO_LOWER_MODE VUmode                 // M→VU (VA≠PA relocate)
   lw   a3, 0(a5)                                // R-only → load OK (expect 0x257A0704)
-  nop                                           // trap-skip padding after load
+  nop                                           // trap-skip pad
   LI(a4, 0)                                     // sentinel — a4 stays 0 if store is skipped by trap
   sw   a4, 0(a5)                                // R-only → store-page-fault (SPA unchanged)
-  nop                                           // trap-skip padding after store
-  RVTEST_TSBI_GOTO_MMODE                        // return to M (T-SBI ecall a0=1; rtn2mmode relocates EPC)
+  nop                                           // trap-skip pad
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
 
-  test4_ur_only:                                // signature dump point for case 4
-  RVTEST_SIGUPD(x2, x5, x4, a3, test4_ur_only, test4_ur_only_str)  // signature: dump a3 lw result (expect 0x257A0704)
+  test4_ur_only:                                   // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, a3, test4_ur_only, test4_ur_only_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 5: U=1 R/W VU sw+lw | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_u_rw)                               // a5 = U-page R/W GVA (U=1 XWR=110)
   LI(t0, 0x257A0705)                            // SPA pattern / store value for case 5 (0x257A0705)
-  RVTEST_GOTO_LOWER_MODE VUmode                 // M→VU mret + PA↔VA relocate (U=1 code leaf)
+  RVTEST_GOTO_LOWER_MODE VUmode                 // M→VU (VA≠PA relocate)
   sw   t0, 0(a5)                                // U=1 R/W → store OK
-  nop                                           // trap-skip padding after store
+  nop                                           // trap-skip pad
   lw   a3, 0(a5)                                // U=1 R/W → load OK (expect 0x257A0705)
-  nop                                           // trap-skip padding after load
-  RVTEST_TSBI_GOTO_MMODE                        // return to M (T-SBI ecall a0=1; rtn2mmode relocates EPC)
+  nop                                           // trap-skip pad
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
 
-  test5_urw:                                    // signature dump point for case 5
-  RVTEST_SIGUPD(x2, x5, x4, a3, test5_urw, test5_urw_str)  // signature: dump a3 (test5_urw) for PASS/FAIL
+  test5_urw:                                       // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, a3, test5_urw, test5_urw_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 6: U=1 R/X VU lw OK, VU sw fault | Expected: Successful (lw) + Expected Fault (sw)
 //---------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_u_rx)                               // a5 = U-page R/X GVA (U=1 XWR=101)
-  RVTEST_GOTO_LOWER_MODE VUmode                 // M→VU mret + PA↔VA relocate (U=1 code leaf)
+  RVTEST_GOTO_LOWER_MODE VUmode                 // M→VU (VA≠PA relocate)
   lw   a3, 0(a5)                                // R/X → load OK (expect 0x257A0706)
-  nop                                           // trap-skip padding after load
+  nop                                           // trap-skip pad
   LI(a4, 0)                                     // sentinel — a4 stays 0 if store is skipped by trap
   sw   a4, 0(a5)                                // R/X → store-page-fault (SPA unchanged)
-  nop                                           // trap-skip padding after store
-  RVTEST_TSBI_GOTO_MMODE                        // return to M (T-SBI ecall a0=1; rtn2mmode relocates EPC)
+  nop                                           // trap-skip pad
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
 
-  test6_urx:                                    // signature dump point for case 6
-  RVTEST_SIGUPD(x2, x5, x4, a3, test6_urx, test6_urx_str)  // signature: dump a3 (test6_urx) for PASS/FAIL
+  test6_urx:                                       // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, a3, test6_urx, test6_urx_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 7: U=0 XWR=111 VU lw | Expected: Expected Fault
 //---------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_s_rwx)                              // a5 = S-page RWX GVA (U=0 XWR=111; VU must fault)
   LI(a6, 0)                                     // sentinel — a6 stays 0 if load page-faults
-  RVTEST_GOTO_LOWER_MODE VUmode                 // M→VU mret + PA↔VA relocate (U=1 code leaf)
+  RVTEST_GOTO_LOWER_MODE VUmode                 // M→VU (VA≠PA relocate)
   lw   a6, 0(a5)                                // guest load (expect fault; sentinel stays 0)
-  nop                                           // trap-skip padding after load
-  RVTEST_TSBI_GOTO_MMODE                        // return to M (T-SBI ecall a0=1; rtn2mmode relocates EPC)
+  nop                                           // trap-skip pad
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
 
-  test7_s_lw:                                   // signature dump point for case 7
-  RVTEST_SIGUPD(x2, x5, x4, a6, test7_s_lw, test7_s_lw_str)  // signature: dump a6 (test7_s_lw) for PASS/FAIL
+  test7_s_lw:                                      // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, a6, test7_s_lw, test7_s_lw_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 8: U=1 V-only VU lw | Expected: Expected Fault (urwx1000)
 //---------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_u_vonly)                            // a5 = U-page V-only GVA (U=1 XWR=000)
   LI(a7, 0)                                     // sentinel — a7 stays 0 if load page-faults
-  RVTEST_GOTO_LOWER_MODE VUmode                 // M→VU mret + PA↔VA relocate (U=1 code leaf)
+  RVTEST_GOTO_LOWER_MODE VUmode                 // M→VU (VA≠PA relocate)
   lw   a7, 0(a5)                                // guest load (expect fault; sentinel stays 0)
-  nop                                           // trap-skip padding after load
-  RVTEST_TSBI_GOTO_MMODE                        // return to M (T-SBI ecall a0=1; rtn2mmode relocates EPC)
+  nop                                           // trap-skip pad
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
 
-  test8_uv_lw:                                  // signature dump point for case 8
-  RVTEST_SIGUPD(x2, x5, x4, a7, test8_uv_lw, test8_uv_lw_str)  // signature: dump a7 (test8_uv_lw) for PASS/FAIL
+  test8_uv_lw:                                     // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, a7, test8_uv_lw, test8_uv_lw_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 9: U=0 XWR=111 VU sw | Expected: Expected Fault (urwx0111×write)
 //---------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_s_rwx)                              // a5 = S-page RWX GVA (U=0 XWR=111; VU must fault)
   LI(t0, 0xDEADBEEF)                            // payload that must not land at SPA if store faults
-  RVTEST_GOTO_LOWER_MODE VUmode                 // M→VU mret + PA↔VA relocate (U=1 code leaf)
+  RVTEST_GOTO_LOWER_MODE VUmode                 // M→VU (VA≠PA relocate)
   sw   t0, 0(a5)                                // VU cannot use U=0 pages → store-page-fault
-  nop                                           // trap-skip padding after store
-  RVTEST_TSBI_GOTO_MMODE                        // return to M (T-SBI ecall a0=1; rtn2mmode relocates EPC)
+  nop                                           // trap-skip pad
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
 
   la t1, test_region_s_rwx                      // t1 = SPA of S-page RWX region (VU deny)
   lw s2, 0(t1)                                  // expect preload 0x257A0707
-  test9_s_sw:                                   // signature dump point for case 9
-  RVTEST_SIGUPD(x2, x5, x4, s2, test9_s_sw, test9_s_sw_str)  // signature: dump s2 (test9_s_sw) for PASS/FAIL
+  test9_s_sw:                                       // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, s2, test9_s_sw, test9_s_sw_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 10: U=0 V-only VU lw | Expected: Expected Fault (urwx0000×read)
 //---------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_s_vonly)                            // a5 = S-page V-only GVA (U=0 XWR=000)
   LI(s3, 0)                                     // sentinel — s3 stays 0 if load page-faults
-  RVTEST_GOTO_LOWER_MODE VUmode                 // M→VU mret + PA↔VA relocate (U=1 code leaf)
+  RVTEST_GOTO_LOWER_MODE VUmode                 // M→VU (VA≠PA relocate)
   lw   s3, 0(a5)                                // guest load (expect fault; sentinel stays 0)
-  nop                                           // trap-skip padding after load
-  RVTEST_TSBI_GOTO_MMODE                        // return to M (T-SBI ecall a0=1; rtn2mmode relocates EPC)
+  nop                                           // trap-skip pad
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
 
-  test10_sv_lw:                                 // signature dump point for case 10
-  RVTEST_SIGUPD(x2, x5, x4, s3, test10_sv_lw, test10_sv_lw_str)  // signature: dump s3 (test10_sv_lw) for PASS/FAIL
+  test10_sv_lw:                                    // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, s3, test10_sv_lw, test10_sv_lw_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 11: U=0 V-only VU sw | Expected: Expected Fault (urwx0000×write)
 //---------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_s_vonly)                            // a5 = S-page V-only GVA (U=0 XWR=000)
   LI(t0, 0xBAD00FAD)                            // payload that must not land at SPA if store faults
-  RVTEST_GOTO_LOWER_MODE VUmode                 // M→VU mret + PA↔VA relocate (U=1 code leaf)
+  RVTEST_GOTO_LOWER_MODE VUmode                 // M→VU (VA≠PA relocate)
   sw   t0, 0(a5)                                // guest store through current PTE perms
-  nop                                           // trap-skip padding after store
-  RVTEST_TSBI_GOTO_MMODE                        // return to M (T-SBI ecall a0=1; rtn2mmode relocates EPC)
+  nop                                           // trap-skip pad
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
 
   la t1, test_region_s_vonly                    // t1 = SPA of S-page V-only region
   lw s4, 0(t1)                                  // expect zero preload (never written)
-  test11_sv_sw:                                 // signature dump point for case 11
-  RVTEST_SIGUPD(x2, x5, x4, s4, test11_sv_sw, test11_sv_sw_str)  // signature: dump s4 (test11_sv_sw) for PASS/FAIL
+  test11_sv_sw:                                     // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, s4, test11_sv_sw, test11_sv_sw_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 12: U=1 V-only VU sw | Expected: Expected Fault (urwx1000×write)
 //---------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_u_vonly)                            // a5 = U-page V-only GVA (U=1 XWR=000)
   LI(t0, 0xBAD00FAD)                            // payload that must not land at SPA if store faults
-  RVTEST_GOTO_LOWER_MODE VUmode                 // M→VU mret + PA↔VA relocate (U=1 code leaf)
+  RVTEST_GOTO_LOWER_MODE VUmode                 // M→VU (VA≠PA relocate)
   sw   t0, 0(a5)                                // guest store through current PTE perms
-  nop                                           // trap-skip padding after store
-  RVTEST_TSBI_GOTO_MMODE                        // return to M (T-SBI ecall a0=1; rtn2mmode relocates EPC)
+  nop                                           // trap-skip pad
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
 
   la t1, test_region_u_vonly                    // t1 = SPA of U-page V-only region
   lw s5, 0(t1)                                  // expect zero preload (never written)
-  test12_uv_sw:                                 // signature dump point for case 12
-  RVTEST_SIGUPD(x2, x5, x4, s5, test12_uv_sw, test12_uv_sw_str)  // signature: dump s5 (test12_uv_sw) for PASS/FAIL
+  test12_uv_sw:                                     // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, s5, test12_uv_sw, test12_uv_sw_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 RVTEST_CODE_END
 RVTEST_DATA_BEGIN
 
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                            PHYSICAL ADDRESS REGION FOR TESTING
+// --------------------------------------------------------------------------------------------------------------------------------
 .align 12                                       // 4 KiB page align
 test_region_u_rwx:                              // SPA backing va_u_rwx (U=1 XWR=111)
   .word 0                                       // data word (initially 0 / preloaded in M)
@@ -324,10 +345,18 @@ test_region_s_vonly:                            // SPA backing va_s_vonly (U=0 V
   .word 0                                       // padding in same page
   .word 0                                       // padding in same page
   .word 0                                       // padding in same page
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                            Page-table storage
+// --------------------------------------------------------------------------------------------------------------------------------
 .align 12                                       // 4 KiB page align
 rvtest_vlvl0_pg_tbl:                            // VS-stage L0 PTE storage
   .zero(4096)                                   // reserve 4 KiB page-table page
 
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                            Mismatch strings (SIGUPD)
+// --------------------------------------------------------------------------------------------------------------------------------
 test1_urw_rwx_str:  .string "\"Mismatch on U=1 RWX VU lw in Test Case 1!\""
 test2_ux_lw_str:    .string "\"Mismatch on U=1 X-only VU lw (expect fault) in Test Case 2!\""
 test3_ux_sw_str:    .string "\"Mismatch on U=1 X-only VU sw (expect fault) in Test Case 3!\""

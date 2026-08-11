@@ -24,15 +24,18 @@
 #define TRAP_SIGUPD_COUNT 16
 #define RVTEST_HYPERVISOR
 
-// Mode hops (T-SBI) — return-to-M always uses RVTEST_TSBI_GOTO_MMODE (ecall a0=1;
-//   handler rtn2mmode relocates EPC VA→PA). Enter:
-//   • Code at PA / identity: RVTEST_TSBI_GOTO_VSMODE / _SMODE (ecall a0=4/2)
-//   • Guest code VA≠PA (V_SAVE_AREA_*): RVTEST_GOTO_LOWER_MODE (mret + PA↔VA relocate)
+// Mode hops (Sv-style GOTO_* plus H T-SBI):
+//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
+//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
+//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
 
 RVTEST_BEGIN
 
 main:
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                   Virtual addresses / GPA definitions
+// --------------------------------------------------------------------------------------------------------------------------------
   .set va_data,                 0x0000000080010000 // GVA for the VU load from U=1 X-only data
   .set va_code,                 0x0000000090000000 // GVA where VU executes this code
   .set gpa_data,                0x0000000000C002000 // GPA behind va_data
@@ -40,6 +43,10 @@ main:
   .set gpa_rvtest_Vroot_pg_tbl, 0x000000001000A000 // GPA of VS root (LEVEL2) table
   .set gpa_rvtest_vlvl1_pg_tbl, 0x000000001000C000 // GPA of VS mid (LEVEL1) table
   .set gpa_rvtest_vlvl0_pg_tbl, 0x000000001000B000 // GPA of VS leaf (LEVEL0) table
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                   Page-table setup (G-stage and/or VS-stage)
+// --------------------------------------------------------------------------------------------------------------------------------
 
   // ---- G-stage (hgatp Sv39x4): GPA -> PA; U=1 on leaves (G walk is U-mode) ----
   G_PTE_SETUP(sv39x4, rvtest_hlvl1_pg_tbl, (PTE_V), gpa_code, LEVEL2)  // non-leaf: shared VPN2 -> G L1 table
@@ -65,6 +72,10 @@ main:
   VS_PTE_SETUP(sv39, GPA, gpa_rvtest_vlvl0_pg_tbl, (PTE_V), va_data, LEVEL1)  // point VS data VPN1 to VS L0 table GPA
   VS_PTE_SETUP(sv39, GPA, gpa_data, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_V), va_data, LEVEL0)  // map va_data -> gpa_data as U=1 execute-only
 
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                   Enable translation / TLB fences / preloads
+// --------------------------------------------------------------------------------------------------------------------------------
   VSATP_SETUP(sv39, GPA)                        // write vsatp so VS-stage translation is on
   HGATP_SETUP(sv39x4)                           // write hgatp so G-stage translation is on
   hfence.vvma                                   // clear stale VS-stage translations
@@ -76,6 +87,10 @@ main:
 
   LI(a5, va_data)                               // a5 = guest virtual address to load
 
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                               Test Cases Start from here
+// --------------------------------------------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 1: MXR=0 load of X-only page | Expected: Expected Fault
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -84,13 +99,13 @@ main:
   csrc sstatus, t0                              // clear HS MXR setting
   csrc vsstatus, t0                             // clear VS MXR setting
   LI(a3, 0)                                     // a3 stays 0 if the load faults and is skipped
-  RVTEST_GOTO_LOWER_MODE VUmode                 // M→VUmode mret + PA↔VA relocate (guest code VA≠PA)
+  RVTEST_GOTO_LOWER_MODE VUmode                 // M→VU (VA≠PA relocate)
   lw   a3, 0(a5)                                // expect fault -> skipped
-  nop                                           // trap-skip padding after load
-  RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
+  nop                                           // trap-skip pad
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
 
-  test1_mxr0:                                   // signature dump point for case 1
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_mxr0, test1_mxr0_str)  // record case 1 fault sentinel in signature
+  test1_mxr0:                                      // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, a3, test1_mxr0, test1_mxr0_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: MXR=1 load of X-only page | Expected: Successful
@@ -101,24 +116,31 @@ main:
   csrs vsstatus, t0                             // set VS MXR setting
   hfence.vvma                                   // status change may affect TLB perm cache; flush VS TLB
   LI(a4, 0)                                     // a4 should receive the real memory value
-  RVTEST_GOTO_LOWER_MODE VUmode                 // M→VUmode mret + PA↔VA relocate (guest code VA≠PA)
+  RVTEST_GOTO_LOWER_MODE VUmode                 // M→VU (VA≠PA relocate)
   lw   a4, 0(a5)                                // expect 0x257A0101
-  nop                                           // trap-skip padding after load
-  RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
+  nop                                           // trap-skip pad
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
 
-  test2_mxr1:                                   // signature dump point for case 2
-  RVTEST_SIGUPD(x2, x5, x4, a4, test2_mxr1, test2_mxr1_str)  // record case 2 lw result in signature
+  test2_mxr1:                                      // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, a4, test2_mxr1, test2_mxr1_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 RVTEST_CODE_END
 RVTEST_DATA_BEGIN
 
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                            PHYSICAL ADDRESS REGION FOR TESTING
+// --------------------------------------------------------------------------------------------------------------------------------
 .align 12                                      // 4 KiB page align
 test_region:                                   // real PA backing the X-only guest data page
   .word 0                                      // data slot used by the load
   .word 0                                      // padding in the same page
   .word 0                                      // padding in the same page
   .word 0                                      // padding in the same page
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                            Page-table storage
+// --------------------------------------------------------------------------------------------------------------------------------
 .align 12                                       // align to 4 KiB page
 rvtest_hlvl1_pg_tbl:                           // G-stage level-1 PTE storage
   .zero(4096)                                  // reserve one page for G L1 table
@@ -132,6 +154,10 @@ rvtest_vlvl1_pg_tbl:                           // VS-stage level-1 PTE storage
 rvtest_vlvl0_pg_tbl:                           // VS-stage level-0 PTE storage
   .zero(4096)                                  // reserve one page for VS L0 table
 
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                            Mismatch strings (SIGUPD)
+// --------------------------------------------------------------------------------------------------------------------------------
 test1_mxr0_str: .string "\"Mismatch on VU MXR=0 X-only load (expect fault) in Test Case 1!\""
 test2_mxr1_str: .string "\"Mismatch on VU MXR=1 X-only load in Test Case 2!\""
 

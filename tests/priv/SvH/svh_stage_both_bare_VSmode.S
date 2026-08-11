@@ -24,15 +24,18 @@
 #define TRAP_SIGUPD_COUNT 16
 #define RVTEST_HYPERVISOR
 
-// Mode hops (T-SBI) — return-to-M always uses RVTEST_TSBI_GOTO_MMODE (ecall a0=1;
-//   handler rtn2mmode relocates EPC VA→PA). Enter:
-//   • Code at PA / identity: RVTEST_TSBI_GOTO_VSMODE / _SMODE (ecall a0=4/2)
-//   • Guest code VA≠PA (V_SAVE_AREA_*): RVTEST_GOTO_LOWER_MODE (mret + PA↔VA relocate)
+// Mode hops (Sv-style GOTO_* plus H T-SBI):
+//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
+//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
+//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
 
 RVTEST_BEGIN
 
 main:
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                   Enable translation / TLB fences / preloads
+// --------------------------------------------------------------------------------------------------------------------------------
   // ---- Both stages Bare: no page tables; GVA/GPA used as real SPA ----
   csrw vsatp, x0                                // VS paging OFF (Bare)
   csrw hgatp, x0                                // G paging OFF (Bare)
@@ -44,8 +47,12 @@ main:
   sw t0, 0(t1)                                  // SPA starts as DEADBEEF
 
   la a5, test_region                            // same address for VS (Bare ⇒ VA==SPA)
-  RVTEST_TSBI_GOTO_VSMODE                      // T-SBI: ecall a0=4 → VS (code at PA / identity)
+  RVTEST_TSBI_GOTO_VSMODE                      // M→VS (T-SBI)
 
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                               Test Cases Start from here
+// --------------------------------------------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 1: VS sw/lw with both stages Bare | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -54,23 +61,26 @@ main:
   nop                                           // pad (trap handler may skip prior insn)
   lw   a3, 0(a5)                                // load back → a3
   nop                                           // pad (trap handler may skip prior insn)
-  test1_vs:                                     // signature dump point for case 1
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_vs, test1_vs_str)  // record case 1 VS lw result in signature
+  test1_vs:                                         // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, a3, test1_vs, test1_vs_str) // SIGUPD
 
-  RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: M-mode SPA readback | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
   la t1, test_region                            // t1 = real address of test_region
   lw t2, 0(t1)                                  // M reads SPA; expect 0x257A0021
-  test2_spa:                                    // signature dump point for case 2
-  RVTEST_SIGUPD(x2, x5, x4, t2, test2_spa, test2_spa_str)  // record case 2 SPA readback in signature
+  test2_spa:                                        // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, t2, test2_spa, test2_spa_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 RVTEST_CODE_END
 RVTEST_DATA_BEGIN
 
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                            PHYSICAL ADDRESS REGION FOR TESTING
+// --------------------------------------------------------------------------------------------------------------------------------
 .align 12                                       // 4 KiB align
 test_region:                                    // real memory used as VA and SPA
   .word 0                                       // data word (initially 0)
@@ -78,6 +88,10 @@ test_region:                                    // real memory used as VA and SP
   .word 0                                       // data word (initially 0)
   .word 0                                       // data word (initially 0)
 
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                            Mismatch strings (SIGUPD)
+// --------------------------------------------------------------------------------------------------------------------------------
 test1_vs_str:  .string "\"Mismatch on VS lw after sw (both Bare) in Test Case 1!\""
 test2_spa_str: .string "\"Mismatch on SPA readback after VS store in Test Case 2!\""
 

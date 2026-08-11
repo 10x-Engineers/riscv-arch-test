@@ -23,19 +23,34 @@
 #define TRAP_SIGUPD_COUNT 256
 #define RVTEST_HYPERVISOR
 
+// Mode hops (Sv-style GOTO_* plus H T-SBI):
+//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
+//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
+//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
 
 RVTEST_BEGIN
 
 main:
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                   Virtual addresses / GPA definitions
+// --------------------------------------------------------------------------------------------------------------------------------
   .set gpa_data, 0x00C002000                    // GPA HS HLV will use (G X-only leaf → test_region SPA)
   .set gpa_code,                0x0000000080000000  // GPA of code identity superpage (1 GiB aligned for LEVEL2)
 
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                   Page-table setup (G-stage and/or VS-stage)
+// --------------------------------------------------------------------------------------------------------------------------------
   SUPERPAGE_G_PTE_SETUP(sv39x4, rvtest_code_begin, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_R | PTE_V), gpa_code, LEVEL2)  // G superpage: gpa_code → PA(code) U=1 X/R; LEVEL2 = 1 GiB
   G_PTE_SETUP(sv39x4, rvtest_hlvl1_pg_tbl, (PTE_V), gpa_data, LEVEL2)  // G non-leaf: VPN2 for data GPA → G L1
   G_PTE_SETUP(sv39x4, rvtest_hlvl0_pg_tbl, (PTE_V), gpa_data, LEVEL1)  // G non-leaf: VPN1 for data GPA → G L0
   G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_V), gpa_data, LEVEL0)  // G leaf: gpa_data → PA(test_region) U=1 X-only (R=0 W=0)
 
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                   Enable translation / TLB fences / preloads
+// --------------------------------------------------------------------------------------------------------------------------------
   csrw vsatp, x0                                // vsatp Bare — HLV address is a GPA (G-stage only)
   HGATP_SETUP(sv39x4)                           // hgatp = Sv39x4, PPN = G root
   hfence.vvma                                   // flush VS-stage TLB
@@ -49,30 +64,48 @@ main:
   la t1, test_region                            // t1 = SPA of G X-only page
   sw t0, 0(t1)                                  // M store via PA
 
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                               Test Cases Start from here
+// --------------------------------------------------------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------------------------------------------------------
+// Test case 1: G X-only U=1, MXR=0: HS hlv.w | Expected: Expected Fault (a3 stays 0)
+//---------------------------------------------------------------------------------------------------------------------------------
+
   LI(t1, gpa_data)                              // t1 = GPA for HLV
   LI(a3, 0)                                     // sentinel — stays 0 if HLV guest-page-faults
-  RVTEST_TSBI_GOTO_SMODE                       // T-SBI: ecall a0=2 → HS (HLV legal in HS)
+  RVTEST_TSBI_GOTO_SMODE                       // M→HS (T-SBI)
   hlv.w a3, (t1)                                // HS HLV of G X-only U=1 leaf, MXR=0 → guest-page-fault
-  nop                                           // trap-skip padding after faulting HLV
-  RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M
+  nop                                           // trap-skip pad
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
 
-  test1_g_xonly:                                // signature dump point for case 1
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_g_xonly, test1_g_xonly_str)  // dump a3 (expect 0)
+  test1_g_xonly:                                   // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, a3, test1_g_xonly, test1_g_xonly_str) // SIGUPD
 
 RVTEST_CODE_END
 RVTEST_DATA_BEGIN
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                            PHYSICAL ADDRESS REGION FOR TESTING
+// --------------------------------------------------------------------------------------------------------------------------------
 .align 12                                       // 4 KiB page align
 test_region:                                    // SPA backing gpa_data (G X-only leaf)
   .word 0                                       // payload word (preloaded in M; HLV must not read)
   .word 0                                       // padding in same page
   .word 0                                       // padding in same page
   .word 0                                       // padding in same page
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                            Page-table storage
+// --------------------------------------------------------------------------------------------------------------------------------
 .align 12                                       // 4 KiB page align
 rvtest_hlvl1_pg_tbl:                            // G-stage L1 (mid) PTE storage
   .zero(4096)                                   // reserve 4 KiB page-table page
 .align 12                                       // 4 KiB page align
 rvtest_hlvl0_pg_tbl:                            // G-stage L0 PTE storage
   .zero(4096)                                   // reserve 4 KiB page-table page
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                            Mismatch strings (SIGUPD)
+// --------------------------------------------------------------------------------------------------------------------------------
 test1_g_xonly_str: .string "\"Mismatch on HS HLV G X-only MXR=0 (expect fault) in Test Case 1!\""
 RVTEST_DATA_END
 RVTEST_SIG_SETUP

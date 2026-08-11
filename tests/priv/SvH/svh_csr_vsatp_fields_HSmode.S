@@ -30,10 +30,10 @@
 #define TRAP_SIGUPD_COUNT 16
 #define RVTEST_HYPERVISOR
 
-// Mode hops (T-SBI) — return-to-M always uses RVTEST_TSBI_GOTO_MMODE (ecall a0=1;
-//   handler rtn2mmode relocates EPC VA→PA). Enter:
-//   • Code at PA / identity: RVTEST_TSBI_GOTO_VSMODE / _SMODE (ecall a0=4/2)
-//   • Guest code VA≠PA (V_SAVE_AREA_*): RVTEST_GOTO_LOWER_MODE (mret + PA↔VA relocate)
+// Mode hops (Sv-style GOTO_* plus H T-SBI):
+//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
+//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
+//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
 
 RVTEST_BEGIN
@@ -42,16 +42,20 @@ main:
   // Partner stage off (vsatp CSR tests use hgatp Bare)
   csrw hgatp, x0                                // hgatp=0 → G-stage Bare (isolate vsatp field bins)
   hfence.gvma                                   // flush old G TLB after hgatp clear
-  RVTEST_TSBI_GOTO_SMODE                       // T-SBI: ecall a0=2 → HS/S (code at PA / identity)
+  RVTEST_TSBI_GOTO_SMODE                       // M→HS (T-SBI)
 
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                               Test Cases Start from here
+// --------------------------------------------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 1: Set vsatp.MODE=Sv32, PPN=0 | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
   // MODE=Sv32 + PPN=0 (sets vsatp_mode for later PPN/ASID crosses; MODE WARL walk is RV64-only)
   LI(t0, (SATP_MODE_SV32 << 31))                // RV32: MODE bit 31, PPN clear
   csrw vsatp, t0                                // write guest page-table CSR
-  test1_mode:                                   // signature dump point for case 1
-  RVTEST_SIGUPD_CSR_READ(vsatp, a4, test1_mode, test1_mode_str)  // signature: read vsatp after MODE=Sv32 write
+  test1_mode:                                       // SIGUPD label
+  RVTEST_SIGUPD_CSR_READ(vsatp, a4, test1_mode, test1_mode_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: vsatp.ASID = all ones | Expected: Successful
@@ -59,8 +63,8 @@ main:
   // cp_vsatp_asidlen_detect: write all ASID bits, read back WARL-truncated value
   LI(t0, (SATP_MODE_SV32 << 31) | SATP32_ASID)  // MODE + every ASID bit
   csrw vsatp, t0                                // write vsatp with MODE + all ASID bits (ASIDLEN detect)
-  test2_asid:                                   // signature dump point for case 2
-  RVTEST_SIGUPD_CSR_READ(vsatp, a4, test2_asid, test2_asid_str)  // signature: read vsatp after ASID all-ones write
+  test2_asid:                                       // SIGUPD label
+  RVTEST_SIGUPD_CSR_READ(vsatp, a4, test2_asid, test2_asid_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 3: vsatp.PPN = all ones | Expected: Successful
@@ -68,8 +72,8 @@ main:
   // cp_vsatp_ppn_field: PPN all-ones (22 bits on RV32)
   LI(t0, (SATP_MODE_SV32 << 31) | 0x3FFFFF)     // MODE + PPN ones (22 bits)
   csrw vsatp, t0                                // write vsatp with MODE + PPN all-ones
-  test3_ppn_ones:                               // signature dump point for case 3
-  RVTEST_SIGUPD_CSR_READ(vsatp, a4, test3_ppn_ones, test3_ppn_ones_str)  // signature: read vsatp after PPN all-ones write
+  test3_ppn_ones:                                   // SIGUPD label
+  RVTEST_SIGUPD_CSR_READ(vsatp, a4, test3_ppn_ones, test3_ppn_ones_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 4: Walking ones on vsatp.PPN | Expected: Successful
@@ -82,19 +86,23 @@ ppn_walk:                                       // loop: walking-1 across PPN bi
   sll t1, t1, t3                                // t1 = 1 << bit
   or  t0, t0, t1                                // merge MODE with this walking-1 PPN bit
   csrw vsatp, t0                                // write vsatp with MODE + one PPN bit
-  test4_ppn_walk:                               // signature dump point for case 4
-  RVTEST_SIGUPD_CSR_READ(vsatp, a4, test4_ppn_walk, test4_ppn_walk_str)  // signature: read vsatp after each PPN walk step
+  test4_ppn_walk:                                   // SIGUPD label
+  RVTEST_SIGUPD_CSR_READ(vsatp, a4, test4_ppn_walk, test4_ppn_walk_str) // SIGUPD
   addi t3, t3, 1                                // next PPN bit index
   LI(t4, 22)                                    // stop after bits 0..21 (22 iterations)
   blt t3, t4, ppn_walk                          // bits 0..21
 
-  RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
 
 //---------------------------------------------------------------------------------------------------------------------------------
 RVTEST_CODE_END
 RVTEST_DATA_BEGIN
 // PASS/FAIL message strings for signature compares
 
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                            Mismatch strings (SIGUPD)
+// --------------------------------------------------------------------------------------------------------------------------------
 test1_mode_str:     .string "\"Mismatch on setting vsatp.MODE=Sv32 (PPN=0) in Test Case 1!\""
 test2_asid_str:     .string "\"Mismatch on vsatp.ASID=all-ones in Test Case 2!\""
 test3_ppn_ones_str: .string "\"Mismatch on vsatp.PPN=all-ones in Test Case 3!\""

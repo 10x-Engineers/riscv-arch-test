@@ -23,17 +23,32 @@
 #define TRAP_SIGUPD_COUNT 256
 #define RVTEST_HYPERVISOR
 
+// Mode hops (Sv-style GOTO_* plus H T-SBI):
+//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
+//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
+//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
 
 RVTEST_BEGIN
 
 main:
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                   Virtual addresses / GPA definitions
+// --------------------------------------------------------------------------------------------------------------------------------
   .set va_x, 0x008001000                        // GVA of X-only VS leaf (HS HLV address)
 
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                   Page-table setup (G-stage and/or VS-stage)
+// --------------------------------------------------------------------------------------------------------------------------------
   VS_PTE_SETUP(sv39, PA, rvtest_vlvl1_pg_tbl, (PTE_V), va_x, LEVEL2)  // VS non-leaf: va_x VPN2 → VS L1 table PA
   VS_PTE_SETUP(sv39, PA, rvtest_vlvl0_pg_tbl, (PTE_V), va_x, LEVEL1)  // VS non-leaf: va_x VPN1 → VS L0 table PA
   VS_PTE_SETUP(sv39, PA, test_region_x, (PTE_D | PTE_A | PTE_X | PTE_V), va_x, LEVEL0)  // VS leaf: va_x → PA(test_region_x) X-only (R=0 W=0) U=0
 
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                   Enable translation / TLB fences / preloads
+// --------------------------------------------------------------------------------------------------------------------------------
   VSATP_SETUP(sv39, PA)                         // vsatp = Sv39 — HLV walks VS-stage with this root
   csrw hgatp, x0                                // hgatp Bare — VS GVA→PA only
   hfence.vvma                                   // flush VS-stage TLB after PTE install
@@ -52,31 +67,49 @@ main:
 
   LI(a5, va_x)                                  // a5 = GVA for HLV
   LI(a3, 0)                                     // sentinel — stays 0 if HLV page-faults
-  RVTEST_TSBI_GOTO_SMODE                       // T-SBI: ecall a0=2 → HS (HLV legal in HS; code at PA)
+  RVTEST_TSBI_GOTO_SMODE                       // M→HS (T-SBI)
   hlv.w a3, (a5)                                // HS HLV of VS X-only leaf, MXR=0 SPVP=1 → load page-fault
-  nop                                           // trap-skip padding after faulting HLV
-  RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M
+  nop                                           // trap-skip pad
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                               Test Cases Start from here
+// --------------------------------------------------------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------------------------------------------------------
+// Test case 1: MXR=0, SPVP=1, VS X-only: HS hlv.w | Expected: Expected Fault (a3 stays 0)
+//---------------------------------------------------------------------------------------------------------------------------------
 
   LI(t0, HSTATUS_SPVP)                          // restore SPVP after the case
   csrc hstatus, t0                              // clear hstatus.SPVP
 
-  test1_hlv:                                    // signature dump point for case 1
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_hlv, test1_hlv_str)  // dump a3 (expect 0)
+  test1_hlv:                                       // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, a3, test1_hlv, test1_hlv_str) // SIGUPD
 
 RVTEST_CODE_END
 RVTEST_DATA_BEGIN
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                            PHYSICAL ADDRESS REGION FOR TESTING
+// --------------------------------------------------------------------------------------------------------------------------------
 .align 12                                       // 4 KiB page align
 test_region_x:                                  // SPA backing va_x (X-only VS leaf)
   .word 0                                       // payload word (preloaded in M; HLV must not read)
   .word 0                                       // padding in same page
   .word 0                                       // padding in same page
   .word 0                                       // padding in same page
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                            Page-table storage
+// --------------------------------------------------------------------------------------------------------------------------------
 .align 12                                       // 4 KiB page align
 rvtest_vlvl1_pg_tbl:                            // VS-stage L1 (mid) PTE storage
   .zero(4096)                                   // reserve 4 KiB page-table page
 .align 12                                       // 4 KiB page align
 rvtest_vlvl0_pg_tbl:                            // VS-stage L0 PTE storage
   .zero(4096)                                   // reserve 4 KiB page-table page
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                            Mismatch strings (SIGUPD)
+// --------------------------------------------------------------------------------------------------------------------------------
 test1_hlv_str: .string "\"Mismatch on HS HLV X-only MXR=0 (expect fault) in Test Case 1!\""
 RVTEST_DATA_END
 RVTEST_SIG_SETUP

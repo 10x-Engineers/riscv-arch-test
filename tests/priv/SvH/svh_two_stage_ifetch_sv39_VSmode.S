@@ -23,15 +23,18 @@
 #define TRAP_SIGUPD_COUNT 16
 #define RVTEST_HYPERVISOR
 
-// Mode hops (T-SBI) — return-to-M always uses RVTEST_TSBI_GOTO_MMODE (ecall a0=1;
-//   handler rtn2mmode relocates EPC VA→PA). Enter:
-//   • Code at PA / identity: RVTEST_TSBI_GOTO_VSMODE / _SMODE (ecall a0=4/2)
-//   • Guest code VA≠PA (V_SAVE_AREA_*): RVTEST_GOTO_LOWER_MODE (mret + PA↔VA relocate)
+// Mode hops (Sv-style GOTO_* plus H T-SBI):
+//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
+//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
+//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
 
 RVTEST_BEGIN
 
 main:
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                   Virtual addresses / GPA definitions
+// --------------------------------------------------------------------------------------------------------------------------------
   .set va_code,                 0x0000000090000000 // GVA where VS executes this code
   .set gpa_code,                0x0000000012000000 // GPA behind va_code (2 MiB aligned)
   .set gpa_rvtest_Vroot_pg_tbl, 0x000000001000A000 // GPA of VS root (LEVEL2) table
@@ -40,6 +43,10 @@ main:
   // ---- G-stage (hgatp Sv39x4): GPA -> PA  (walks as U-mode, so U=1 on leaves) ----
 
   // Only code + VS-root PT maps needed — no data page; ifetch alone proves two-stage walk
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                   Page-table setup (G-stage and/or VS-stage)
+// --------------------------------------------------------------------------------------------------------------------------------
   G_PTE_SETUP(sv39x4, rvtest_hlvl1_pg_tbl, (PTE_V), gpa_code, LEVEL2)  // non-leaf: shared VPN2 -> G L1 table
   SUPERPAGE_G_PTE_SETUP(sv39x4, rvtest_code_begin, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_R | PTE_V), gpa_code, LEVEL1)  // gpa_code -> PA(code); LEVEL1 = 2 MiB X leaf
 
@@ -55,13 +62,21 @@ main:
   csrr a0, mscratch                             // a0 = Msave_area (required by next macro)
   V_SAVE_AREA_SETUP(va_code, rvtest_code_begin, code, LEVEL1)  // framework: VS entry PC under va_code
 
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                   Enable translation / TLB fences / preloads
+// --------------------------------------------------------------------------------------------------------------------------------
   VSATP_SETUP(sv39, GPA)                        // vsatp = Sv39, PPN = GPA of VS root
   HGATP_SETUP(sv39x4)                           // hgatp = Sv39x4, PPN = G root
   hfence.vvma                                   // invalidate VS-stage TLB entries
   hfence.gvma                                   // invalidate G-stage TLB entries
 
-  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VSmode mret + PA↔VA relocate (guest code VA≠PA; T-SBI enter lacks relocate)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
 
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                               Test Cases Start from here
+// --------------------------------------------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 1: VS instruction fetch through two-stage translation | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -69,15 +84,22 @@ main:
   addi a2, a2, 1                                // a2 = 0x257A0011 — two_stage_ifetch bin
   nop                                           // another two-stage ifetch retire
   nop                                           // one more simple VS instruction fetch
-  RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
 
-  test1_ifetch:                                 // signature dump point for case 1
-  RVTEST_SIGUPD(x2, x5, x4, a2, test1_ifetch, test1_ifetch_str)  // record case 1 ifetch result in signature
+  test1_ifetch:                                    // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, a2, test1_ifetch, test1_ifetch_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 RVTEST_CODE_END
 RVTEST_DATA_BEGIN
 
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                            PHYSICAL ADDRESS REGION FOR TESTING
+// --------------------------------------------------------------------------------------------------------------------------------
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                            Page-table storage
+// --------------------------------------------------------------------------------------------------------------------------------
 .align 12                                       // 4 KiB page align
 rvtest_hlvl1_pg_tbl:                            // G-stage level-1 PTE storage
   .zero(4096)                                   // reserve one page for G L1 table
@@ -88,6 +110,10 @@ rvtest_hlvl0_pg_tbl:                            // G-stage level-0 PTE storage
 rvtest_vlvl1_pg_tbl:                            // VS-stage level-1 PTE storage
   .zero(4096)                                   // reserve one page for VS L1 table
 
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                            Mismatch strings (SIGUPD)
+// --------------------------------------------------------------------------------------------------------------------------------
 test1_ifetch_str: .string "\"Mismatch on VS ifetch result (expect 0x257A0011) in Test Case 1!\""
 
 RVTEST_DATA_END

@@ -30,23 +30,34 @@
 #define TRAP_SIGUPD_COUNT 256
 #define RVTEST_HYPERVISOR
 
-// Mode hops (T-SBI) — return-to-M always uses RVTEST_TSBI_GOTO_MMODE (ecall a0=1;
-//   handler rtn2mmode relocates EPC VA→PA). Enter:
-//   • Code at PA / identity: RVTEST_TSBI_GOTO_VSMODE / _SMODE (ecall a0=4/2)
-//   • Guest code VA≠PA (V_SAVE_AREA_*): RVTEST_GOTO_LOWER_MODE (mret + PA↔VA relocate)
+// Mode hops (Sv-style GOTO_* plus H T-SBI):
+//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
+//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
+//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
 
 RVTEST_BEGIN
 
 main:
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                   Virtual addresses / GPA definitions
+// --------------------------------------------------------------------------------------------------------------------------------
   .set gpa_data, 0x00C002000                     // GPA for data (vsatp Bare ⇒ address-as-GPA)
   .set gpa_code, 0x80000000                      // identity GPA superpage for code + G PTs at 0x8000_0000
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                   Page-table setup (G-stage and/or VS-stage)
+// --------------------------------------------------------------------------------------------------------------------------------
 
   // ---- G-stage (hgatp Sv32x4 ON): GPA -> PA ----
   SUPERPAGE_G_PTE_SETUP(sv32x4, rvtest_code_begin, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_R | PTE_V), gpa_code, LEVEL1)  // gpa_code -> PA(code)
 
   G_PTE_SETUP(sv32x4, rvtest_hlvl0_pg_tbl, (PTE_V), gpa_data, LEVEL1)  // non-leaf: G VPN1 for data -> G L0 table
   G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V | PTE_G), gpa_data, LEVEL0)  // valid baseline leaf (cases overwrite)
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                   Enable translation / TLB fences / preloads
+// --------------------------------------------------------------------------------------------------------------------------------
 
   // ---- vsatp Bare + hgatp ON ----
   csrw vsatp, x0                                // VS Bare
@@ -60,104 +71,108 @@ main:
 
   LI(a5, gpa_data)                              // a5 = GPA pointer for VS Bare lw
 
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                               Test Cases Start from here
+// --------------------------------------------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 1: G leaf V=0 | Expected: Expected Fault
-// cp_hgatp_invalid_pte_rw bin: g_pte_d_inv — V=0 with other bits set still invalid
+// Coverpoints: cp_hgatp_invalid_pte_rw
 //---------------------------------------------------------------------------------------------------------------------------------
   G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R), gpa_data, LEVEL0)  // strip V bit; X set so invalid_pte_x matches
   hfence.gvma                                   // flush so walk sees V=0 PTE
 
   LI(a3, 0)                                     // sentinel: stays 0 if trap fires
-  RVTEST_TSBI_GOTO_VSMODE                      // T-SBI: ecall a0=4 → VS (code at PA / identity)
+  RVTEST_TSBI_GOTO_VSMODE                      // M→VS (T-SBI)
   lw   a3, 0(a5)                                // invalid G leaf → fault before load completes
-  nop                                           // trap-skip padding if previous access faults
-  RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
+  nop                                           // trap-skip pad
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
 
-  test1_v0:                                     // signature dump point for case 1
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_v0, test1_v0_str)  // dump a3 (expect 0)
+  test1_v0:                                        // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, a3, test1_v0, test1_v0_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: G L0 non-leaf PTE_V only | Expected: Expected Fault
-// cp_hgatp_nonleaf_lvl0_rw bin: g_pte_nonleaf_lvl0_d — L0 entry with V=1 but XWR=000
+// Coverpoints: cp_hgatp_nonleaf_lvl0_rw
 //---------------------------------------------------------------------------------------------------------------------------------
   G_PTE_SETUP(sv32x4, test_region, (PTE_V), gpa_data, LEVEL0)  // V only at L0 (non-leaf shape at leaf level)
   hfence.gvma                                   // flush G TLB so next access rewalks
 
   LI(a4, 0)                                     // sentinel: stays 0 if trap fires
-  RVTEST_TSBI_GOTO_VSMODE                      // T-SBI: ecall a0=4 → VS (code at PA / identity)
+  RVTEST_TSBI_GOTO_VSMODE                      // M→VS (T-SBI)
   lw   a4, 0(a5)                                // walk stops at non-leaf L0 → guest-page fault
-  nop                                           // trap-skip padding if previous access faults
-  RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
+  nop                                           // trap-skip pad
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
 
-  test2_nonleaf:                                // signature dump point for case 2
-  RVTEST_SIGUPD(x2, x5, x4, a4, test2_nonleaf, test2_nonleaf_str)  // dump a4 (expect 0)
+  test2_nonleaf:                                   // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, a4, test2_nonleaf, test2_nonleaf_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 3: HS HLV to V=0 GPA | Expected: Expected Fault
-// cp_hgatp_invalid_pte_rw bin: priv_mode HS, read_acc
+// Coverpoints: cp_hgatp_invalid_pte_rw
 //---------------------------------------------------------------------------------------------------------------------------------
   G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R), gpa_data, LEVEL0)  // V=0 leaf again
   hfence.gvma                                   // flush G TLB so next access rewalks
 
-  RVTEST_TSBI_GOTO_SMODE                       // T-SBI: ecall a0=2 → HS/S (code at PA / identity)
+  RVTEST_TSBI_GOTO_SMODE                       // M→HS (T-SBI)
   LI(a6, 0)                                     // sentinel: stays 0 if trap fires
   LI(t1, gpa_data)                              // t1 = GPA pointer for HLV/HSV
   hlv.w a6, (t1)                                // HS hypervisor load hits V=0 → guest-page fault
-  nop                                           // trap-skip padding if previous access faults
-  RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M (rtn2mmode VA→PA relocate)
+  nop                                           // trap-skip pad
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
 
-  test3_hlv_v0:                                 // signature dump point for case 3
-  RVTEST_SIGUPD(x2, x5, x4, a6, test3_hlv_v0, test3_hlv_v0_str)  // dump a6 (expect 0)
+  test3_hlv_v0:                                    // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, a6, test3_hlv_v0, test3_hlv_v0_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 4: HS HSV to V=0 GPA | Expected: Expected Fault
-// cp_hgatp_invalid_pte_rw bin: priv_mode HS, write_acc
+// Coverpoints: cp_hgatp_invalid_pte_rw
 //---------------------------------------------------------------------------------------------------------------------------------
   hfence.gvma                                   // flush G TLB before HS write path
 
-  RVTEST_TSBI_GOTO_SMODE                       // T-SBI: ecall a0=2 → HS/S
+  RVTEST_TSBI_GOTO_SMODE                       // M→HS (T-SBI)
   LI(s2, 0)                                     // sentinel: stays 0 if trap fires
   LI(t0, 0xDEADBEEF)                            // store payload (must not land)
   LI(t1, gpa_data)                              // t1 = GPA pointer for HSV
   hsv.w t0, (t1)                                // HS hypervisor store hits V=0 → guest-page fault
-  nop                                           // trap-skip padding if previous access faults
-  RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M
+  nop                                           // trap-skip pad
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
 
-  test4_hsv_v0:                                 // signature dump point for case 4
-  RVTEST_SIGUPD(x2, x5, x4, s2, test4_hsv_v0, test4_hsv_v0_str)  // dump s2 (expect 0)
+  test4_hsv_v0:                                    // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, s2, test4_hsv_v0, test4_hsv_v0_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 5: HS HSV to L0 non-leaf GPA | Expected: Expected Fault
-// cp_hgatp_nonleaf_lvl0_rw bin: priv_mode HS, write_acc
+// Coverpoints: cp_hgatp_nonleaf_lvl0_rw
 //---------------------------------------------------------------------------------------------------------------------------------
   G_PTE_SETUP(sv32x4, test_region, (PTE_V), gpa_data, LEVEL0)  // V only at L0 again
   hfence.gvma                                   // flush G TLB so next access rewalks
 
-  RVTEST_TSBI_GOTO_SMODE                       // T-SBI: ecall a0=2 → HS/S
+  RVTEST_TSBI_GOTO_SMODE                       // M→HS (T-SBI)
   LI(s3, 0)                                     // sentinel: stays 0 if trap fires
   LI(t0, 0xCAFEBABE)                            // store payload (must not land)
   LI(t1, gpa_data)                              // t1 = GPA pointer for HSV
   hsv.w t0, (t1)                                // HS store through non-leaf L0 → guest-page fault
-  nop                                           // trap-skip padding if previous access faults
-  RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M
+  nop                                           // trap-skip pad
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
 
-  test5_hsv_nonleaf:                            // signature dump point for case 5
-  RVTEST_SIGUPD(x2, x5, x4, s3, test5_hsv_nonleaf, test5_hsv_nonleaf_str)  // dump s3 (expect 0)
+  test5_hsv_nonleaf:                               // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, s3, test5_hsv_nonleaf, test5_hsv_nonleaf_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 5b: HS HLV to L0 non-leaf GPA | Expected: Expected Fault
-// cp_hgatp_nonleaf_lvl0_rw bin: priv_mode HS, read_acc
+// Coverpoints: cp_hgatp_nonleaf_lvl0_rw
 //---------------------------------------------------------------------------------------------------------------------------------
   hfence.gvma                                   // flush G TLB before HS read of non-leaf L0
-  RVTEST_TSBI_GOTO_SMODE                       // T-SBI: ecall a0=2 → HS/S
+  RVTEST_TSBI_GOTO_SMODE                       // M→HS (T-SBI)
   LI(s5, 0)                                     // sentinel — stays 0 if HLV guest-page-faults
   LI(t1, gpa_data)                              // t1 = GPA pointer for HLV
   hlv.w s5, (t1)                                // HS load through non-leaf L0 → guest-page fault
-  nop                                           // trap-skip padding after faulting HLV
-  RVTEST_TSBI_GOTO_MMODE                       // return to M
+  nop                                           // trap-skip pad
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
 
-  test5b_hlv_nonleaf:                           // signature dump point for case 5b
-  RVTEST_SIGUPD(x2, x5, x4, s5, test5b_hlv_nonleaf, test5b_hlv_nonleaf_str)  // dump s5 (expect 0)
+  test5b_hlv_nonleaf:                              // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, s5, test5b_hlv_nonleaf, test5b_hlv_nonleaf_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 6: Restore valid U=1 R/W G leaf | Expected: Successful
@@ -166,13 +181,13 @@ main:
   hfence.gvma                                   // force walk on restored leaf (G_PTE_D in .rvvi)
 
   LI(a7, 0)                                     // clear result register before load
-  RVTEST_TSBI_GOTO_VSMODE                      // T-SBI: ecall a0=4 → VS
+  RVTEST_TSBI_GOTO_VSMODE                      // M→VS (T-SBI)
   lw   a7, 0(a5)                                // expect 0x257A0221
-  nop                                           // trap-skip padding if previous access faults
-  RVTEST_TSBI_GOTO_MMODE                       // T-SBI: ecall a0=1 → M
+  nop                                           // trap-skip pad
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
 
-  test6_restore:                                // signature dump point for case 6
-  RVTEST_SIGUPD(x2, x5, x4, a7, test6_restore, test6_restore_str)  // dump a7 (expect 0x257A0221)
+  test6_restore:                                   // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, a7, test6_restore, test6_restore_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 7: VS Bare jalr into V=0 G leaf | Expected: Expected Fault (cp_hgatp_invalid_pte_x)
@@ -182,14 +197,14 @@ main:
 
   LI(s4, 0)                                     // sentinel — stays 0 if target never runs
   LI(a5, gpa_data)                              // a5 = GPA fetch target (vsatp Bare)
-  RVTEST_TSBI_GOTO_VSMODE                      // T-SBI: ecall a0=4 → VS (code at PA / identity)
+  RVTEST_TSBI_GOTO_VSMODE                      // M→VS (T-SBI)
   nop                                           // pad so priv_mode_vs samples prev=VS on jalr
   jalr ra, a5, 0                                // ifetch through invalid G leaf → fetch-guest-page-fault
-  nop                                           // trap-skip padding (not reached)
-  RVTEST_TSBI_GOTO_MMODE                       // return to M
+  nop                                           // trap-skip pad
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
 
-  test7_v0_ifetch:                              // signature dump point for case 7
-  RVTEST_SIGUPD(x2, x5, x4, s4, test7_v0_ifetch, test7_v0_ifetch_str)  // dump s4 (expect 0)
+  test7_v0_ifetch:                                 // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, s4, test7_v0_ifetch, test7_v0_ifetch_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 8: VS Bare sw into V=0 G leaf | Expected: Expected Fault (exception_reporting write)
@@ -199,21 +214,24 @@ main:
 
   LI(a5, gpa_data)                              // a5 = GPA to store
   LI(t0, 0xDEADBEEF)                            // payload that must not land at SPA
-  RVTEST_TSBI_GOTO_VSMODE                      // M→VS identity hop
+  RVTEST_TSBI_GOTO_VSMODE                      // M→VS (T-SBI)
   nop                                           // pad before faulting store
   sw   t0, 0(a5)                                // VS Bare store: G leaf V=0 → guest-page
-  nop                                           // trap-skip padding after faulting store
-  RVTEST_TSBI_GOTO_MMODE                       // return to M
+  nop                                           // trap-skip pad
+  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
 
   la t1, test_region                            // t1 = SPA
   lw a3, 0(t1)                                  // expect preload 0x257A0221 unchanged
-  test8_v0_sw:                                  // signature dump point for case 8
-  RVTEST_SIGUPD(x2, x5, x4, a3, test8_v0_sw, test8_v0_sw_str)  // dump SPA word (expect preload)
+  test8_v0_sw:                                      // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, a3, test8_v0_sw, test8_v0_sw_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
 RVTEST_CODE_END
 RVTEST_DATA_BEGIN
 
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                            PHYSICAL ADDRESS REGION FOR TESTING
+// --------------------------------------------------------------------------------------------------------------------------------
 .align 12                                      // 4 KiB page align
 test_region:                                  // SPA backing for GPA data leaf
   .word 0                                     // payload word (preloaded in M)
@@ -221,10 +239,18 @@ test_region:                                  // SPA backing for GPA data leaf
   .word 0                                     // padding in same page
   .word 0                                     // padding in same page
 
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                            Page-table storage
+// --------------------------------------------------------------------------------------------------------------------------------
 .align 12                                      // 4 KiB page align
 rvtest_hlvl0_pg_tbl:                          // G-stage L0 PTE storage (4 KiB)
   .zero(4096)                                  // reserve 4 KiB page-table storage
 
+
+// --------------------------------------------------------------------------------------------------------------------------------
+//                                            Mismatch strings (SIGUPD)
+// --------------------------------------------------------------------------------------------------------------------------------
 test1_v0_str:         .string "\"Mismatch on VS lw with G leaf V=0 (expect fault) in Test Case 1!\""
 test2_nonleaf_str:    .string "\"Mismatch on VS lw with G L0 non-leaf only (expect fault) in Test Case 2!\""
 test3_hlv_v0_str:     .string "\"Mismatch on HS HLV with G leaf V=0 (expect fault) in Test Case 3!\""

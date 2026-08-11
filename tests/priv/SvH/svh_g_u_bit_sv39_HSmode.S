@@ -27,15 +27,10 @@
 #define TRAP_SIGUPD_COUNT 64
 #define RVTEST_HYPERVISOR
 
-// Mode hops (Sv-style GOTO_* plus H T-SBI):
-//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
-//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
-//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
+RVTEST_BEGIN                                // framework: start code
 
-RVTEST_BEGIN
-
-main:
+main:                                       // test entry
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                   Virtual addresses / GPA definitions
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -58,14 +53,14 @@ main:
 // --------------------------------------------------------------------------------------------------------------------------------
 
   // ---- vsatp Bare + hgatp ON ----
-  csrw vsatp, x0                                // VS Bare (all cases run in HS)
-  HGATP_SETUP(sv39x4)                           // hgatp = Sv39x4, PPN = G root
-  hfence.vvma                                   // flush VS TLB
-  hfence.gvma                                   // flush G TLB so next access rewalks
+  csrw vsatp, x0                            // VS Bare
+  HGATP_SETUP(sv39x4)                       // G-stage ON
+  hfence.vvma                               // flush VS-stage TLB
+  hfence.gvma                               // flush G-stage TLB (legal in M)
 
-  LI(t0, 0x257A0231)                            // known SPA pattern
-  la t1, test_region                            // SPA of data page
-  sw t0, 0(t1)                                  // preload known pattern at SPA
+  LI(t0, 0x257A0231)                        // preload SPA
+  la t1, test_region                        // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
 
   LI(t1, gpa_data)                              // t1 = GPA pointer for all HS HLV/HSV cases
 
@@ -105,8 +100,8 @@ main:
 // Test case 3: G leaf U=0 XWR=111 HS HLV | Expected: Expected Fault
 //---------------------------------------------------------------------------------------------------------------------------------
   RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
-  G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V), gpa_data, LEVEL0)  // strip U; keep XWR=111
-  hfence.gvma                                   // flush G TLB before HS retries HLV
+  G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V), gpa_data, LEVEL0)  // U=0
+  hfence.gvma                               // flush G-stage TLB (must be M or HS — illegal in VS/VU)
   RVTEST_TSBI_GOTO_SMODE                       // M→HS (T-SBI)
 
   LI(a4, 0)                                     // sentinel: stays 0 if trap fires
@@ -132,8 +127,8 @@ main:
 // Test case 5: Restore G leaf U=1 XWR=111 HS HLV | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
   RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
-  G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R | PTE_V), gpa_data, LEVEL0)  // restore U=1
-  hfence.gvma                                   // flush G TLB so next access rewalks
+  G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R | PTE_V), gpa_data, LEVEL0)  // restore U=1 XWR=111+G leaf
+  hfence.gvma                               // flush G-stage TLB (must be M or HS — illegal in VS/VU)
   RVTEST_TSBI_GOTO_SMODE                       // M→HS (T-SBI)
 
   LI(a7, 0)                                     // clear result register before load
@@ -146,8 +141,8 @@ main:
   RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
 
 //---------------------------------------------------------------------------------------------------------------------------------
-RVTEST_CODE_END
-RVTEST_DATA_BEGIN
+RVTEST_CODE_END                             // framework: end code
+RVTEST_DATA_BEGIN                           // framework: start data
 
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            PHYSICAL ADDRESS REGION FOR TESTING
@@ -174,11 +169,35 @@ rvtest_hlvl0_pg_tbl:                          // G-stage L0 PTE storage (4 KiB)
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            Mismatch strings (SIGUPD)
 // --------------------------------------------------------------------------------------------------------------------------------
-test1_u1_hlv_str:  .string "\"Mismatch on HS HLV with G U=1 XWR=111 in Test Case 1!\""
-test2_u1_hsv_str:  .string "\"Mismatch on HS HSV/HLV with G U=1 XWR=111 in Test Case 2!\""
-test3_u0_hlv_str:  .string "\"Mismatch on HS HLV with G U=0 XWR=111 (expect fault) in Test Case 3!\""
-test4_u0_hsv_str:  .string "\"Mismatch on HS HSV with G U=0 XWR=111 (expect fault) in Test Case 4!\""
-test5_restore_str: .string "\"Mismatch on HS HLV after G U-bit restore in Test Case 5!\""
+test1_u1_hlv_str:  .string "\"Mismatch on HS HLV with G U=1 XWR=111 in Test Case 1!\""  // mismatch string
+test2_u1_hsv_str:  .string "\"Mismatch on HS HSV/HLV with G U=1 XWR=111 in Test Case 2!\""  // mismatch string
+test3_u0_hlv_str:  .string "\"Mismatch on HS HLV with G U=0 XWR=111 (expect fault) in Test Case 3!\""  // mismatch string
+test4_u0_hsv_str:  .string "\"Mismatch on HS HSV with G U=0 XWR=111 (expect fault) in Test Case 4!\""  // mismatch string
+test5_restore_str: .string "\"Mismatch on HS HLV after G U-bit restore in Test Case 5!\""  // mismatch string
 
-RVTEST_DATA_END
-RVTEST_SIG_SETUP
+RVTEST_DATA_END                             // framework: end data
+RVTEST_SIG_SETUP                            // framework: signature region
+
+
+
+  //                G-stage walks as U-mode; HS HLV/HSV need G leaf U...
+  //                      │
+  //    ┌────────────────────────┬────────────────────────┬────────────────────────┐
+  //                │                           │                           │             
+  //              Test 1                      Test 2                      Test 3          
+  //                │                           │                           │             
+  //        G leaf U=1 XWR=111          G leaf U=1 XWR=111          G leaf U=0 XWR=111    
+  //                │                           │                           │             
+  //             HS hlv.w                HS hsv.w + hlv.w                HS hlv.w         
+  //                ▼                           ▼                           ▼             
+  //            0x257A0231                  0x257A0232                  FAULT a4=0        
+
+  //         ┌────────────┴────────────┐
+  //         │                         │
+  //      Test 4                             Test 5
+  //         │                         │
+  //      G leaf U=0 XWR=111         Restore G leaf U=1
+  //         │                         │
+  //      HS hsv.w                   HS hlv.w
+  //         ▼                         ▼
+  //      FAULT s3=0                 0x257A0232

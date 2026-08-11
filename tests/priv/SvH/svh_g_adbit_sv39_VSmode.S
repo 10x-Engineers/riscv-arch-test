@@ -31,15 +31,10 @@
 #define TRAP_SIGUPD_COUNT 256
 #define RVTEST_HYPERVISOR
 
-// Mode hops (Sv-style GOTO_* plus H T-SBI):
-//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
-//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
-//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
+RVTEST_BEGIN                                // framework: start code
 
-RVTEST_BEGIN
-
-main:
+main:                                       // test entry
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                   Virtual addresses / GPA definitions
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -89,9 +84,9 @@ main:
   hfence.gvma                                   // flush G-stage TLB (illegal in VS/VU)
   sfence.vma                                    // extra TLB clear (sheet asks sfence.vma)
 
-  LI(t0, 0x257A0251)                            // known SPA preload for store-fault check
-  la t1, test_region                            // t1 = SPA of data page
-  sw t0, 0(t1)                                  // write preload so a successful store would change it
+  LI(t0, 0x257A0251)                        // preload SPA
+  la t1, test_region                        // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
 
 
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -130,7 +125,7 @@ main:
 // Test case 3: implicit G A=D=0 on VS-PT map — VS jalr | Expected: Expected Fault
 //---------------------------------------------------------------------------------------------------------------------------------
   hfence.vvma                                   // flush VS TLB
-  hfence.gvma                                   // flush G TLB
+  hfence.gvma                               // flush G-stage TLB (legal in M)
   sfence.vma                                    // clear leftover translations
   LI(a5, va_data)                               // a5 = GVA fetch target (same data page, X on VS leaf)
   LI(s4, 0)                                     // sentinel — stays 0 if target never runs
@@ -167,7 +162,7 @@ main:
 // Test case 5: VS leaf A=D=00 — VS sw | Expected: Expected Fault
 //---------------------------------------------------------------------------------------------------------------------------------
   hfence.vvma                                   // flush VS TLB
-  hfence.gvma                                   // flush G TLB
+  hfence.gvma                               // flush G-stage TLB (legal in M)
   sfence.vma                                    // clear leftover translations
   LI(a5, va_data)                               // a5 = GVA to store
   LI(t0, 0xBAD00FAD)                            // payload that must not land
@@ -184,7 +179,7 @@ main:
 // Test case 6: VS leaf A=D=00 — VS jalr | Expected: Expected Fault
 //---------------------------------------------------------------------------------------------------------------------------------
   hfence.vvma                                   // flush VS TLB
-  hfence.gvma                                   // flush G TLB
+  hfence.gvma                               // flush G-stage TLB (legal in M)
   sfence.vma                                    // clear leftover translations
   LI(a5, va_data)                               // a5 = GVA fetch target
   LI(s5, 0)                                     // sentinel — stays 0 if target never runs
@@ -196,8 +191,8 @@ main:
   test6_vs_ad00_jalr:                               // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s5, test6_vs_ad00_jalr, test6_vs_ad00_jalr_str) // SIGUPD
 
-RVTEST_CODE_END
-RVTEST_DATA_BEGIN
+RVTEST_CODE_END                             // framework: end code
+RVTEST_DATA_BEGIN                           // framework: start data
 
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            PHYSICAL ADDRESS REGION FOR TESTING
@@ -230,12 +225,29 @@ rvtest_vlvl0_pg_tbl:                            // VS-stage L0 PTE storage (impl
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            Mismatch strings (SIGUPD)
 // --------------------------------------------------------------------------------------------------------------------------------
-test1_impl_g_lw_str:    .string "\"Mismatch on implicit G A=0 VS lw (expect fault) in Test Case 1!\""
-test2_impl_g_sw_str:    .string "\"Mismatch on implicit G A=0 VS sw (SPA must stay) in Test Case 2!\""
-test3_impl_g_jalr_str:  .string "\"Mismatch on implicit G A=0 VS jalr (expect fault) in Test Case 3!\""
-test4_vs_ad00_lw_str:   .string "\"Mismatch on VS A=D=00 lw (expect fault) in Test Case 4!\""
-test5_vs_ad00_sw_str:   .string "\"Mismatch on VS A=D=00 sw (SPA must stay) in Test Case 5!\""
-test6_vs_ad00_jalr_str: .string "\"Mismatch on VS A=D=00 jalr (expect fault) in Test Case 6!\""
+test1_impl_g_lw_str:    .string "\"Mismatch on implicit G A=0 VS lw (expect fault) in Test Case 1!\""  // mismatch string
+test2_impl_g_sw_str:    .string "\"Mismatch on implicit G A=0 VS sw (SPA must stay) in Test Case 2!\""  // mismatch string
+test3_impl_g_jalr_str:  .string "\"Mismatch on implicit G A=0 VS jalr (expect fault) in Test Case 3!\""  // mismatch string
+test4_vs_ad00_lw_str:   .string "\"Mismatch on VS A=D=00 lw (expect fault) in Test Case 4!\""  // mismatch string
+test5_vs_ad00_sw_str:   .string "\"Mismatch on VS A=D=00 sw (SPA must stay) in Test Case 5!\""  // mismatch string
+test6_vs_ad00_jalr_str: .string "\"Mismatch on VS A=D=00 jalr (expect fault) in Test Case 6!\""  // mismatch string
 
-RVTEST_DATA_END
-RVTEST_SIG_SETUP
+RVTEST_DATA_END                             // framework: end data
+RVTEST_SIG_SETUP                            // framework: signature region
+
+
+
+  //         G / VS A/D (ADUE=0, Svade) — Sv39
+  //                      │
+  //         ┌────────────┴────────────┐
+  //         │                         │
+  //   Half A: G A=D=0 on VS-PT    Half B: VS leaf A=D=00
+  //   (implicit G walk)           (G-for-PT A=D=1)
+  //         │                         │
+  //    ┌────┼────┐               ┌────┼────┐
+  //    TC1  TC2  TC3             TC4  TC5  TC6
+  //    lw   sw  jalr              lw   sw  jalr
+  //    │    │    │                │    │    │
+  //    ▼    ▼    ▼                ▼    ▼    ▼
+  // guest-page fault          page fault
+  // (sentinels stay 0)        (sentinels stay 0)

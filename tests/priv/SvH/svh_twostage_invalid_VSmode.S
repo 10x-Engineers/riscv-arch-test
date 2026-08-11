@@ -4,6 +4,7 @@
 // Coverpoints mapped (SvH_cg): VM_permission_invalid_vs_rw, VM_permission_invalid_g_rw
 // What this proves (one line):
 //   Two-stage V=0 at VS or G denies loads and stores with traps.
+
 // Harness note (2026-08-07): clear medeleg/hedeleg so load/store-PF stays in M —
 //   trap-sig Vector+Mode expects M-mode word 0x0dc4c35b (got HS 0x0019c359
 //   when medeleg bit13 left at platform default).
@@ -28,15 +29,10 @@
 #define TRAP_SIGUPD_COUNT 256
 #define RVTEST_HYPERVISOR
 
-// Mode hops (Sv-style GOTO_* plus H T-SBI):
-//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
-//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
-//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
+RVTEST_BEGIN                                // framework: start code
 
-RVTEST_BEGIN
-
-main:
+main:                                       // test entry
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                   Virtual addresses / GPA definitions
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -63,8 +59,8 @@ main:
   G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V), gpa_data, LEVEL0)  // G leaf: gpa_data → PA(test_region) R/W A=D=1 U=1
 
   VS_PTE_SETUP(sv32, GPA, gpa_code, (PTE_D | PTE_A | PTE_X | PTE_R | PTE_V), va_code, LEVEL1)  // VS superpage: va_code → gpa_code (X/R A=D=1) so VS can fetch
-  csrr a0, mscratch                             // a0 = M save-area pointer (required by next macro)
-  V_SAVE_AREA_SETUP(va_code, rvtest_code_begin, code, LEVEL1)  // framework: VS entry PC is under va_code (VA≠PA)
+  csrr a0, mscratch                         // a0 = M save-area pointer (required by next macro)
+  V_SAVE_AREA_SETUP(va_code, rvtest_code_begin, code, LEVEL1)  // VA≠PA code entry
 
   VS_PTE_SETUP(sv32, GPA, gpa_rvtest_vlvl0_pg_tbl, (PTE_V), va_data, LEVEL1)  // VS non-leaf: va_data VPN1 → VS L0 table GPA
   // Case 1: VS V=0 leaf (A/D/R/W set, V clear)
@@ -74,14 +70,14 @@ main:
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                   Enable translation / TLB fences / preloads
 // --------------------------------------------------------------------------------------------------------------------------------
-  VSATP_SETUP(sv32, GPA)                        // vsatp = Sv32, PPN = GPA of VS root
-  HGATP_SETUP(sv32x4)                           // hgatp = Sv32x4, PPN = G root
-  hfence.vvma                                   // flush VS-stage TLB (must be M or HS)
-  hfence.gvma                                   // flush G-stage TLB (illegal in VS/VU)
+  VSATP_SETUP(sv32, GPA)                    // vsatp ON (PPN = GPA of VS root)
+  HGATP_SETUP(sv32x4)                       // G-stage ON
+  hfence.vvma                               // flush VS-stage TLB
+  hfence.gvma                               // flush G-stage TLB (legal in M)
 
-  LI(t0, 0x257A0A01)                            // known SPA preload (must not change on fault cases)
-  la t1, test_region                            // t1 = SPA of data page
-  sw t0, 0(t1)                                  // write preload so a successful load/store would see/change it
+  LI(t0, 0x257A0A01)                        // preload SPA
+  la t1, test_region                        // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
 
 
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -132,8 +128,8 @@ main:
   sw   t0, 0(a5)                                // VS store: VS leaf V=0 → store page-fault (write_acc)
   nop                                           // trap-skip pad
   RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
-  la t1, test_region                            // t1 = SPA of data page
-  lw a6, 0(t1)                                  // expect preload 0x257A0A01 unchanged
+  la t1, test_region                        // t1 = SPA of data page
+  lw a6, 0(t1)                              // M-mode SPA readback
   test3_vs_v0_sw:                                   // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a6, test3_vs_v0_sw, test3_vs_v0_sw_str) // SIGUPD
 
@@ -152,13 +148,13 @@ main:
   sw   t0, 0(a5)                                // VS store: G leaf V=0 → guest-page fault (write_acc)
   nop                                           // trap-skip pad
   RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
-  la t1, test_region                            // t1 = SPA of data page
-  lw a7, 0(t1)                                  // expect preload 0x257A0A01 unchanged
+  la t1, test_region                        // t1 = SPA of data page
+  lw a7, 0(t1)                              // M-mode SPA readback
   test4_g_v0_sw:                                    // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a7, test4_g_v0_sw, test4_g_v0_sw_str) // SIGUPD
 
-RVTEST_CODE_END
-RVTEST_DATA_BEGIN
+RVTEST_CODE_END                             // framework: end code
+RVTEST_DATA_BEGIN                           // framework: start data
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            PHYSICAL ADDRESS REGION FOR TESTING
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -182,9 +178,33 @@ rvtest_hlvl0_pg_tbl:                            // G-stage L0 PTE storage
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            Mismatch strings (SIGUPD)
 // --------------------------------------------------------------------------------------------------------------------------------
-test1_vs_v0_lw_str: .string "\"Mismatch on two-stage VS V=0 lw in Test Case 1!\""
-test2_g_v0_lw_str:  .string "\"Mismatch on two-stage G V=0 lw in Test Case 2!\""
-test3_vs_v0_sw_str: .string "\"Mismatch on two-stage VS V=0 sw (SPA) in Test Case 3!\""
-test4_g_v0_sw_str:  .string "\"Mismatch on two-stage G V=0 sw (SPA) in Test Case 4!\""
-RVTEST_DATA_END
-RVTEST_SIG_SETUP
+test1_vs_v0_lw_str: .string "\"Mismatch on two-stage VS V=0 lw in Test Case 1!\""  // mismatch string
+test2_g_v0_lw_str:  .string "\"Mismatch on two-stage G V=0 lw in Test Case 2!\""  // mismatch string
+test3_vs_v0_sw_str: .string "\"Mismatch on two-stage VS V=0 sw (SPA) in Test Case 3!\""  // mismatch string
+test4_g_v0_sw_str:  .string "\"Mismatch on two-stage G V=0 sw (SPA) in Test Case 4!\""  // mismatch string
+RVTEST_DATA_END                             // framework: end data
+RVTEST_SIG_SETUP                            // framework: signature region
+
+
+
+  //                Two-stage V=0 at VS or G denies loads and stores ...
+  //                      │
+  //         ┌────────────┴────────────┐
+  //         │                         │
+  //      Test 1                             Test 2
+  //         │                         │
+  //      VS leaf V=0, G valid       VS valid, G leaf V=0
+  //         │                         │
+  //      VS lw                      VS lw
+  //         ▼                         ▼
+  //      FAULT a3=0                 FAULT a4=0
+
+  //         ┌────────────┴────────────┐
+  //         │                         │
+  //      Test 3                             Test 4
+  //         │                         │
+  //      VS leaf V=0, G valid       VS valid, G leaf V=0
+  //         │                         │
+  //      VS sw                      VS sw
+  //         ▼                         ▼
+  //      FAULT SPA SPA same)        FAULT SPA SPA same)

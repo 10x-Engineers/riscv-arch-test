@@ -53,15 +53,10 @@
 #define TRAP_SIGUPD_COUNT 256
 #define RVTEST_HYPERVISOR
 
-// Mode hops (Sv-style GOTO_* plus H T-SBI):
-//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
-//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
-//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
+RVTEST_BEGIN                                // framework: start code
 
-RVTEST_BEGIN
-
-main:
+main:                                       // test entry
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                   Virtual addresses / GPA definitions
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -104,18 +99,18 @@ main:
   hfence.vvma                                   // invalidate VS-stage TLB entries
   hfence.gvma                                   // invalidate G-stage TLB entries (harmless with Bare)
 
-  LI(t0, 0x257A0501)                            // SPA pattern for S-page X-only (case 2 read target)
-  la t1, test_region_x_s                        // SPA of S-page X-only region
-  sw t0, 0(t1)                                  // preload (MXR=1 load expects 0x257A0501)
-  LI(t0, 0xDEADBEEF)                            // SPA pattern for U-page X-only (case 6 read target)
-  la t1, test_region_x_u                        // SPA of U-page X-only region
-  sw t0, 0(t1)                                  // preload (cases 4–5 fault; case 6 MXR+SUM load)
-  LI(t0, 0x257A0502)                            // SPA pattern for U-page R/W/X (case 7 read target)
-  la t1, test_region_u_rw                       // SPA of U-page R/W/X region
-  sw t0, 0(t1)                                  // preload (SUM=1 load expects 0x257A0502)
-  LI(t0, 0x257A050A)                            // SPA pattern for S-page R/W/X (case 10)
-  la t1, test_region_s_rw                       // SPA of S-page R/W/X region
-  sw t0, 0(t1)                                  // preload (case 10 store overwrites then load checks)
+  LI(t0, 0x257A0501)                        // preload SPA
+  la t1, test_region_x_s                    // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
+  LI(t0, 0xDEADBEEF)                        // preload SPA
+  la t1, test_region_x_u                    // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
+  LI(t0, 0x257A0502)                        // preload SPA
+  la t1, test_region_u_rw                   // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
+  LI(t0, 0x257A050A)                        // preload SPA
+  la t1, test_region_s_rw                   // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
 
 
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -497,9 +492,9 @@ main:
   hfence.vvma                                   // flush VS-stage TLB after flag/PTE change
 
   // Write `ret` (0x00008067) + marker store path: use existing RWX page as trampoline
-  LI(t0, 0x00008067)                            // ret
-  la t1, test_region_s_rw                       // t1 = SPA of S-page RWX region
-  sw t0, 0(t1)                                  // write ret trampoline at SPA of S-page RWX region
+  LI(t0, 0x00008067)                        // preload SPA
+  la t1, test_region_s_rw                   // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
 
   LI(a5, va_s_rw)                               // a5 = S-page RWX GVA (U=0 XWR=111)
   LI(s8, 0)                                     // s8 will hold result (0 if fault skipped insn)
@@ -521,9 +516,9 @@ main:
   csrs vsstatus, t0                             // set VS SUM — guest sees these
   hfence.vvma                                   // flush VS-stage TLB after flag/PTE change
 
-  LI(t0, 0x00008067)                            // encoding of ret (jalr x0, ra, 0) trampoline
-  la t1, test_region_s_rw                       // t1 = SPA of S-page RWX region
-  sw t0, 0(t1)                                  // write ret trampoline at SPA of S-page RWX region
+  LI(t0, 0x00008067)                        // preload SPA
+  la t1, test_region_s_rw                   // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
 
   LI(a5, va_s_rw)                               // a5 = S-page RWX GVA (U=0 XWR=111)
   LI(s9, 0)                                     // s9 will hold result (0 if fault skipped insn)
@@ -545,9 +540,9 @@ main:
   csrs vsstatus, t0                             // set VS MXR — guest sees these
   hfence.vvma                                   // flush VS-stage TLB after flag/PTE change
 
-  LI(t0, 0x00008067)                            // encoding of ret (jalr x0, ra, 0) trampoline
-  la t1, test_region_u_rw                       // t1 = SPA of U-page RWX region
-  sw t0, 0(t1)                                  // write ret trampoline at SPA of U-page RWX region
+  LI(t0, 0x00008067)                        // preload SPA
+  la t1, test_region_u_rw                   // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
 
   LI(a5, va_u_rw)                               // a5 = U-page RWX GVA (U=1 XWR=111)
   LI(s10, 0)                                    // s10 will hold result (0 if fault skipped insn)
@@ -569,9 +564,9 @@ main:
   csrs vsstatus, t0                             // set VS MXR and SUM — guest sees these
   hfence.vvma                                   // flush VS-stage TLB after flag/PTE change
 
-  LI(t0, 0x257A0518)                            // SPA pattern / store value for case 24 (0x257A0518)
-  la t1, test_region_s_rw                       // t1 = SPA of S-page RWX region
-  sw t0, 0(t1)                                  // restore data after jalr trampoline
+  LI(t0, 0x257A0518)                        // preload SPA
+  la t1, test_region_s_rw                   // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
 
   LI(a5, va_s_rw)                               // a5 = S-page RWX GVA (U=0 XWR=111)
   LI(t0, 0x257A0518)                            // SPA pattern / store value for case 24 (0x257A0518)
@@ -661,9 +656,9 @@ main:
   csrs sstatus, t0                              // set HS MXR and SUM
   csrs vsstatus, t0                             // set VS MXR and SUM — guest sees these
   hfence.vvma                                   // flush VS-stage TLB after flag/PTE change
-  LI(t0, 0x257A051D)                            // SPA pattern / store value for case 29 (0x257A051D)
-  la t1, test_region_u_rw                       // t1 = SPA of U-page RWX region
-  sw t0, 0(t1)                                  // M-mode preload/write at SPA of U-page RWX region (case 29)
+  LI(t0, 0x257A051D)                        // preload SPA
+  la t1, test_region_u_rw                   // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
   LI(a5, va_u_rw)                               // a5 = U-page RWX GVA (U=1 XWR=111)
   LI(s3, 0)                                     // s3 will hold result (0 if fault skipped insn)
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
@@ -698,9 +693,9 @@ main:
   csrs sstatus, t0                              // set HS MXR
   csrs vsstatus, t0                             // set VS MXR — guest sees these
   hfence.vvma                                   // flush VS-stage TLB after flag/PTE change
-  LI(t0, 0x257A051F)                            // SPA pattern / store value for case 31 (0x257A051F)
-  la t1, test_region_s_rw                       // t1 = SPA of S-page RWX region
-  sw t0, 0(t1)                                  // M-mode preload/write at SPA of S-page RWX region (case 31)
+  LI(t0, 0x257A051F)                        // preload SPA
+  la t1, test_region_s_rw                   // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
   LI(a5, va_s_rw)                               // a5 = S-page RWX GVA (U=0 XWR=111)
   LI(s5, 0)                                     // s5 will hold result (0 if fault skipped insn)
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
@@ -715,9 +710,9 @@ main:
 // Test case 32: MXR=1 SUM=0 S-page XWR=111 VS jalr | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
   hfence.vvma                                   // flush VS-stage TLB after flag/PTE change
-  LI(t0, 0x00008067)                            // ret
-  la t1, test_region_s_rw                       // t1 = SPA of S-page RWX region
-  sw t0, 0(t1)                                  // write ret trampoline at SPA of S-page RWX region
+  LI(t0, 0x00008067)                        // preload SPA
+  la t1, test_region_s_rw                   // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
   LI(a5, va_s_rw)                               // a5 = S-page RWX GVA (U=0 XWR=111)
   LI(s6, 0)                                     // s6 will hold result (0 if fault skipped insn)
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
@@ -737,9 +732,9 @@ main:
   csrs sstatus, t0                              // set HS MXR and SUM
   csrs vsstatus, t0                             // set VS MXR and SUM — guest sees these
   hfence.vvma                                   // flush VS-stage TLB after flag/PTE change
-  LI(t0, 0x257A0501)                            // SPA pattern / store value for case 33 (0x257A0501)
-  la t1, test_region_x_s                        // t1 = SPA of S-page X-only region
-  sw t0, 0(t1)                                  // M-mode preload/write at SPA of S-page X-only region (case 33)
+  LI(t0, 0x257A0501)                        // preload SPA
+  la t1, test_region_x_s                    // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
   LI(a5, va_x_s)                                // a5 = S-page X-only GVA (U=0 XWR=001)
   LI(s7, 0)                                     // s7 will hold result (0 if fault skipped insn)
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
@@ -751,8 +746,8 @@ main:
   RVTEST_SIGUPD(x2, x5, x4, s7, test33_mxr1_sum1_xs_lw2, test33_mxr1_sum1_xs_lw2_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
-RVTEST_CODE_END
-RVTEST_DATA_BEGIN
+RVTEST_CODE_END                             // framework: end code
+RVTEST_DATA_BEGIN                           // framework: start data
 
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            PHYSICAL ADDRESS REGION FOR TESTING
@@ -793,39 +788,153 @@ rvtest_vlvl0_pg_tbl:                            // VS-stage level-0 PTE storage
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            Mismatch strings (SIGUPD)
 // --------------------------------------------------------------------------------------------------------------------------------
-test1_mxr0_xs_str:       .string "\"Mismatch on MXR=0 S-page X-only VS lw (expect fault) in Test Case 1!\""
-test2_mxr1_xs_lw_str:    .string "\"Mismatch on MXR=1 S-page X-only VS lw in Test Case 2!\""
-test3_mxr1_xs_sw_str:    .string "\"Mismatch on MXR=1 S-page X-only VS sw (expect fault) in Test Case 3!\""
-test4_mxr0_xu_str:       .string "\"Mismatch on MXR=0 U-page X-only VS lw (expect fault) in Test Case 4!\""
-test5_mxr1_xu_str:       .string "\"Mismatch on MXR=1 SUM=0 U-page X-only VS lw (expect fault) in Test Case 5!\""
-test6_mxr1_sum1_xu_str:  .string "\"Mismatch on MXR=1 SUM=1 U-page X-only VS lw in Test Case 6!\""
-test7_sum1_urw_lw_str:   .string "\"Mismatch on SUM=1 U-page VS lw in Test Case 7!\""
-test8_sum1_urw_swlw_str: .string "\"Mismatch on SUM=1 U-page VS sw+lw in Test Case 8!\""
-test9_sum0_urw_sw_str:   .string "\"Mismatch on SUM=0 U-page VS sw (expect fault) in Test Case 9!\""
-test10_srw_swlw_str:         .string "\"Mismatch on S-page R/W/X VS sw+lw in Test Case 10!\""
-test11_sum1_mxr0_xs_str:     .string "\"Mismatch on SUM=1 MXR=0 S X-only VS lw (expect fault) in Test Case 11!\""
-test12_mxr1_sum1_srw_str:    .string "\"Mismatch on MXR=1 SUM=1 S RWX VS lw in Test Case 12!\""
-test13_sum1_mxr0_xu_str:     .string "\"Mismatch on SUM=1 MXR=0 U X-only VS lw (expect fault) in Test Case 13!\""
-test14_mxr1_sum1_xu_sw_str:  .string "\"Mismatch on MXR=1 SUM=1 U X-only VS sw (expect fault) in Test Case 14!\""
-test15_mxr1_sum0_urw_str:    .string "\"Mismatch on MXR=1 SUM=0 U RWX VS lw (expect fault) in Test Case 15!\""
-test16_mxr1_sum1_xs_sw_str:  .string "\"Mismatch on MXR=1 SUM=1 S X-only VS sw (expect fault) in Test Case 16!\""
-test17_sum1_mxr0_srw_str:    .string "\"Mismatch on SUM=1 MXR=0 S RWX VS lw in Test Case 17!\""
-test18_mxr1_sum0_srw_sw_str: .string "\"Mismatch on MXR=1 SUM=0 S RWX VS sw+lw in Test Case 18!\""
-test19_sum1_xs_sw_str:       .string "\"Mismatch on SUM=1 S X-only VS sw (expect fault) in Test Case 19!\""
-test20_sum1_xu_sw_str:       .string "\"Mismatch on SUM=1 U X-only VS sw (expect fault) in Test Case 20!\""
-test21_srw_jalr_str:         .string "\"Mismatch on S RWX VS jalr in Test Case 21!\""
-test22_sum1_srw_jalr_str:    .string "\"Mismatch on SUM=1 S RWX VS jalr in Test Case 22!\""
-test23_urw_jalr_str:         .string "\"Mismatch on SUM=1 U RWX VS jalr in Test Case 23!\""
-test24_mxr1_sum1_srw_sw_str: .string "\"Mismatch on MXR=1 SUM=1 S RWX VS sw+lw in Test Case 24!\""
-test25_mxr1_xu_sw_str:       .string "\"Mismatch on MXR=1 SUM=0 U X-only VS sw (expect fault) in Test Case 25!\""
-test26_mxr1_xs_sw_str:       .string "\"Mismatch on MXR=1 SUM=0 S X-only VS sw (expect fault) in Test Case 26!\""
-test27_mxr1_sum0_urw_sw_str: .string "\"Mismatch on MXR=1 SUM=0 U RWX VS sw (expect fault) in Test Case 27!\""
-test28_mxr0_xu_sw_str:       .string "\"Mismatch on MXR=0 U X-only VS sw (expect fault) in Test Case 28!\""
-test29_mxr1_sum1_urw_lw_str: .string "\"Mismatch on MXR=1 SUM=1 U RWX VS lw in Test Case 29!\""
-test30_mxr1_sum1_xs_lw_str:  .string "\"Mismatch on MXR=1 SUM=1 S X-only VS lw in Test Case 30!\""
-test31_mxr1_sum0_srw_lw_str: .string "\"Mismatch on MXR=1 SUM=0 S RWX VS lw in Test Case 31!\""
-test32_mxr1_sum0_srw_jalr_str: .string "\"Mismatch on MXR=1 SUM=0 S RWX VS jalr in Test Case 32!\""
-test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S X-only VS lw in Test Case 33!\""
+test1_mxr0_xs_str:       .string "\"Mismatch on MXR=0 S-page X-only VS lw (expect fault) in Test Case 1!\""  // mismatch string
+test2_mxr1_xs_lw_str:    .string "\"Mismatch on MXR=1 S-page X-only VS lw in Test Case 2!\""  // mismatch string
+test3_mxr1_xs_sw_str:    .string "\"Mismatch on MXR=1 S-page X-only VS sw (expect fault) in Test Case 3!\""  // mismatch string
+test4_mxr0_xu_str:       .string "\"Mismatch on MXR=0 U-page X-only VS lw (expect fault) in Test Case 4!\""  // mismatch string
+test5_mxr1_xu_str:       .string "\"Mismatch on MXR=1 SUM=0 U-page X-only VS lw (expect fault) in Test Case 5!\""  // mismatch string
+test6_mxr1_sum1_xu_str:  .string "\"Mismatch on MXR=1 SUM=1 U-page X-only VS lw in Test Case 6!\""  // mismatch string
+test7_sum1_urw_lw_str:   .string "\"Mismatch on SUM=1 U-page VS lw in Test Case 7!\""  // mismatch string
+test8_sum1_urw_swlw_str: .string "\"Mismatch on SUM=1 U-page VS sw+lw in Test Case 8!\""  // mismatch string
+test9_sum0_urw_sw_str:   .string "\"Mismatch on SUM=0 U-page VS sw (expect fault) in Test Case 9!\""  // mismatch string
+test10_srw_swlw_str:         .string "\"Mismatch on S-page R/W/X VS sw+lw in Test Case 10!\""  // mismatch string
+test11_sum1_mxr0_xs_str:     .string "\"Mismatch on SUM=1 MXR=0 S X-only VS lw (expect fault) in Test Case 11!\""  // mismatch string
+test12_mxr1_sum1_srw_str:    .string "\"Mismatch on MXR=1 SUM=1 S RWX VS lw in Test Case 12!\""  // mismatch string
+test13_sum1_mxr0_xu_str:     .string "\"Mismatch on SUM=1 MXR=0 U X-only VS lw (expect fault) in Test Case 13!\""  // mismatch string
+test14_mxr1_sum1_xu_sw_str:  .string "\"Mismatch on MXR=1 SUM=1 U X-only VS sw (expect fault) in Test Case 14!\""  // mismatch string
+test15_mxr1_sum0_urw_str:    .string "\"Mismatch on MXR=1 SUM=0 U RWX VS lw (expect fault) in Test Case 15!\""  // mismatch string
+test16_mxr1_sum1_xs_sw_str:  .string "\"Mismatch on MXR=1 SUM=1 S X-only VS sw (expect fault) in Test Case 16!\""  // mismatch string
+test17_sum1_mxr0_srw_str:    .string "\"Mismatch on SUM=1 MXR=0 S RWX VS lw in Test Case 17!\""  // mismatch string
+test18_mxr1_sum0_srw_sw_str: .string "\"Mismatch on MXR=1 SUM=0 S RWX VS sw+lw in Test Case 18!\""  // mismatch string
+test19_sum1_xs_sw_str:       .string "\"Mismatch on SUM=1 S X-only VS sw (expect fault) in Test Case 19!\""  // mismatch string
+test20_sum1_xu_sw_str:       .string "\"Mismatch on SUM=1 U X-only VS sw (expect fault) in Test Case 20!\""  // mismatch string
+test21_srw_jalr_str:         .string "\"Mismatch on S RWX VS jalr in Test Case 21!\""  // mismatch string
+test22_sum1_srw_jalr_str:    .string "\"Mismatch on SUM=1 S RWX VS jalr in Test Case 22!\""  // mismatch string
+test23_urw_jalr_str:         .string "\"Mismatch on SUM=1 U RWX VS jalr in Test Case 23!\""  // mismatch string
+test24_mxr1_sum1_srw_sw_str: .string "\"Mismatch on MXR=1 SUM=1 S RWX VS sw+lw in Test Case 24!\""  // mismatch string
+test25_mxr1_xu_sw_str:       .string "\"Mismatch on MXR=1 SUM=0 U X-only VS sw (expect fault) in Test Case 25!\""  // mismatch string
+test26_mxr1_xs_sw_str:       .string "\"Mismatch on MXR=1 SUM=0 S X-only VS sw (expect fault) in Test Case 26!\""  // mismatch string
+test27_mxr1_sum0_urw_sw_str: .string "\"Mismatch on MXR=1 SUM=0 U RWX VS sw (expect fault) in Test Case 27!\""  // mismatch string
+test28_mxr0_xu_sw_str:       .string "\"Mismatch on MXR=0 U X-only VS sw (expect fault) in Test Case 28!\""  // mismatch string
+test29_mxr1_sum1_urw_lw_str: .string "\"Mismatch on MXR=1 SUM=1 U RWX VS lw in Test Case 29!\""  // mismatch string
+test30_mxr1_sum1_xs_lw_str:  .string "\"Mismatch on MXR=1 SUM=1 S X-only VS lw in Test Case 30!\""  // mismatch string
+test31_mxr1_sum0_srw_lw_str: .string "\"Mismatch on MXR=1 SUM=0 S RWX VS lw in Test Case 31!\""  // mismatch string
+test32_mxr1_sum0_srw_jalr_str: .string "\"Mismatch on MXR=1 SUM=0 S RWX VS jalr in Test Case 32!\""  // mismatch string
+test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S X-only VS lw in Test Case 33!\""  // mismatch string
 
-RVTEST_DATA_END
-RVTEST_SIG_SETUP
+RVTEST_DATA_END                             // framework: end data
+RVTEST_SIG_SETUP                            // framework: signature region
+
+
+
+  //                VS MXR×SUM×page-type (X-only S/U, RWX S/U) contro...
+  //                      │
+  //    ┌────────────────────────┬────────────────────────┬────────────────────────┐
+  //                │                           │                           │             
+  //              Test 1                      Test 2                      Test 3          
+  //                │                           │                           │             
+  //    MXR=0 SUM=0, S-page X-only  MXR=1 SUM=0, S-page X-only  MXR=1 SUM=0, S-page X-only
+  //                │                           │                           │             
+  //              VS lw                       VS lw                       VS sw           
+  //                ▼                           ▼                           ▼             
+  //            FAULT a3=0                  0x257A0501                  FAULT a4=0        
+
+  //    ┌────────────────────────┬────────────────────────┬────────────────────────┐
+  //                │                           │                           │             
+  //              Test 4                      Test 5                      Test 6          
+  //                │                           │                           │             
+  //    MXR=0 SUM=0, U-page X-only  MXR=1 SUM=0, U-page X-only  MXR=1 SUM=1, U-page X-only
+  //                │                           │                           │             
+  //              VS lw                       VS lw                       VS lw           
+  //                ▼                           ▼                           ▼             
+  //            FAULT a6=0                  FAULT a7=0                  0xDEADBEEF        
+
+  //    ┌────────────────────────┬────────────────────────┬────────────────────────┐
+  //                │                           │                           │             
+  //              Test 7                      Test 8                      Test 9          
+  //                │                           │                           │             
+  //       MXR=0 SUM=1, U-page         MXR=1 SUM=1, U-page         MXR=0 SUM=0, U-page    
+  //                │                           │                           │             
+  //              VS lw                      VS sw+lw                     VS sw           
+  //                ▼                           ▼                           ▼             
+  //            0x257A0502                  0x257A0508                  FAULT s2=0        
+
+  //    ┌────────────────────────┬────────────────────────┬────────────────────────┐
+  //                │                           │                           │             
+  //             Test 10                     Test 11                     Test 12          
+  //                │                           │                           │             
+  //       MXR=0 SUM=0, S-page      MXR=0 SUM=1 S-page X-only   MXR=1 SUM=1 S-page XWR=111
+  //                │                           │                           │             
+  //             VS sw+lw                     VS lw                       VS lw           
+  //                ▼                           ▼                           ▼             
+  //            0x257A050A                  FAULT s3=0                  0x257A050A        
+
+  //    ┌────────────────────────┬────────────────────────┬────────────────────────┐
+  //                │                           │                           │             
+  //             Test 13                     Test 14                     Test 15          
+  //                │                           │                           │             
+  //    MXR=0 SUM=1 U-page X-only   MXR=1 SUM=1 U-page X-only   MXR=1 SUM=0 U-page XWR=111
+  //                │                           │                           │             
+  //              VS lw                       VS sw                       VS lw           
+  //                ▼                           ▼                           ▼             
+  //            FAULT s4=0                  FAULT s5=0                  FAULT s6=0        
+
+  //    ┌────────────────────────┬────────────────────────┬────────────────────────┐
+  //                │                           │                           │             
+  //             Test 16                     Test 17                     Test 18          
+  //                │                           │                           │             
+  //    MXR=1 SUM=1 S-page X-only   MXR=0 SUM=1 S-page XWR=111  MXR=1 SUM=0 S-page XWR=111
+  //                │                           │                           │             
+  //              VS sw                       VS lw                      VS sw+lw         
+  //                ▼                           ▼                           ▼             
+  //            FAULT s7=0                  0x257A050A                  0x257A0512        
+
+  //    ┌────────────────────────┬────────────────────────┬────────────────────────┐
+  //                │                           │                           │             
+  //             Test 19                     Test 20                     Test 21          
+  //                │                           │                           │             
+  //    MXR=0 SUM=1 S-page X-only   MXR=0 SUM=1 U-page X-only   MXR=0 SUM=0 S-page XWR=111
+  //                │                           │                           │             
+  //              VS sw                       VS sw                      VS jalr          
+  //                ▼                           ▼                           ▼             
+  //      FAULT SPA 0x257A0501)       FAULT SPA 0xDEADBEEF)           s8=0x257A0515       
+
+  //    ┌────────────────────────┬────────────────────────┬────────────────────────┐
+  //                │                           │                           │             
+  //             Test 22                     Test 23                     Test 24          
+  //                │                           │                           │             
+  //    MXR=0 SUM=1 S-page XWR=111  MXR=1 SUM=1 U-page XWR=111  MXR=1 SUM=1 S-page XWR=111
+  //                │                           │                           │             
+  //             VS jalr                     VS jalr                     VS sw+lw         
+  //                ▼                           ▼                           ▼             
+  //          s9=0x257A0516               s10=0x257A0517                0x257A0518        
+
+  //    ┌────────────────────────┬────────────────────────┬────────────────────────┐
+  //                │                           │                           │             
+  //             Test 25                     Test 26                     Test 27          
+  //                │                           │                           │             
+  //    MXR=1 SUM=0 U-page X-only   MXR=1 SUM=0 S-page X-only   MXR=1 SUM=0 U-page XWR=111
+  //                │                           │                           │             
+  //              VS sw                       VS sw                       VS sw           
+  //                ▼                           ▼                           ▼             
+  //      FAULT SPA 0xDEADBEEF)         FAULT SPA preload)           FAULT SPA same)      
+
+  //    ┌────────────────────────┬────────────────────────┬────────────────────────┐
+  //                │                           │                           │             
+  //             Test 28                     Test 29                     Test 30          
+  //                │                           │                           │             
+  //    MXR=0 SUM=0 U-page X-only   MXR=1 SUM=1 U-page XWR=111  MXR=1 SUM=1 S-page X-only 
+  //                │                           │                           │             
+  //              VS sw                     VS lw only                    VS lw           
+  //                ▼                           ▼                           ▼             
+  //         FAULT SPA same)                0x257A051D                  0x257A0501        
+
+  //         ┌────────────┴────────────┐
+  //         │                         │
+  //      Test 31                            Test 32
+  //         │                         │
+  //      MXR=1 SUM=0 S-page         MXR=1 SUM=0 S-page
+  //         │                         │
+  //      VS lw only                 VS jalr
+  //         ▼                         ▼
+  //      0x257A051F                 s11=0x257A0520

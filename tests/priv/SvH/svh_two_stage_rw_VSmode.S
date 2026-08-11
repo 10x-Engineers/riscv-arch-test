@@ -24,15 +24,10 @@
 #define TRAP_SIGUPD_COUNT 16
 #define RVTEST_HYPERVISOR
 
-// Mode hops (Sv-style GOTO_* plus H T-SBI):
-//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
-//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
-//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
+RVTEST_BEGIN                                // framework: start code
 
-RVTEST_BEGIN
-
-main:
+main:                                       // test entry
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                   Virtual addresses / GPA definitions
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -61,8 +56,8 @@ main:
 
   VS_PTE_SETUP(sv32, GPA, gpa_code, (PTE_D | PTE_A | PTE_X | PTE_R | PTE_V), va_code, LEVEL1)  // leaf: va_code -> gpa_code (X/R)
 
-  csrr a0, mscratch                             // a0 = Msave_area (required by next macro)
-  V_SAVE_AREA_SETUP(va_code, rvtest_code_begin, code, LEVEL1)  // framework: VS entry PC is under va_code
+  csrr a0, mscratch                         // a0 = M save-area pointer (required by next macro)
+  V_SAVE_AREA_SETUP(va_code, rvtest_code_begin, code, LEVEL1)  // VA≠PA code entry
 
   VS_PTE_SETUP(sv32, GPA, gpa_rvtest_vlvl0_pg_tbl, (PTE_V), va_data, LEVEL1)  // non-leaf: va_data VPN1 -> VS L0 table GPA
   VS_PTE_SETUP(sv32, GPA, gpa_data, (PTE_D | PTE_A | PTE_W | PTE_R | PTE_V), va_data, LEVEL0)  // leaf: va_data -> gpa_data (W/R)
@@ -71,15 +66,15 @@ main:
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                   Enable translation / TLB fences / preloads
 // --------------------------------------------------------------------------------------------------------------------------------
-  VSATP_SETUP(sv32, GPA)                        // vsatp = Sv32, PPN = GPA of VS root
-  HGATP_SETUP(sv32x4)                           // hgatp = Sv32x4, PPN = G root
-  hfence.vvma                                   // invalidate VS-stage TLB entries
-  hfence.gvma                                   // invalidate G-stage TLB entries
+  VSATP_SETUP(sv32, GPA)                    // vsatp ON (PPN = GPA of VS root)
+  HGATP_SETUP(sv32x4)                       // G-stage ON
+  hfence.vvma                               // flush VS-stage TLB
+  hfence.gvma                               // flush G-stage TLB (legal in M)
 
   // Known pattern at SPA before guest store (two_stage_write check from M later)
-  LI(t0, 0xDEADBEEF)                            // poison value written to PA
-  la t1, test_region                            // t1 = SPA of data page
-  sw t0, 0(t1)                                  // SPA starts as 0xDEADBEEF
+  LI(t0, 0xDEADBEEF)                        // preload SPA
+  la t1, test_region                        // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
 
   LI(a5, va_data)                               // a5 = GVA pointer for store/load
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
@@ -105,14 +100,14 @@ main:
 // Test case 2: M-mode SPA readback | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
   // M-mode: SPA must show guest store (stronger than VS lw alone)
-  la t1, test_region                            // t1 = SPA again
-  lw t2, 0(t1)                                  // t2 expect 0x257A0005 (not DEADBEEF)
+  la t1, test_region                        // t1 = SPA of data page
+  lw t2, 0(t1)                              // M-mode SPA readback
   test2_spa:                                        // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, t2, test2_spa, test2_spa_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
-RVTEST_CODE_END
-RVTEST_DATA_BEGIN
+RVTEST_CODE_END                             // framework: end code
+RVTEST_DATA_BEGIN                           // framework: start data
 
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            PHYSICAL ADDRESS REGION FOR TESTING
@@ -139,8 +134,25 @@ rvtest_vlvl0_pg_tbl:                            // VS-stage level-0 PTE storage
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            Mismatch strings (SIGUPD)
 // --------------------------------------------------------------------------------------------------------------------------------
-test1_vs_str:  .string "\"Mismatch on VS lw after two-stage sw in Test Case 1!\""
-test2_spa_str: .string "\"Mismatch on SPA readback after two-stage store in Test Case 2!\""
+test1_vs_str:  .string "\"Mismatch on VS lw after two-stage sw in Test Case 1!\""  // mismatch string
+test2_spa_str: .string "\"Mismatch on SPA readback after two-stage store in Test Case 2!\""  // mismatch string
 
-RVTEST_DATA_END
-RVTEST_SIG_SETUP
+RVTEST_DATA_END                             // framework: end data
+RVTEST_SIG_SETUP                            // framework: signature region
+
+
+
+  //           VS two-stage store/load
+  //                      │
+  //         ┌────────────┴────────────┐
+  //         │                         │
+  //      Test 1                    Test 2
+  //    VS sw (GVA→GPA→SPA)      M read SPA
+  //         │                         │
+  //    VS + G walk               No VS hop
+  //         │                         │
+  //         ▼                         ▼
+  //    VS lw same GVA            lw test_region
+  //         │                         │
+  //         ▼                         ▼
+  //    0x257A0101                 0x257A0101

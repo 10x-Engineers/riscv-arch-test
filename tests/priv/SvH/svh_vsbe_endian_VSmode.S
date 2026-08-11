@@ -34,15 +34,10 @@
 #define TRAP_SIGUPD_COUNT 16
 #define RVTEST_HYPERVISOR
 
-// Mode hops (Sv-style GOTO_* plus H T-SBI):
-//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
-//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
-//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
+RVTEST_BEGIN                                // framework: start code
 
-RVTEST_BEGIN
-
-main:
+main:                                       // test entry
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                   Virtual addresses / GPA definitions
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -56,8 +51,8 @@ main:
   // ---- VS-stage (vsatp Sv32): GVA -> PA  (hgatp Bare ⇒ PTE PPN fields are real PAs) ----
   SUPERPAGE_VS_PTE_SETUP(sv32, rvtest_code_begin, (PTE_D | PTE_A | PTE_X | PTE_R | PTE_V), va_code, LEVEL1)  // leaf: va_code -> PA(code); LEVEL1 = 4 MiB X/R
 
-  csrr a0, mscratch                             // a0 = Msave_area (required by next macro)
-  V_SAVE_AREA_SETUP(va_code, rvtest_code_begin, code, LEVEL1)  // framework: VS entry PC is under va_code
+  csrr a0, mscratch                         // a0 = M save-area pointer (required by next macro)
+  V_SAVE_AREA_SETUP(va_code, rvtest_code_begin, code, LEVEL1)  // VA≠PA code entry
 
   // Data leaf XWR=111 (coverpoint vs_pte_xwr111_d = 8'b11??1111); U=0 is fine here
   VS_PTE_SETUP(sv32, PA, rvtest_vlvl0_pg_tbl, (PTE_V), va_data, LEVEL1)  // non-leaf: va_data VPN1 -> VS L0 table PA
@@ -67,10 +62,10 @@ main:
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                   Enable translation / TLB fences / preloads
 // --------------------------------------------------------------------------------------------------------------------------------
-  VSATP_SETUP(sv32, PA)                         // vsatp = Sv32, PPN = PA of VS root
-  csrw hgatp, x0                                // hgatp = Bare (no G-stage)
-  hfence.vvma                                   // invalidate VS-stage TLB entries
-  hfence.gvma                                   // invalidate G-stage TLB entries (harmless with Bare)
+  VSATP_SETUP(sv32, PA)                     // vsatp ON (PPN = PA of VS root)
+  csrw hgatp, x0                            // hgatp Bare
+  hfence.vvma                               // flush VS-stage TLB
+  hfence.gvma                               // flush G-stage TLB (legal in M)
 
   LI(a5, va_data)                               // a5 = GVA pointer for guest stores/loads
   LI(s1, 0xA1B2C3D4)                            // known pattern — byte order reveals endianness
@@ -104,8 +99,8 @@ main:
 // Test case 2: VSBE=0 M-mode SPA readback (LE) | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
   // M-mode: confirm bytes landed in SPA as little-endian
-  la t1, test_region                            // t1 = SPA of data page
-  lw t2, 0(t1)                                  // M (LE) read; expect 0xA1B2C3D4
+  la t1, test_region                        // t1 = SPA of data page
+  lw t2, 0(t1)                              // M-mode SPA readback
   test2_vsbe0_spa:                                  // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, t2, test2_vsbe0_spa, test2_vsbe0_spa_str) // SIGUPD
 
@@ -140,8 +135,8 @@ main:
 // Test case 5: VSBE=1 attempt M-mode SPA byte view | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
   // M-mode raw SPA view: if VSBE=1 worked, bytes would appear as 0xD4C3B2A1
-  la t1, test_region                            // t1 = SPA
-  lw t3, 0(t1)                                  // M LE view of stored bytes
+  la t1, test_region                        // t1 = SPA of data page
+  lw t3, 0(t1)                              // M-mode SPA readback
                                                 // Ideal VSBE=1: 0xD4C3B2A1; Sail today: 0xA1B2C3D4
   test5_vsbe1_spa:                                  // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, t3, test5_vsbe1_spa, test5_vsbe1_spa_str) // SIGUPD
@@ -151,8 +146,8 @@ main:
   csrc hstatus, t0                              // clear VSBE
 
 //---------------------------------------------------------------------------------------------------------------------------------
-RVTEST_CODE_END
-RVTEST_DATA_BEGIN
+RVTEST_CODE_END                             // framework: end code
+RVTEST_DATA_BEGIN                           // framework: start data
 
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            PHYSICAL ADDRESS REGION FOR TESTING
@@ -176,11 +171,35 @@ rvtest_vlvl0_pg_tbl:                            // VS-stage level-0 PTE storage
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            Mismatch strings (SIGUPD)
 // --------------------------------------------------------------------------------------------------------------------------------
-test1_vsbe0_lw_str:       .string "\"Mismatch on VSBE=0 VS lw in Test Case 1!\""
-test2_vsbe0_spa_str:      .string "\"Mismatch on VSBE=0 SPA LE readback in Test Case 2!\""
-test3_vsbe1_hstatus_str:  .string "\"Mismatch on hstatus after VSBE set attempt in Test Case 3!\""
-test4_vsbe1_lw_str:       .string "\"Mismatch on VSBE=1 attempt VS lw in Test Case 4!\""
-test5_vsbe1_spa_str:      .string "\"Mismatch on VSBE=1 attempt SPA byte view in Test Case 5!\""
+test1_vsbe0_lw_str:       .string "\"Mismatch on VSBE=0 VS lw in Test Case 1!\""  // mismatch string
+test2_vsbe0_spa_str:      .string "\"Mismatch on VSBE=0 SPA LE readback in Test Case 2!\""  // mismatch string
+test3_vsbe1_hstatus_str:  .string "\"Mismatch on hstatus after VSBE set attempt in Test Case 3!\""  // mismatch string
+test4_vsbe1_lw_str:       .string "\"Mismatch on VSBE=1 attempt VS lw in Test Case 4!\""  // mismatch string
+test5_vsbe1_spa_str:      .string "\"Mismatch on VSBE=1 attempt SPA byte view in Test Case 5!\""  // mismatch string
 
-RVTEST_DATA_END
-RVTEST_SIG_SETUP
+RVTEST_DATA_END                             // framework: end data
+RVTEST_SIG_SETUP                            // framework: signature region
+
+
+
+  //                hstatus.VSBE should flip VS endianness for guest ...
+  //                      │
+  //    ┌────────────────────────┬────────────────────────┬────────────────────────┐
+  //                │                           │                           │             
+  //              Test 1                      Test 2                      Test 3          
+  //                │                           │                           │             
+  //              VSBE=0                      VSBE=0                  VSBE=1 attempt      
+  //                │                           │                           │             
+  //        VS lw after sw of         M-mode SPA rdback (LE)       hstatus rdback after   
+  //                ▼                           ▼                           ▼             
+  //               PASS                     0xA1B2C3D4             bit stays 0 on Sail    
+
+  //         ┌────────────┴────────────┐
+  //         │                         │
+  //      Test 4                             Test 5
+  //         │                         │
+  //      VSBE=1 attempt             VSBE=1 attempt
+  //         │                         │
+  //      VS lw after sw             M-mode SPA byte view
+  //         ▼                         ▼
+  //      still LE on Sail           still LE

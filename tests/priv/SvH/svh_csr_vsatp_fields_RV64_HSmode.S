@@ -31,15 +31,10 @@
 #define TRAP_SIGUPD_COUNT 16
 #define RVTEST_HYPERVISOR
 
-// Mode hops (Sv-style GOTO_* plus H T-SBI):
-//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
-//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
-//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
+RVTEST_BEGIN                                // framework: start code
 
-RVTEST_BEGIN
-
-main:
+main:                                       // test entry
   // Partner stage off: vsatp field walks keep hgatp Bare so only VS CSR bins fire
   csrw hgatp, x0                                // hgatp=0 → G-stage Bare (isolate vsatp field bins)
   hfence.gvma                                   // flush old G TLB after hgatp clear
@@ -123,20 +118,40 @@ ppn_walk:                                       // loop: walking-1 across PPN bi
   RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
 
 //---------------------------------------------------------------------------------------------------------------------------------
-RVTEST_CODE_END
-RVTEST_DATA_BEGIN
+RVTEST_CODE_END                             // framework: end code
+RVTEST_DATA_BEGIN                           // framework: start data
 // PASS/FAIL message strings for signature compares
 
 
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            Mismatch strings (SIGUPD)
 // --------------------------------------------------------------------------------------------------------------------------------
-test1_mode_str:       .string "\"Mismatch on setting vsatp.MODE=Sv39 (PPN=0) in Test Case 1!\""
-test2_mode_walk_str:  .string "\"Mismatch on vsatp.MODE WARL walk in Test Case 2!\""
-test3_mode1_str:      .string "\"Mismatch on setting vsatp.MODE=1 in Test Case 3!\""
-test4_asid_str:       .string "\"Mismatch on vsatp.ASID=all-ones in Test Case 4!\""
-test5_ppn_ones_str:   .string "\"Mismatch on vsatp.PPN=all-ones in Test Case 5!\""
-test6_ppn_walk_str:   .string "\"Mismatch on walking ones in vsatp.PPN in Test Case 6!\""
+test1_mode_str:       .string "\"Mismatch on setting vsatp.MODE=Sv39 (PPN=0) in Test Case 1!\""  // mismatch string
+test2_mode_walk_str:  .string "\"Mismatch on vsatp.MODE WARL walk in Test Case 2!\""  // mismatch string
+test3_mode1_str:      .string "\"Mismatch on setting vsatp.MODE=1 in Test Case 3!\""  // mismatch string
+test4_asid_str:       .string "\"Mismatch on vsatp.ASID=all-ones in Test Case 4!\""  // mismatch string
+test5_ppn_ones_str:   .string "\"Mismatch on vsatp.PPN=all-ones in Test Case 5!\""  // mismatch string
+test6_ppn_walk_str:   .string "\"Mismatch on walking ones in vsatp.PPN in Test Case 6!\""  // mismatch string
 
-RVTEST_DATA_END
-RVTEST_SIG_SETUP
+RVTEST_DATA_END                             // framework: end data
+RVTEST_SIG_SETUP                            // framework: signature region
+
+
+
+  //                On RV64, from HS, vsatp MODE / PPN / ASID write+r...
+  //                      │
+  //    ┌────────────────────────┬────────────────────────┬────────────────────────┐
+  //                │                           │                           │             
+  //              Test 1                      Test 2                      Test 3          
+  //                │                           │                           │             
+  //     Set vsatp.MODE=Sv39 with    Try vsatp.MODE encodings    Set vsatp.MODE=1 sample  
+  //                ▼                           ▼                           ▼             
+  //              rdback                   each rdback                    rdback          
+
+  //    ┌────────────────────────┬────────────────────────┬────────────────────────┐
+  //                │                           │                           │             
+  //              Test 4                      Test 5                      Test 6          
+  //                │                           │                           │             
+  //      vsatp.ASID = all ones        vsatp.PPN = all ones          Walking ones on      
+  //                ▼                           ▼                           ▼             
+  //          ASIDLEN detect                   PASS                        PASS           

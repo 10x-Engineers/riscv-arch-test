@@ -36,15 +36,10 @@
 // Mode hops (T-SBI) — return-to-M always uses RVTEST_TSBI_GOTO_MMODE (ecall a0=1;
 //   handler rtn2mmode relocates EPC VA→PA). Enter:
 //   • Guest code VA≠PA (V_SAVE_AREA_*): RVTEST_GOTO_LOWER_MODE VUmode
-// Mode hops (Sv-style GOTO_* plus H T-SBI):
-//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
-//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
-//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
+RVTEST_BEGIN                                // framework: start code
 
-RVTEST_BEGIN
-
-main:
+main:                                       // test entry
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                   Virtual addresses / GPA definitions
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -94,24 +89,24 @@ main:
   csrc vsstatus, t0                             // clear vsstatus MXR/SUM
 
   // Preload SPAs with distinct patterns (M-mode baseline)
-  LI(t0, 0x257A0701)                            // SPA pattern / store value for case setup (0x257A0701)
-  la t1, test_region_u_rwx                      // t1 = SPA of U-page RWX region
-  sw t0, 0(t1)                                  // SPA preload (known pattern before guest access)
-  LI(t0, 0x257A0702)                            // SPA pattern / store value for case setup (0x257A0702)
-  la t1, test_region_u_xonly                    // t1 = SPA of U-page X-only region
-  sw t0, 0(t1)                                  // SPA preload (known pattern before guest access)
-  LI(t0, 0x257A0704)                            // SPA pattern / store value for case setup (0x257A0704)
-  la t1, test_region_u_ronly                    // t1 = SPA of U-page R-only region
-  sw t0, 0(t1)                                  // SPA preload (known pattern before guest access)
-  LI(t0, 0x257A0707)                            // SPA pattern / store value for case setup (0x257A0707)
-  la t1, test_region_s_rwx                      // t1 = SPA of S-page RWX region (VU deny)
-  sw t0, 0(t1)                                  // SPA preload (known pattern before guest access)
-  LI(t0, 0x257A0705)                            // SPA pattern / store value for case setup (0x257A0705)
-  la t1, test_region_u_rw                       // t1 = SPA of U-page RWX region
-  sw t0, 0(t1)                                  // SPA preload (known pattern before guest access)
-  LI(t0, 0x257A0706)                            // SPA pattern / store value for case setup (0x257A0706)
-  la t1, test_region_u_rx                       // t1 = SPA of test_region_u_rx
-  sw t0, 0(t1)                                  // SPA preload (known pattern before guest access)
+  LI(t0, 0x257A0701)                        // preload SPA
+  la t1, test_region_u_rwx                  // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
+  LI(t0, 0x257A0702)                        // preload SPA
+  la t1, test_region_u_xonly                // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
+  LI(t0, 0x257A0704)                        // preload SPA
+  la t1, test_region_u_ronly                // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
+  LI(t0, 0x257A0707)                        // preload SPA
+  la t1, test_region_s_rwx                  // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
+  LI(t0, 0x257A0705)                        // preload SPA
+  la t1, test_region_u_rw                   // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
+  LI(t0, 0x257A0706)                        // preload SPA
+  la t1, test_region_u_rx                   // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
 
 
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -291,8 +286,8 @@ main:
   RVTEST_SIGUPD(x2, x5, x4, s5, test12_uv_sw, test12_uv_sw_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
-RVTEST_CODE_END
-RVTEST_DATA_BEGIN
+RVTEST_CODE_END                             // framework: end code
+RVTEST_DATA_BEGIN                           // framework: start data
 
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            PHYSICAL ADDRESS REGION FOR TESTING
@@ -357,18 +352,62 @@ rvtest_vlvl0_pg_tbl:                            // VS-stage L0 PTE storage
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            Mismatch strings (SIGUPD)
 // --------------------------------------------------------------------------------------------------------------------------------
-test1_urw_rwx_str:  .string "\"Mismatch on U=1 RWX VU lw in Test Case 1!\""
-test2_ux_lw_str:    .string "\"Mismatch on U=1 X-only VU lw (expect fault) in Test Case 2!\""
-test3_ux_sw_str:    .string "\"Mismatch on U=1 X-only VU sw (expect fault) in Test Case 3!\""
-test4_ur_only_str:  .string "\"Mismatch on U=1 R-only VU lw in Test Case 4!\""
-test5_urw_str:      .string "\"Mismatch on U=1 R/W VU lw in Test Case 5!\""
-test6_urx_str:      .string "\"Mismatch on U=1 R/X VU lw in Test Case 6!\""
-test7_s_lw_str:     .string "\"Mismatch on U=0 VU lw (expect fault) in Test Case 7!\""
-test8_uv_lw_str:    .string "\"Mismatch on U=1 V-only VU lw (expect fault) in Test Case 8!\""
-test9_s_sw_str:     .string "\"Mismatch on U=0 VU sw (expect fault) in Test Case 9!\""
-test10_sv_lw_str:   .string "\"Mismatch on U=0 V-only VU lw (expect fault) in Test Case 10!\""
-test11_sv_sw_str:   .string "\"Mismatch on U=0 V-only VU sw (expect fault) in Test Case 11!\""
-test12_uv_sw_str:   .string "\"Mismatch on U=1 V-only VU sw (expect fault) in Test Case 12!\""
+test1_urw_rwx_str:  .string "\"Mismatch on U=1 RWX VU lw in Test Case 1!\""  // mismatch string
+test2_ux_lw_str:    .string "\"Mismatch on U=1 X-only VU lw (expect fault) in Test Case 2!\""  // mismatch string
+test3_ux_sw_str:    .string "\"Mismatch on U=1 X-only VU sw (expect fault) in Test Case 3!\""  // mismatch string
+test4_ur_only_str:  .string "\"Mismatch on U=1 R-only VU lw in Test Case 4!\""  // mismatch string
+test5_urw_str:      .string "\"Mismatch on U=1 R/W VU lw in Test Case 5!\""  // mismatch string
+test6_urx_str:      .string "\"Mismatch on U=1 R/X VU lw in Test Case 6!\""  // mismatch string
+test7_s_lw_str:     .string "\"Mismatch on U=0 VU lw (expect fault) in Test Case 7!\""  // mismatch string
+test8_uv_lw_str:    .string "\"Mismatch on U=1 V-only VU lw (expect fault) in Test Case 8!\""  // mismatch string
+test9_s_sw_str:     .string "\"Mismatch on U=0 VU sw (expect fault) in Test Case 9!\""  // mismatch string
+test10_sv_lw_str:   .string "\"Mismatch on U=0 V-only VU lw (expect fault) in Test Case 10!\""  // mismatch string
+test11_sv_sw_str:   .string "\"Mismatch on U=0 V-only VU sw (expect fault) in Test Case 11!\""  // mismatch string
+test12_uv_sw_str:   .string "\"Mismatch on U=1 V-only VU sw (expect fault) in Test Case 12!\""  // mismatch string
 
-RVTEST_DATA_END
-RVTEST_SIG_SETUP
+RVTEST_DATA_END                             // framework: end data
+RVTEST_SIG_SETUP                            // framework: signature region
+
+
+
+  //                VU enforces U=1 XWR allow/deny and blocks U=0 S-p...
+  //                      │
+  //    ┌────────────────────────┬────────────────────────┬────────────────────────┐
+  //                │                           │                           │             
+  //              Test 1                      Test 2                      Test 3          
+  //                │                           │                           │             
+  //         Leaf U=1 XWR=111            Leaf U=1 X-only             Leaf U=1 X-only      
+  //                │                           │                           │             
+  //             VU sw+lw                     VU lw                       VU sw           
+  //                ▼                           ▼                           ▼             
+  //            0x257A0701                  FAULT a4=0            FAULT SPA 0x257A0702)   
+
+  //    ┌────────────────────────┬────────────────────────┬────────────────────────┐
+  //                │                           │                           │             
+  //              Test 4                      Test 5                      Test 6          
+  //                │                           │                           │             
+  //         Leaf U=1 R-only               Leaf U=1 R/W                Leaf U=1 R/X       
+  //                │                           │                           │             
+  //              VU lw                      VU sw+lw                     VU lw           
+  //                ▼                           ▼                           ▼             
+  //         FAULT 0x257A0704               0x257A0705               FAULT 0x257A0706     
+
+  //    ┌────────────────────────┬────────────────────────┬────────────────────────┐
+  //                │                           │                           │             
+  //              Test 7                      Test 8                      Test 9          
+  //                │                           │                           │             
+  //         Leaf U=0 XWR=111            Leaf U=1 V-only             Leaf U=0 XWR=111     
+  //                │                           │                           │             
+  //              VU lw                       VU lw                       VU sw           
+  //                ▼                           ▼                           ▼             
+  //            FAULT a6=0                  FAULT a7=0            FAULT SPA 0x257A0707)   
+
+  //    ┌────────────────────────┬────────────────────────┬────────────────────────┐
+  //                │                           │                           │             
+  //             Test 10                     Test 11                     Test 12          
+  //                │                           │                           │             
+  //         Leaf U=0 V-only             Leaf U=0 V-only             Leaf U=1 V-only      
+  //                │                           │                           │             
+  //              VU lw                       VU sw                       VU sw           
+  //                ▼                           ▼                           ▼             
+  //            FAULT s3=0                 FAULT SPA=0                 FAULT SPA=0        

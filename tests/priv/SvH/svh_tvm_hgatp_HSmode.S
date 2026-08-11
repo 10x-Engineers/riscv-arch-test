@@ -24,17 +24,12 @@
 #define TRAP_SIGUPD_COUNT 256
 #define RVTEST_HYPERVISOR
 
-// Mode hops (Sv-style GOTO_* plus H T-SBI):
-//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
-//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
-//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
+RVTEST_BEGIN                                // framework: start code
 
-RVTEST_BEGIN
-
-main:
+main:                                       // test entry
   // ---- Setup: both stages Bare; traps stay in M (no delegation) ----
-  csrw vsatp, x0                                // clear vsatp
+  csrw vsatp, x0                            // VS Bare
   csrw hgatp, x0                                // clear hgatp
   csrw medeleg, x0                              // keep traps in M (simpler TVM fault handling)
   csrw hedeleg, x0                              // do not delegate to HS/VS
@@ -76,16 +71,30 @@ main:
   RVTEST_SIGUPD(x2, x5, x4, a4, test2_marker, test2_marker_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
-RVTEST_CODE_END
-RVTEST_DATA_BEGIN
+RVTEST_CODE_END                             // framework: end code
+RVTEST_DATA_BEGIN                           // framework: start data
 // PASS/FAIL message strings for signature compares
 
 
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            Mismatch strings (SIGUPD)
 // --------------------------------------------------------------------------------------------------------------------------------
-test1_hgatp_str:  .string "\"Mismatch on hgatp write with TVM=0 in Test Case 1!\""
-test2_marker_str: .string "\"Mismatch on TVM=1 illegal hgatp write marker in Test Case 2!\""
+test1_hgatp_str:  .string "\"Mismatch on hgatp write with TVM=0 in Test Case 1!\""  // mismatch string
+test2_marker_str: .string "\"Mismatch on TVM=1 illegal hgatp write marker in Test Case 2!\""  // mismatch string
 
-RVTEST_DATA_END
-RVTEST_SIG_SETUP
+RVTEST_DATA_END                             // framework: end data
+RVTEST_SIG_SETUP                            // framework: signature region
+
+
+
+  //                mstatus.TVM=1 makes HS hgatp writes illegal; TVM=...
+  //                      │
+  //         ┌────────────┴────────────┐
+  //         │                         │
+  //      Test 1                             Test 2
+  //         │                         │
+  //      TVM=0                      TVM=1
+  //         │                         │
+  //      HS write hgatp.MODE=S…     HS write hgatp illegal
+  //         ▼                         ▼
+  //      rdback                     FAULT marker

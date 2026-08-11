@@ -24,27 +24,22 @@
 #define TRAP_SIGUPD_COUNT 16
 #define RVTEST_HYPERVISOR
 
-// Mode hops (Sv-style GOTO_* plus H T-SBI):
-//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
-//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
-//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
+RVTEST_BEGIN                                // framework: start code
 
-RVTEST_BEGIN
-
-main:
+main:                                       // test entry
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                   Enable translation / TLB fences / preloads
 // --------------------------------------------------------------------------------------------------------------------------------
   // ---- Both stages Bare: no page tables; GVA/GPA used as real SPA ----
-  csrw vsatp, x0                                // VS paging OFF
-  csrw hgatp, x0                                // G paging OFF
-  hfence.vvma                                   // flush VS-stage TLB (safe even when Bare)
-  hfence.gvma                                   // flush G-stage TLB (safe even when Bare)
+  csrw vsatp, x0                            // VS Bare
+  csrw hgatp, x0                            // hgatp Bare
+  hfence.vvma                               // flush VS-stage TLB
+  hfence.gvma                               // flush G-stage TLB (legal in M)
 
-  LI(t0, 0xDEADBEEF)                            // poison SPA
-  la t1, test_region                            // t1 = real address of test_region
-  sw t0, 0(t1)                                  // store pattern to memory
+  LI(t0, 0xDEADBEEF)                        // preload SPA
+  la t1, test_region                        // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
 
   la a5, test_region                            // Bare: this VA is the SPA
   RVTEST_TSBI_GOTO_VSMODE                      // M→VS (T-SBI)
@@ -69,14 +64,14 @@ main:
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: M-mode SPA readback | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
-  la t1, test_region                            // t1 = real address of test_region
-  lw t2, 0(t1)                                  // expect 0x257A0021
+  la t1, test_region                        // t1 = SPA of data page
+  lw t2, 0(t1)                              // M-mode SPA readback
   test2_spa:                                        // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, t2, test2_spa, test2_spa_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
-RVTEST_CODE_END
-RVTEST_DATA_BEGIN
+RVTEST_CODE_END                             // framework: end code
+RVTEST_DATA_BEGIN                           // framework: start data
 
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            PHYSICAL ADDRESS REGION FOR TESTING
@@ -92,8 +87,20 @@ test_region:                                    // real memory used as VA and SP
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            Mismatch strings (SIGUPD)
 // --------------------------------------------------------------------------------------------------------------------------------
-test1_vs_str:  .string "\"Mismatch on VS lw after sw (both Bare) in Test Case 1!\""
-test2_spa_str: .string "\"Mismatch on SPA readback after VS store in Test Case 2!\""
+test1_vs_str:  .string "\"Mismatch on VS lw after sw (both Bare) in Test Case 1!\""  // mismatch string
+test2_spa_str: .string "\"Mismatch on SPA readback after VS store in Test Case 2!\""  // mismatch string
 
-RVTEST_DATA_END
-RVTEST_SIG_SETUP
+RVTEST_DATA_END                             // framework: end data
+RVTEST_SIG_SETUP                            // framework: signature region
+
+
+
+  //                Same as RV32 both_bare: both stages Bare ⇒ VA use...
+  //                      │
+  //         ┌────────────┴────────────┐
+  //         │                         │
+  //      Test 1                             Test 2
+  //         │                         │
+  //      VS sw/lw with both         M-mode SPA rdback
+  //         ▼                         ▼
+  //      PASS                       PASS

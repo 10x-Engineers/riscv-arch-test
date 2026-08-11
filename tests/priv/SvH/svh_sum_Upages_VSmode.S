@@ -25,15 +25,10 @@
 #define TRAP_SIGUPD_COUNT 64
 #define RVTEST_HYPERVISOR
 
-// Mode hops (Sv-style GOTO_* plus H T-SBI):
-//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
-//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
-//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
+RVTEST_BEGIN                                // framework: start code
 
-RVTEST_BEGIN
-
-main:
+main:                                       // test entry
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                   Virtual addresses / GPA definitions
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -47,8 +42,8 @@ main:
   // ---- VS-stage (vsatp Sv32): GVA -> PA  (hgatp Bare ⇒ PTE PPN fields are real PAs) ----
   SUPERPAGE_VS_PTE_SETUP(sv32, rvtest_code_begin, (PTE_D | PTE_A | PTE_X | PTE_R | PTE_V), va_code, LEVEL1)  // leaf: va_code -> PA(code); LEVEL1 = 4 MiB X/R
 
-  csrr a0, mscratch                             // a0 = Msave_area (required by next macro)
-  V_SAVE_AREA_SETUP(va_code, rvtest_code_begin, code, LEVEL1)  // framework: VS entry PC is under va_code
+  csrr a0, mscratch                         // a0 = M save-area pointer (required by next macro)
+  V_SAVE_AREA_SETUP(va_code, rvtest_code_begin, code, LEVEL1)  // VA≠PA code entry
 
   // Data page: U=1 leaf with full XWR (coverpoint vs_pte_xwr111_u_d = 8'b11?11111)
   VS_PTE_SETUP(sv32, PA, rvtest_vlvl0_pg_tbl, (PTE_V), va_data, LEVEL1)  // non-leaf: va_data VPN1 -> VS L0 table PA
@@ -58,14 +53,14 @@ main:
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                   Enable translation / TLB fences / preloads
 // --------------------------------------------------------------------------------------------------------------------------------
-  VSATP_SETUP(sv32, PA)                         // vsatp = Sv32, PPN = PA of VS root
-  csrw hgatp, x0                                // hgatp = Bare (no G-stage; GPA == PA)
-  hfence.vvma                                   // invalidate VS-stage TLB entries
-  hfence.gvma                                   // invalidate G-stage TLB entries (harmless with Bare)
+  VSATP_SETUP(sv32, PA)                     // vsatp ON (PPN = PA of VS root)
+  csrw hgatp, x0                            // hgatp Bare
+  hfence.vvma                               // flush VS-stage TLB
+  hfence.gvma                               // flush G-stage TLB (legal in M)
 
-  LI(t0, 0xDEADBEEF)                            // poison value written to PA
-  la t1, test_region                            // t1 = SPA of U=1 data page
-  sw t0, 0(t1)                                  // SPA starts as 0xDEADBEEF (proves SUM=0 store never ran)
+  LI(t0, 0xDEADBEEF)                        // preload SPA
+  la t1, test_region                        // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
 
   LI(a5, va_data)                               // a5 = GVA pointer for guest load/store
 
@@ -95,8 +90,8 @@ main:
 // Test case 2: SUM=0 SPA unchanged | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
   // M-mode: SPA must still be poison (SUM=0 guest store never committed)
-  la t1, test_region                            // t1 = SPA again
-  lw t2, 0(t1)                                  // t2 expect 0xDEADBEEF (not guest-written)
+  la t1, test_region                        // t1 = SPA of data page
+  lw t2, 0(t1)                              // M-mode SPA readback
   test2_sum0_spa:                                   // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, t2, test2_sum0_spa, test2_sum0_spa_str) // SIGUPD
 
@@ -130,14 +125,14 @@ main:
 // Test case 4: SUM=1 SPA readback | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
   // M-mode: SPA must show guest store (stronger than VS lw alone)
-  la t1, test_region                            // t1 = SPA of U=1 page
-  lw t3, 0(t1)                                  // t3 expect 0x257A0201
+  la t1, test_region                        // t1 = SPA of data page
+  lw t3, 0(t1)                              // M-mode SPA readback
   test4_sum1_spa:                                   // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, t3, test4_sum1_spa, test4_sum1_spa_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
-RVTEST_CODE_END
-RVTEST_DATA_BEGIN
+RVTEST_CODE_END                             // framework: end code
+RVTEST_DATA_BEGIN                           // framework: start data
 
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            PHYSICAL ADDRESS REGION FOR TESTING
@@ -161,10 +156,34 @@ rvtest_vlvl0_pg_tbl:                            // VS-stage level-0 PTE storage
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            Mismatch strings (SIGUPD)
 // --------------------------------------------------------------------------------------------------------------------------------
-test1_sum0_lw_str:  .string "\"Mismatch on SUM=0 lw of U=1 page (expect fault) in Test Case 1!\""
-test2_sum0_spa_str: .string "\"Mismatch on SPA unchanged after SUM=0 in Test Case 2!\""
-test3_sum1_lw_str:  .string "\"Mismatch on SUM=1 lw of U=1 page in Test Case 3!\""
-test4_sum1_spa_str: .string "\"Mismatch on SPA after SUM=1 store in Test Case 4!\""
+test1_sum0_lw_str:  .string "\"Mismatch on SUM=0 lw of U=1 page (expect fault) in Test Case 1!\""  // mismatch string
+test2_sum0_spa_str: .string "\"Mismatch on SPA unchanged after SUM=0 in Test Case 2!\""  // mismatch string
+test3_sum1_lw_str:  .string "\"Mismatch on SUM=1 lw of U=1 page in Test Case 3!\""  // mismatch string
+test4_sum1_spa_str: .string "\"Mismatch on SPA after SUM=1 store in Test Case 4!\""  // mismatch string
 
-RVTEST_DATA_END
-RVTEST_SIG_SETUP
+RVTEST_DATA_END                             // framework: end data
+RVTEST_SIG_SETUP                            // framework: signature region
+
+
+
+  //                VS SUM controls whether VS can R/W U=1 pages (fau...
+  //                      │
+  //         ┌────────────┴────────────┐
+  //         │                         │
+  //      Test 1                             Test 2
+  //         │                         │
+  //      SUM=0                      SUM=0
+  //         │                         │
+  //      VS lw of U=1 page          SPA still poisoned
+  //         ▼                         ▼
+  //      FAULT a3=0                 PASS
+
+  //         ┌────────────┴────────────┐
+  //         │                         │
+  //      Test 3                             Test 4
+  //         │                         │
+  //      SUM=1                      SUM=1
+  //         │                         │
+  //      VS lw of U=1 page          SPA rdback confirms
+  //         ▼                         ▼
+  //      0x257A0201                 0x257A0201

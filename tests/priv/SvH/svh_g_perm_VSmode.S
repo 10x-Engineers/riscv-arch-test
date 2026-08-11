@@ -34,15 +34,10 @@
 #define TRAP_SIGUPD_COUNT 128
 #define RVTEST_HYPERVISOR
 
-// Mode hops (Sv-style GOTO_* plus H T-SBI):
-//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
-//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
-//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
+RVTEST_BEGIN                                // framework: start code
 
-RVTEST_BEGIN
-
-main:
+main:                                       // test entry
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                   Virtual addresses / GPA definitions
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -63,14 +58,14 @@ main:
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                   Enable translation / TLB fences / preloads
 // --------------------------------------------------------------------------------------------------------------------------------
-  csrw vsatp, x0                                // VS Bare — VS uses GPAs as addresses
-  HGATP_SETUP(sv32x4)                           // turn on G-stage Sv32x4
-  hfence.vvma                                   // flush VS TLB (vsatp cleared)
-  hfence.gvma                                   // flush G TLB after hgatp/PTE setup (legal in M)
+  csrw vsatp, x0                            // VS Bare
+  HGATP_SETUP(sv32x4)                       // G-stage ON
+  hfence.vvma                               // flush VS-stage TLB
+  hfence.gvma                               // flush G-stage TLB (legal in M)
 
-  LI(t0, 0x257A0201)                            // preload SPA so success cases have a known value
-  la t1, test_region                            // t1 = SPA of data page
-  sw t0, 0(t1)                                  // SPA preload (known pattern before guest access)
+  LI(t0, 0x257A0201)                        // preload SPA
+  la t1, test_region                        // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
 
   LI(a5, gpa_data)                              // a5 = GPA used by VS Bare loads/stores
 
@@ -98,8 +93,8 @@ main:
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: G leaf U=0 XWR=111+G VS lw | Expected: Expected Fault
 //---------------------------------------------------------------------------------------------------------------------------------
-  G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V | PTE_G), gpa_data, LEVEL0)  // U=0 XWR=111+G
-  hfence.gvma                                   // M-mode flush so VS sees new PTE
+  G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V | PTE_G), gpa_data, LEVEL0)  // U=0
+  hfence.gvma                               // flush G-stage TLB (must be M or HS — illegal in VS/VU)
 
   LI(a4, 0)                                     // sentinel: stays 0 if load faults
   RVTEST_TSBI_GOTO_VSMODE                      // M→VS (T-SBI)
@@ -128,8 +123,8 @@ main:
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 4: G leaf U=1 X-only | Expected: Expected Fault
 //---------------------------------------------------------------------------------------------------------------------------------
-  G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_V | PTE_G), gpa_data, LEVEL0)  // U=1 X-only
-  hfence.gvma                                   // flush G-stage TLB (must be M or HS — illegal in VS/VU)
+  G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_V | PTE_G), gpa_data, LEVEL0)  // G leaf U=1 X-only+G (no R → fault on load/store)
+  hfence.gvma                               // flush G-stage TLB (must be M or HS — illegal in VS/VU)
 
   LI(a6, 0)                                     // sentinel — stays 0 if load faults
   RVTEST_TSBI_GOTO_VSMODE                      // M→VS (T-SBI)
@@ -144,8 +139,8 @@ main:
 // Test case 5: G leaf U=1 V-only (XWR=000) | Expected: Expected Fault
 // Coverpoints: cp_hgatp_perm_checks_rw
 //---------------------------------------------------------------------------------------------------------------------------------
-  G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_V | PTE_G), gpa_data, LEVEL0)  // U=1 V-only
-  hfence.gvma                                   // flush G-stage TLB (must be M or HS — illegal in VS/VU)
+  G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_V | PTE_G), gpa_data, LEVEL0)  // G leaf U=1 V-only+G (XWR=000 → fault)
+  hfence.gvma                               // flush G-stage TLB (must be M or HS — illegal in VS/VU)
 
   LI(s3, 0)                                     // sentinel — stays 0 if load faults
   RVTEST_TSBI_GOTO_VSMODE                      // M→VS (T-SBI)
@@ -159,8 +154,8 @@ main:
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 6: Restore U=1 XWR=111+G VS lw | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
-  G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R | PTE_V | PTE_G), gpa_data, LEVEL0)  // G leaf U=1 XWR=111+G (allow)
-  hfence.gvma                                   // flush G-stage TLB (must be M or HS — illegal in VS/VU)
+  G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R | PTE_V | PTE_G), gpa_data, LEVEL0)  // restore U=1 XWR=111+G leaf
+  hfence.gvma                               // flush G-stage TLB (must be M or HS — illegal in VS/VU)
 
   LI(a7, 0)                                     // clear result register before load
   RVTEST_TSBI_GOTO_VSMODE                      // M→VS (T-SBI)
@@ -209,7 +204,7 @@ main:
 // Test case 9: G leaf U=1 V-only VS sw | Expected: Expected Fault
 //---------------------------------------------------------------------------------------------------------------------------------
   G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_V | PTE_G), gpa_data, LEVEL0)  // G leaf U=1 V-only+G (XWR=000 → fault)
-  hfence.gvma                                   // flush G-stage TLB (must be M or HS — illegal in VS/VU)
+  hfence.gvma                               // flush G-stage TLB (must be M or HS — illegal in VS/VU)
 
   LI(t0, 0xBAD00FAD)                            // payload that must not land at SPA
   RVTEST_TSBI_GOTO_VSMODE                      // M→VS (T-SBI)
@@ -225,8 +220,8 @@ main:
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 10: G leaf U=0 V-only VS sw | Expected: Expected Fault
 //---------------------------------------------------------------------------------------------------------------------------------
-  G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_V | PTE_G), gpa_data, LEVEL0)  // G leaf U=0 V-only+G (deny)
-  hfence.gvma                                   // flush G-stage TLB (must be M or HS — illegal in VS/VU)
+  G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_V | PTE_G), gpa_data, LEVEL0)  // G leaf U=0 V-only+G (XWR=000 → fault)
+  hfence.gvma                               // flush G-stage TLB (must be M or HS — illegal in VS/VU)
 
   LI(t0, 0xBAD00FAD)                            // payload that must not land at SPA
   RVTEST_TSBI_GOTO_VSMODE                      // M→VS (T-SBI)
@@ -240,8 +235,8 @@ main:
   RVTEST_SIGUPD(x2, x5, x4, s7, test10_vonly_u0_sw, test10_vonly_u0_sw_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
-RVTEST_CODE_END
-RVTEST_DATA_BEGIN
+RVTEST_CODE_END                             // framework: end code
+RVTEST_DATA_BEGIN                           // framework: start data
 
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            PHYSICAL ADDRESS REGION FOR TESTING
@@ -265,16 +260,58 @@ rvtest_hlvl0_pg_tbl:                            // G-stage L0 PTE storage
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            Mismatch strings (SIGUPD)
 // --------------------------------------------------------------------------------------------------------------------------------
-test1_u1_rwx_str:   .string "\"Mismatch on VS sw/lw with G U=1 XWR=111+G in Test Case 1!\""
-test2_u0_lw_str:    .string "\"Mismatch on VS lw with G U=0 XWR=111 (expect fault) in Test Case 2!\""
-test3_u0_sw_str:    .string "\"Mismatch on VS sw with G U=0 XWR=111 (expect SPA unchanged) in Test Case 3!\""
-test4_xonly_str:    .string "\"Mismatch on VS lw with G X-only (expect fault) in Test Case 4!\""
-test5_vonly_u1_str: .string "\"Mismatch on VS lw with G U=1 V-only (expect fault) in Test Case 5!\""
-test6_restore_str:  .string "\"Mismatch on VS lw after G perm restore in Test Case 6!\""
-test7_hlv_g_str:    .string "\"Mismatch on HS HLV of G leaf with G=1 in Test Case 7!\""
-test8_hsv_g_str:       .string "\"Mismatch on HS HSV of G leaf with G=1 in Test Case 8!\""
-test9_vonly_u1_sw_str: .string "\"Mismatch on VS sw with G U=1 V-only (expect SPA unchanged) in Test Case 9!\""
-test10_vonly_u0_sw_str:.string "\"Mismatch on VS sw with G U=0 V-only (expect SPA unchanged) in Test Case 10!\""
+test1_u1_rwx_str:   .string "\"Mismatch on VS sw/lw with G U=1 XWR=111+G in Test Case 1!\""  // mismatch string
+test2_u0_lw_str:    .string "\"Mismatch on VS lw with G U=0 XWR=111 (expect fault) in Test Case 2!\""  // mismatch string
+test3_u0_sw_str:    .string "\"Mismatch on VS sw with G U=0 XWR=111 (expect SPA unchanged) in Test Case 3!\""  // mismatch string
+test4_xonly_str:    .string "\"Mismatch on VS lw with G X-only (expect fault) in Test Case 4!\""  // mismatch string
+test5_vonly_u1_str: .string "\"Mismatch on VS lw with G U=1 V-only (expect fault) in Test Case 5!\""  // mismatch string
+test6_restore_str:  .string "\"Mismatch on VS lw after G perm restore in Test Case 6!\""  // mismatch string
+test7_hlv_g_str:    .string "\"Mismatch on HS HLV of G leaf with G=1 in Test Case 7!\""  // mismatch string
+test8_hsv_g_str:       .string "\"Mismatch on HS HSV of G leaf with G=1 in Test Case 8!\""  // mismatch string
+test9_vonly_u1_sw_str: .string "\"Mismatch on VS sw with G U=1 V-only (expect SPA unchanged) in Test Case 9!\""  // mismatch string
+test10_vonly_u0_sw_str:.string "\"Mismatch on VS sw with G U=0 V-only (expect SPA unchanged) in Test Case 10!\""  // mismatch string
 
-RVTEST_DATA_END
-RVTEST_SIG_SETUP
+RVTEST_DATA_END                             // framework: end data
+RVTEST_SIG_SETUP                            // framework: signature region
+
+
+
+  //                G-stage U/XWR allow/deny (VS Bare) and G-bit on H...
+  //                      │
+  //    ┌────────────────────────┬────────────────────────┬────────────────────────┐
+  //                │                           │                           │             
+  //              Test 1                      Test 2                      Test 3          
+  //                │                           │                           │             
+  //       G leaf U=1 XWR=111+G        G leaf U=0 XWR=111+G        G leaf U=0 XWR=111+G   
+  //                │                           │                           │             
+  //          VS Bare sw+lw                 VS Bare lw                  VS Bare sw        
+  //                ▼                           ▼                           ▼             
+  //            0x257A0201                  FAULT a4=0            FAULT SPA 0x257A0201)   
+
+  //    ┌────────────────────────┬────────────────────────┬────────────────────────┐
+  //                │                           │                           │             
+  //              Test 4                      Test 5                      Test 6          
+  //                │                           │                           │             
+  //        G leaf U=1 X-only           G leaf U=1 V-only         Restore U=1 XWR=111+G   
+  //                │                           │                           │             
+  //            VS Bare lw                  VS Bare lw                  VS Bare lw        
+  //                ▼                           ▼                           ▼             
+  //            FAULT a6=0                  FAULT s3=0                  0x257A0201        
+
+  //         ┌────────────┴────────────┐
+  //         │                         │
+  //      Test 7                             Test 8
+  //         │                         │
+  //      HS HLV of G leaf           HS HSV of G leaf
+  //         ▼                         ▼
+  //      0x257A0201                 store+HLV 0x257A0208
+
+  //         ┌────────────┴────────────┐
+  //         │                         │
+  //      Test 9                             Test 10
+  //         │                         │
+  //      G leaf U=1 V-only          G leaf U=0 V-only
+  //         │                         │
+  //      VS Bare sw                 VS Bare sw
+  //         ▼                         ▼
+  //      FAULT SPA 0x257A0208)      FAULT SPA 0x257A0208)

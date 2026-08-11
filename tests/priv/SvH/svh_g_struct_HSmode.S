@@ -23,15 +23,10 @@
 #define TRAP_SIGUPD_COUNT 256
 #define RVTEST_HYPERVISOR
 
-// Mode hops (Sv-style GOTO_* plus H T-SBI):
-//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
-//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
-//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
+RVTEST_BEGIN                                // framework: start code
 
-RVTEST_BEGIN
-
-main:
+main:                                       // test entry
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                   Virtual addresses / GPA definitions
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -54,11 +49,11 @@ main:
 // --------------------------------------------------------------------------------------------------------------------------------
   csrw vsatp, x0                                // vsatp Bare (HS HLV uses G-stage only)
   HGATP_SETUP(sv32x4)                           // hgatp = Sv32x4, PPN = G root
-  hfence.gvma                                   // flush G-stage TLB
+  hfence.gvma                               // flush G-stage TLB (must be M or HS — illegal in VS/VU)
 
-  LI(t0, 0x257A0D02)                            // known SPA preload
-  la t1, test_region                            // t1 = SPA of data page
-  sw t0, 0(t1)                                  // write preload at SPA
+  LI(t0, 0x257A0D02)                        // preload SPA
+  la t1, test_region                        // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
 
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                               Test Cases Start from here
@@ -89,8 +84,8 @@ main:
   test2_ok:                                         // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a4, test2_ok, test2_ok_str) // SIGUPD
 
-RVTEST_CODE_END
-RVTEST_DATA_BEGIN
+RVTEST_CODE_END                             // framework: end code
+RVTEST_DATA_BEGIN                           // framework: start data
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            PHYSICAL ADDRESS REGION FOR TESTING
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -111,7 +106,21 @@ rvtest_hlvl0_pg_tbl:                            // G-stage L0 PTE storage
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            Mismatch strings (SIGUPD)
 // --------------------------------------------------------------------------------------------------------------------------------
-test1_misalign_str: .string "\"Mismatch on misaligned G superpage HLV (expect fault) in Test Case 1!\""
-test2_ok_str:       .string "\"Mismatch on restored G leaf HLV in Test Case 2!\""
-RVTEST_DATA_END
-RVTEST_SIG_SETUP
+test1_misalign_str: .string "\"Mismatch on misaligned G superpage HLV (expect fault) in Test Case 1!\""  // mismatch string
+test2_ok_str:       .string "\"Mismatch on restored G leaf HLV in Test Case 2!\""  // mismatch string
+RVTEST_DATA_END                             // framework: end data
+RVTEST_SIG_SETUP                            // framework: signature region
+
+
+
+  //                Misaligned G superpage PPN faults; HFENCE.GVMA af...
+  //                      │
+  //         ┌────────────┴────────────┐
+  //         │                         │
+  //      Test 1                             Test 2
+  //         │                         │
+  //      LEVEL1 leaf with           Restore aligned root
+  //         │                         │
+  //      HS HLV                     HS HLV valid
+  //         ▼                         ▼
+  //      FAULT a3=0                 0x257A0D02

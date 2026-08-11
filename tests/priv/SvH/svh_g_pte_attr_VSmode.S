@@ -26,15 +26,10 @@
 #define TRAP_SIGUPD_COUNT 16
 #define RVTEST_HYPERVISOR
 
-// Mode hops (Sv-style GOTO_* plus H T-SBI):
-//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
-//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
-//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
+RVTEST_BEGIN                                // framework: start code
 
-RVTEST_BEGIN
-
-main:
+main:                                       // test entry
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                   Virtual addresses / GPA definitions
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -54,14 +49,14 @@ main:
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                   Enable translation / TLB fences / preloads
 // --------------------------------------------------------------------------------------------------------------------------------
-  csrw vsatp, x0                                // VS Bare — isolate G-stage RSW bins
-  HGATP_SETUP(sv32x4)                           // hgatp = Sv32x4, PPN = G root
-  hfence.vvma                                   // flush VS-stage TLB
-  hfence.gvma                                   // flush G-stage TLB (must be M or HS — illegal in VS/VU)
+  csrw vsatp, x0                            // VS Bare
+  HGATP_SETUP(sv32x4)                       // G-stage ON
+  hfence.vvma                               // flush VS-stage TLB
+  hfence.gvma                               // flush G-stage TLB (legal in M)
 
-  LI(t0, 0x257A0210)                            // known SPA preload for case 1
-  la t1, test_region                            // t1 = SPA of data page
-  sw t0, 0(t1)                                  // SPA preload (known pattern before HS HLV/HSV)
+  LI(t0, 0x257A0210)                        // preload SPA
+  la t1, test_region                        // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
 
   LI(t1, gpa_data)                              // t1 = GPA for all HS HLV/HSV
 
@@ -72,8 +67,8 @@ main:
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 1: G leaf RSW=00 HS HLV+HSV | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
-  G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V), gpa_data, LEVEL0)  // G leaf RSW=00 R/W U=1 A=D=1
-  hfence.gvma                                   // M flush before HS hop so walk sees this leaf
+  G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V), gpa_data, LEVEL0)  // G leaf U=1 R/W
+  hfence.gvma                               // flush G-stage TLB (must be M or HS — illegal in VS/VU)
 
   RVTEST_TSBI_GOTO_SMODE                       // M→HS (T-SBI)
   LI(t0, 0x257A0210)                            // payload for RSW=00 HSV
@@ -90,8 +85,8 @@ main:
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: G leaf RSW=01 HS HLV+HSV | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
-  G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V | 0x100), gpa_data, LEVEL0)  // G leaf RSW=01 (bit 8) R/W U=1
-  hfence.gvma                                   // flush G TLB after PTE rewrite
+  G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V | 0x100), gpa_data, LEVEL0)  // G leaf RSW=01 R/W U=1
+  hfence.gvma                               // flush G-stage TLB (must be M or HS — illegal in VS/VU)
 
   RVTEST_TSBI_GOTO_SMODE                       // M→HS (T-SBI)
   LI(t0, 0x257A0211)                            // payload for RSW=01 HSV
@@ -109,8 +104,8 @@ main:
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 3: G leaf RSW=10 HS HLV+HSV | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
-  G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V | 0x200), gpa_data, LEVEL0)  // G leaf RSW=10 (bit 9) R/W U=1
-  hfence.gvma                                   // flush G TLB after PTE rewrite
+  G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V | 0x200), gpa_data, LEVEL0)  // G leaf RSW=10 R/W U=1
+  hfence.gvma                               // flush G-stage TLB (must be M or HS — illegal in VS/VU)
 
   RVTEST_TSBI_GOTO_SMODE                       // M→HS (T-SBI)
   LI(t0, 0x257A0212)                            // payload for RSW=10 HSV
@@ -128,8 +123,8 @@ main:
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 4: G leaf RSW=11 HS HLV+HSV | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
-  G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V | PTE_SOFT), gpa_data, LEVEL0)  // G leaf RSW=11 (PTE_SOFT bits 9:8)
-  hfence.gvma                                   // flush G TLB after PTE rewrite
+  G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V | PTE_SOFT), gpa_data, LEVEL0)  // G leaf RSW=11 (PTE_SOFT) R/W U=1
+  hfence.gvma                               // flush G-stage TLB (must be M or HS — illegal in VS/VU)
 
   RVTEST_TSBI_GOTO_SMODE                       // M→HS (T-SBI)
   LI(t0, 0x257A0213)                            // payload for RSW=11 HSV
@@ -145,8 +140,8 @@ main:
   RVTEST_SIGUPD(x2, x5, x4, a7, test4_rsw11, test4_rsw11_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
-RVTEST_CODE_END
-RVTEST_DATA_BEGIN
+RVTEST_CODE_END                             // framework: end code
+RVTEST_DATA_BEGIN                           // framework: start data
 
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            PHYSICAL ADDRESS REGION FOR TESTING
@@ -170,10 +165,34 @@ rvtest_hlvl0_pg_tbl:                            // G-stage L0 PTE storage
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            Mismatch strings (SIGUPD)
 // --------------------------------------------------------------------------------------------------------------------------------
-test1_rsw00_str: .string "\"Mismatch on HS HLV/HSV with G RSW=00 in Test Case 1!\""
-test2_rsw01_str: .string "\"Mismatch on HS HLV/HSV with G RSW=01 in Test Case 2!\""
-test3_rsw10_str: .string "\"Mismatch on HS HLV/HSV with G RSW=10 in Test Case 3!\""
-test4_rsw11_str: .string "\"Mismatch on HS HLV/HSV with G RSW=11 in Test Case 4!\""
+test1_rsw00_str: .string "\"Mismatch on HS HLV/HSV with G RSW=00 in Test Case 1!\""  // mismatch string
+test2_rsw01_str: .string "\"Mismatch on HS HLV/HSV with G RSW=01 in Test Case 2!\""  // mismatch string
+test3_rsw10_str: .string "\"Mismatch on HS HLV/HSV with G RSW=10 in Test Case 3!\""  // mismatch string
+test4_rsw11_str: .string "\"Mismatch on HS HLV/HSV with G RSW=11 in Test Case 4!\""  // mismatch string
 
-RVTEST_DATA_END
-RVTEST_SIG_SETUP
+RVTEST_DATA_END                             // framework: end data
+RVTEST_SIG_SETUP                            // framework: signature region
+
+
+
+  //                G-stage leaf RSW[1:0] is preserved; HS HLV+HSV su...
+  //                      │
+  //         ┌────────────┴────────────┐
+  //         │                         │
+  //      Test 1                             Test 2
+  //         │                         │
+  //      G leaf RSW=00              G leaf RSW=01
+  //         │                         │
+  //      HS HLV + HSV               HS HLV + HSV
+  //         ▼                         ▼
+  //      0x257A0210                 0x257A0211
+
+  //         ┌────────────┴────────────┐
+  //         │                         │
+  //      Test 3                             Test 4
+  //         │                         │
+  //      G leaf RSW=10              G leaf RSW=11
+  //         │                         │
+  //      HS HLV + HSV               HS HLV + HSV
+  //         ▼                         ▼
+  //      0x257A0212                 0x257A0213

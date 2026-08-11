@@ -26,15 +26,10 @@
 
 // Mode hops: none — stimulus stays in M. MPRV×MPP×MPV make M loads walk vsatp
 // as if they were VS S/U; clear MPRV before every SIGUPD (signature not guest-mapped).
-// Mode hops (Sv-style GOTO_* plus H T-SBI):
-//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
-//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
-//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
+RVTEST_BEGIN                                // framework: start code
 
-RVTEST_BEGIN
-
-main:
+main:                                       // test entry
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                   Virtual addresses / GPA definitions
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -61,12 +56,12 @@ main:
   hfence.vvma                               // flush VS TLB after vsatp setup
   hfence.gvma                               // flush G TLB (hgatp Bare)
 
-  LI(t0, 0x257A0141)                        // expected value for the supervisor-style page
-  la t1, test_region_s                      // t1 = real PA for supervisor-style data
-  sw t0, 0(t1)                              // store expected supervisor-page value in memory
-  LI(t0, 0x257A0142)                        // expected value for the user-style page
-  la t1, test_region_u                      // t1 = real PA for user-style data
-  sw t0, 0(t1)                              // store expected user-page value in memory
+  LI(t0, 0x257A0141)                        // preload SPA
+  la t1, test_region_s                      // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
+  LI(t0, 0x257A0142)                        // preload SPA
+  la t1, test_region_u                      // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
 
 
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -132,8 +127,8 @@ main:
   RVTEST_SIGUPD(x2, x5, x4, a6, test3_mprv_u, test3_mprv_u_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
-RVTEST_CODE_END
-RVTEST_DATA_BEGIN
+RVTEST_CODE_END                             // framework: end code
+RVTEST_DATA_BEGIN                           // framework: start data
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            PHYSICAL ADDRESS REGION FOR TESTING
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -161,9 +156,23 @@ rvtest_vlvl0_pg_tbl:                        // VS-stage level-0 PTE storage
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            Mismatch strings (SIGUPD)
 // --------------------------------------------------------------------------------------------------------------------------------
-test1_mprv0_str: .string "\"Mismatch on MPRV=0 load (expect fault) in Test Case 1!\""
-test2_mprv_s_str: .string "\"Mismatch on MPRV=1 MPP=S load in Test Case 2!\""
-test3_mprv_u_str: .string "\"Mismatch on MPRV=1 MPP=U load in Test Case 3!\""
+test1_mprv0_str: .string "\"Mismatch on MPRV=0 load (expect fault) in Test Case 1!\""  // mismatch string
+test2_mprv_s_str: .string "\"Mismatch on MPRV=1 MPP=S load in Test Case 2!\""  // mismatch string
+test3_mprv_u_str: .string "\"Mismatch on MPRV=1 MPP=U load in Test Case 3!\""  // mismatch string
 
-RVTEST_DATA_END
-RVTEST_SIG_SETUP
+RVTEST_DATA_END                             // framework: end data
+RVTEST_SIG_SETUP                            // framework: signature region
+
+
+
+  //                MPRV×MPP×MPV selects how M-mode loads walk throug...
+  //                      │
+  //    ┌────────────────────────┬────────────────────────┬────────────────────────┐
+  //                │                           │                           │             
+  //              Test 1                      Test 2                      Test 3          
+  //                │                           │                           │             
+  //              MPRV=0               MPRV=1, MPP=S, MPV=1        MPRV=1, MPP=U, MPV=1   
+  //                │                           │                           │             
+  //     M-mode lw of GVA without    lw through vsatp S-page     lw through vsatp U-page  
+  //                ▼                           ▼                           ▼             
+  //            FAULT a3=0                  0x257A0141                  0x257A0142        

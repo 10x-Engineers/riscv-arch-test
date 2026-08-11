@@ -22,15 +22,10 @@
 #define TRAP_SIGUPD_COUNT 256
 #define RVTEST_HYPERVISOR
 
-// Mode hops (Sv-style GOTO_* plus H T-SBI):
-//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
-//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
-//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
+RVTEST_BEGIN                                // framework: start code
 
-RVTEST_BEGIN
-
-main:
+main:                                       // test entry
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                   Virtual addresses / GPA definitions
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -47,10 +42,10 @@ main:
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                   Enable translation / TLB fences / preloads
 // --------------------------------------------------------------------------------------------------------------------------------
-  VSATP_SETUP(sv32, PA)                         // vsatp = Sv32 — HLV walks VS-stage with this root
-  csrw hgatp, x0                                // hgatp Bare — VS GVA→PA only
-  hfence.vvma                                   // flush VS-stage TLB after PTE install
-  hfence.gvma                                   // flush G-stage TLB
+  VSATP_SETUP(sv32, PA)                     // vsatp ON (PPN = PA of VS root)
+  csrw hgatp, x0                            // hgatp Bare
+  hfence.vvma                               // flush VS-stage TLB
+  hfence.gvma                               // flush G-stage TLB (legal in M)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)             // bits to clear: MXR (X-as-R) and SUM
   csrc sstatus, t0                              // sstatus MXR=0 SUM=0 (HLV uses these for VS-stage checks)
@@ -59,9 +54,9 @@ main:
   LI(t0, HSTATUS_SPVP)                          // SPVP=1 → HLV checks perms as VS (not VU)
   csrs hstatus, t0                              // set hstatus.SPVP so HLV acts like VS on U=0 leaf
 
-  LI(t0, 0x257A0811)                            // poison at SPA — successful HLV would copy this into a3
-  la t1, test_region_x                          // t1 = SPA of X-only page
-  sw t0, 0(t1)                                  // M store via PA
+  LI(t0, 0x257A0811)                        // preload SPA
+  la t1, test_region_x                      // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
 
   LI(a5, va_x)                                  // a5 = GVA for HLV
   LI(a3, 0)                                     // sentinel — stays 0 if HLV page-faults
@@ -83,8 +78,8 @@ main:
   test1_hlv:                                       // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_hlv, test1_hlv_str) // SIGUPD
 
-RVTEST_CODE_END
-RVTEST_DATA_BEGIN
+RVTEST_CODE_END                             // framework: end code
+RVTEST_DATA_BEGIN                           // framework: start data
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            PHYSICAL ADDRESS REGION FOR TESTING
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -105,6 +100,18 @@ rvtest_vlvl0_pg_tbl:                            // VS-stage L0 PTE storage
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            Mismatch strings (SIGUPD)
 // --------------------------------------------------------------------------------------------------------------------------------
-test1_hlv_str: .string "\"Mismatch on HS HLV X-only MXR=0 (expect fault) in Test Case 1!\""
-RVTEST_DATA_END
-RVTEST_SIG_SETUP
+test1_hlv_str: .string "\"Mismatch on HS HLV X-only MXR=0 (expect fault) in Test Case 1!\""  // mismatch string
+RVTEST_DATA_END                             // framework: end data
+RVTEST_SIG_SETUP                            // framework: signature region
+
+
+
+  //                HS HLV through VS X-only leaf with MXR=0 raises l...
+  //                      │
+  //              Test 1
+  //                      │
+  //              MXR=0, SPVP=1, VS X-only
+  //                      │
+  //              HS hlv.w
+  //                      ▼
+  //              FAULT a3=0

@@ -22,15 +22,10 @@
 #define TRAP_SIGUPD_COUNT 256
 #define RVTEST_HYPERVISOR
 
-// Mode hops (Sv-style GOTO_* plus H T-SBI):
-//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
-//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
-//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
+RVTEST_BEGIN                                // framework: start code
 
-RVTEST_BEGIN
-
-main:
+main:                                       // test entry
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                   Virtual addresses / GPA definitions
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -42,8 +37,8 @@ main:
 //                                   Page-table setup (G-stage and/or VS-stage)
 // --------------------------------------------------------------------------------------------------------------------------------
   SUPERPAGE_VS_PTE_SETUP(sv32, rvtest_code_begin, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_R | PTE_V), va_code, LEVEL1)  // VS superpage: va_code → PA(code) U=1 X/R (VU ifetch OK)
-  csrr a0, mscratch                             // a0 = M save-area pointer (required by next macro)
-  V_SAVE_AREA_SETUP(va_code, rvtest_code_begin, code, LEVEL1)  // framework: VU entry PC is under va_code (VA≠PA)
+  csrr a0, mscratch                         // a0 = M save-area pointer (required by next macro)
+  V_SAVE_AREA_SETUP(va_code, rvtest_code_begin, code, LEVEL1)  // VA≠PA code entry
 
   VS_PTE_SETUP(sv32, PA, rvtest_vlvl0_pg_tbl, (PTE_V), va_x_u, LEVEL1)  // VS non-leaf: va_x_u VPN1 → VS L0 table PA
   VS_PTE_SETUP(sv32, PA, test_region_x, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_V), va_x_u, LEVEL0)  // VS leaf: va_x_u → PA(test_region_x) U=1 X-only (R=0 W=0)
@@ -52,18 +47,18 @@ main:
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                   Enable translation / TLB fences / preloads
 // --------------------------------------------------------------------------------------------------------------------------------
-  VSATP_SETUP(sv32, PA)                         // vsatp = Sv32, PPN = PA of VS root
-  csrw hgatp, x0                                // hgatp Bare — GVA→PA only
-  hfence.vvma                                   // flush VS-stage TLB after PTE install
-  hfence.gvma                                   // flush G-stage TLB (none, but keep walks coherent)
+  VSATP_SETUP(sv32, PA)                     // vsatp ON (PPN = PA of VS root)
+  csrw hgatp, x0                            // hgatp Bare
+  hfence.vvma                               // flush VS-stage TLB
+  hfence.gvma                               // flush G-stage TLB (legal in M)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)             // bits to clear: MXR (X-as-R) and SUM
   csrc sstatus, t0                              // HS sstatus: MXR=0 SUM=0
   csrc vsstatus, t0                             // vsstatus: MXR=0 so VU cannot read X-only
 
-  LI(t0, 0xDEADBEEF)                            // poison at SPA — successful lw would copy this into a3
-  la t1, test_region_x                          // t1 = SPA of X-only U page
-  sw t0, 0(t1)                                  // M can store via PA (no VS perms)
+  LI(t0, 0xDEADBEEF)                        // preload SPA
+  la t1, test_region_x                      // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
 
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                               Test Cases Start from here
@@ -81,8 +76,8 @@ main:
   test1_mxr0_vu:                                    // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_mxr0_vu, test1_mxr0_vu_str) // SIGUPD
 
-RVTEST_CODE_END
-RVTEST_DATA_BEGIN
+RVTEST_CODE_END                             // framework: end code
+RVTEST_DATA_BEGIN                           // framework: start data
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            PHYSICAL ADDRESS REGION FOR TESTING
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -103,6 +98,18 @@ rvtest_vlvl0_pg_tbl:                            // VS-stage L0 PTE storage
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            Mismatch strings (SIGUPD)
 // --------------------------------------------------------------------------------------------------------------------------------
-test1_mxr0_vu_str: .string "\"Mismatch on VU X-only MXR=0 lw (expect fault) in Test Case 1!\""
-RVTEST_DATA_END
-RVTEST_SIG_SETUP
+test1_mxr0_vu_str: .string "\"Mismatch on VU X-only MXR=0 lw (expect fault) in Test Case 1!\""  // mismatch string
+RVTEST_DATA_END                             // framework: end data
+RVTEST_SIG_SETUP                            // framework: signature region
+
+
+
+  //                VU load of U=1 X-only page with MXR=0 raises load...
+  //                      │
+  //              Test 1
+  //                      │
+  //              MXR=0, U-page X-only
+  //                      │
+  //              VU lw
+  //                      ▼
+  //              FAULT a3=0

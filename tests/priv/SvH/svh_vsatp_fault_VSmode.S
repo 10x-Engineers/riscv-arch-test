@@ -29,15 +29,10 @@
 #define TRAP_SIGUPD_COUNT 256
 #define RVTEST_HYPERVISOR
 
-// Mode hops (Sv-style GOTO_* plus H T-SBI):
-//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
-//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
-//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
+RVTEST_BEGIN                                // framework: start code
 
-RVTEST_BEGIN
-
-main:
+main:                                       // test entry
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                   Virtual addresses / GPA definitions
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -53,8 +48,8 @@ main:
   // ---- VS-stage (vsatp Sv32): GVA -> PA  (hgatp Bare ⇒ PTE PPN fields are real PAs) ----
   SUPERPAGE_VS_PTE_SETUP(sv32, rvtest_code_begin, (PTE_D | PTE_A | PTE_X | PTE_R | PTE_V), va_code, LEVEL1)  // VS superpage: va_code → PA(code); X/R A=D=1
 
-  csrr a0, mscratch                             // a0 = M save-area pointer (required by next macro)
-  V_SAVE_AREA_SETUP(va_code, rvtest_code_begin, code, LEVEL1)  // framework: VS entry PC is under va_code (VA≠PA)
+  csrr a0, mscratch                         // a0 = M save-area pointer (required by next macro)
+  V_SAVE_AREA_SETUP(va_code, rvtest_code_begin, code, LEVEL1)  // VA≠PA code entry
 
   VS_PTE_SETUP(sv32, PA, rvtest_vlvl0_pg_tbl, (PTE_V), va_ok, LEVEL1)  // VS non-leaf: data VPN1 → VS L0 table PA
 
@@ -66,14 +61,14 @@ main:
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                   Enable translation / TLB fences / preloads
 // --------------------------------------------------------------------------------------------------------------------------------
-  VSATP_SETUP(sv32, PA)                         // vsatp = Sv32, PPN = PA of VS root
-  csrw hgatp, x0                                // hgatp = Bare (no G-stage; VS PPN is real PA)
-  hfence.vvma                                   // flush VS-stage TLB
-  hfence.gvma                                   // flush G-stage TLB (harmless with Bare)
+  VSATP_SETUP(sv32, PA)                     // vsatp ON (PPN = PA of VS root)
+  csrw hgatp, x0                            // hgatp Bare
+  hfence.vvma                               // flush VS-stage TLB
+  hfence.gvma                               // flush G-stage TLB (legal in M)
 
-  LI(t0, 0x257A0310)                            // payload for successful case 7
-  la t1, test_region_ok                         // t1 = SPA of valid leaf
-  sw t0, 0(t1)                                  // preload SPA so case 7 has known data
+  LI(t0, 0x257A0310)                        // preload SPA
+  la t1, test_region_ok                     // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
 
 
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -196,8 +191,8 @@ main:
   RVTEST_SIGUPD(x2, x5, x4, s5, test8_v0_ifetch, test8_v0_ifetch_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
-RVTEST_CODE_END
-RVTEST_DATA_BEGIN
+RVTEST_CODE_END                             // framework: end code
+RVTEST_DATA_BEGIN                           // framework: start data
 
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            PHYSICAL ADDRESS REGION FOR TESTING
@@ -232,14 +227,44 @@ rvtest_vlvl0_pg_tbl:                            // VS-stage L0 PTE storage
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            Mismatch strings (SIGUPD)
 // --------------------------------------------------------------------------------------------------------------------------------
-test1_v0_lw_str:    .string "\"Mismatch on VS lw of V=0 leaf (expect fault) in Test Case 1!\""
-test2_v0_sw_str:    .string "\"Mismatch on VS sw of V=0 leaf (expect fault) in Test Case 2!\""
-test3_nleaf_lw_str: .string "\"Mismatch on VS lw of L0 non-leaf (expect fault) in Test Case 3!\""
-test4_nleaf_sw_str: .string "\"Mismatch on VS sw of L0 non-leaf (expect fault) in Test Case 4!\""
-test5_hlv_str:      .string "\"Mismatch on HS hlv.w of V=0 leaf (expect fault) in Test Case 5!\""
-test6_hsv_str:      .string "\"Mismatch on HS hsv.w of V=0 leaf (expect fault) in Test Case 6!\""
-test7_ok_str:       .string "\"Mismatch on VS lw of valid leaf in Test Case 7!\""
-test8_v0_ifetch_str:.string "\"Mismatch on VS ifetch of V=0 leaf (expect fault) in Test Case 8!\""
+test1_v0_lw_str:    .string "\"Mismatch on VS lw of V=0 leaf (expect fault) in Test Case 1!\""  // mismatch string
+test2_v0_sw_str:    .string "\"Mismatch on VS sw of V=0 leaf (expect fault) in Test Case 2!\""  // mismatch string
+test3_nleaf_lw_str: .string "\"Mismatch on VS lw of L0 non-leaf (expect fault) in Test Case 3!\""  // mismatch string
+test4_nleaf_sw_str: .string "\"Mismatch on VS sw of L0 non-leaf (expect fault) in Test Case 4!\""  // mismatch string
+test5_hlv_str:      .string "\"Mismatch on HS hlv.w of V=0 leaf (expect fault) in Test Case 5!\""  // mismatch string
+test6_hsv_str:      .string "\"Mismatch on HS hsv.w of V=0 leaf (expect fault) in Test Case 6!\""  // mismatch string
+test7_ok_str:       .string "\"Mismatch on VS lw of valid leaf in Test Case 7!\""  // mismatch string
+test8_v0_ifetch_str:.string "\"Mismatch on VS ifetch of V=0 leaf (expect fault) in Test Case 8!\""  // mismatch string
 
-RVTEST_DATA_END
-RVTEST_SIG_SETUP
+RVTEST_DATA_END                             // framework: end data
+RVTEST_SIG_SETUP                            // framework: signature region
+
+
+
+  //                VS faults on V=0/nonleaf lw+sw; HS HLV/HSV with S...
+  //                      │
+  //    ┌────────────────────────┬────────────────────────┬────────────────────────┐
+  //                │                           │                           │             
+  //              Test 1                      Test 2                      Test 3          
+  //                │                           │                           │             
+  //        VS lw of V=0 leaf           VS sw of V=0 leaf          VS lw of L0 non-leaf   
+  //                ▼                           ▼                           ▼             
+  //            FAULT a3=0                  FAULT s2=0                  FAULT a4=0        
+
+  //    ┌────────────────────────┬────────────────────────┬────────────────────────┐
+  //                │                           │                           │             
+  //              Test 4                      Test 5                      Test 6          
+  //                │                           │                           │             
+  //       VS sw of L0 non-leaf      HS hlv.w with SPVP=1 on     HS hsv.w with SPVP=1 on  
+  //                ▼                           ▼                           ▼             
+  //            FAULT s3=0                  FAULT a6=0                  FAULT s4=0        
+
+  //         ┌────────────┴────────────┐
+  //         │                         │
+  //      Test 7                             Test 8
+  //         │                         │
+  //      Restore valid leaf         VS jalr to V=0 leaf
+  //         │                         │
+  //      VS lw                      FAULT fetch flt s5=0
+  //         ▼                         ▼
+  //      0x257A0310                 

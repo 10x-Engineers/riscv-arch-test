@@ -27,15 +27,10 @@
 #define TRAP_SIGUPD_COUNT 16
 #define RVTEST_HYPERVISOR
 
-// Mode hops (Sv-style GOTO_* plus H T-SBI):
-//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
-//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
-//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
+RVTEST_BEGIN                                // framework: start code
 
-RVTEST_BEGIN
-
-main:
+main:                                       // test entry
   // Partner stage off (isolate hgatp field bins)
   csrw vsatp, x0                                // vsatp Bare (no VS walk; isolate hgatp field bins)
   hfence.vvma                                   // flush VS TLB after vsatp clear
@@ -103,20 +98,40 @@ ppn_walk:                                       // loop: walking-1 across PPN bi
   RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
 
 //---------------------------------------------------------------------------------------------------------------------------------
-RVTEST_CODE_END
-RVTEST_DATA_BEGIN
+RVTEST_CODE_END                             // framework: end code
+RVTEST_DATA_BEGIN                           // framework: start data
 // PASS/FAIL message strings for signature compares
 
 
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            Mismatch strings (SIGUPD)
 // --------------------------------------------------------------------------------------------------------------------------------
-test1_bare_str:     .string "\"Mismatch on setting hgatp.MODE=Bare in Test Case 1!\""
-test2_mode_str:     .string "\"Mismatch on setting hgatp.MODE=Sv32x4 (PPN=0) in Test Case 2!\""
-test3_vmid1_str:    .string "\"Mismatch on hgatp.VMID=all-ones (VMIDLEN) in Test Case 3!\""
-test3_vmid2_str:    .string "\"Mismatch on hgatp.VMID scoping read in Test Case 3!\""
-test4_ppn_ones_str: .string "\"Mismatch on hgatp.PPN=all-ones in Test Case 4!\""
-test5_ppn_walk_str: .string "\"Mismatch on walking ones in hgatp.PPN in Test Case 5!\""
+test1_bare_str:     .string "\"Mismatch on setting hgatp.MODE=Bare in Test Case 1!\""  // mismatch string
+test2_mode_str:     .string "\"Mismatch on setting hgatp.MODE=Sv32x4 (PPN=0) in Test Case 2!\""  // mismatch string
+test3_vmid1_str:    .string "\"Mismatch on hgatp.VMID=all-ones (VMIDLEN) in Test Case 3!\""  // mismatch string
+test3_vmid2_str:    .string "\"Mismatch on hgatp.VMID scoping read in Test Case 3!\""  // mismatch string
+test4_ppn_ones_str: .string "\"Mismatch on hgatp.PPN=all-ones in Test Case 4!\""  // mismatch string
+test5_ppn_walk_str: .string "\"Mismatch on walking ones in hgatp.PPN in Test Case 5!\""  // mismatch string
 
-RVTEST_DATA_END
-RVTEST_SIG_SETUP
+RVTEST_DATA_END                             // framework: end data
+RVTEST_SIG_SETUP                            // framework: signature region
+
+
+
+  //                From HS, hgatp MODE / PPN / VMID can be written a...
+  //                      │
+  //    ┌────────────────────────┬────────────────────────┬────────────────────────┐
+  //                │                           │                           │             
+  //              Test 1                      Test 2                      Test 3          
+  //                │                           │                           │             
+  //     Set hgatp.MODE=Bare (0)      Set hgatp.MODE=Sv32x4       hgatp.VMID = all ones   
+  //                ▼                           ▼                           ▼             
+  //              rdback                      rdback            VMIDLEN + scoping rdbacks 
+
+  //         ┌────────────┴────────────┐
+  //         │                         │
+  //      Test 4                             Test 5
+  //         │                         │
+  //      hgatp.PPN = all ones       Walking ones on
+  //         ▼                         ▼
+  //      PASS                       PASS

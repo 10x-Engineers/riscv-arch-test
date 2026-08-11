@@ -28,12 +28,7 @@
 #define TRAP_SIGUPD_COUNT 256
 #define RVTEST_HYPERVISOR
 
-// Mode hops (Sv-style GOTO_* plus H T-SBI):
-//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
-//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
-//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
-
 #define PTE_BIT54 (_RISCV_ULL(1) << 54)
 #define PTE_BIT55 (_RISCV_ULL(1) << 55)
 #define PTE_BIT56 (_RISCV_ULL(1) << 56)
@@ -46,9 +41,9 @@
 #define PTE_PBMT2 (_RISCV_ULL(1) << 62)
 #define PTE_PBMT3 (_RISCV_ULL(3) << 61)
 
-RVTEST_BEGIN
+RVTEST_BEGIN                                // framework: start code
 
-main:
+main:                                       // test entry
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                   Virtual addresses / GPA definitions
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -73,9 +68,9 @@ main:
   hfence.vvma                                   // flush VS-stage TLB
   hfence.gvma                                   // flush G-stage TLB (must be M or HS — illegal in VS/VU)
 
-  LI(t0, 0x257A0240)                            // known SPA preload for case 1
-  la t1, test_region                            // t1 = SPA of data page
-  sw t0, 0(t1)                                  // SPA preload (known pattern before guest access)
+  LI(t0, 0x257A0240)                        // preload SPA
+  la t1, test_region                        // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
 
   LI(t1, gpa_data)                              // t1 = GPA for all HS HLV/HSV
 
@@ -102,8 +97,8 @@ main:
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: G leaf RSW=11 HS HSV+HLV | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
-  G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V | PTE_SOFT), gpa_data, LEVEL0)  // G leaf RSW=11 (PTE_SOFT) for case 2
-  hfence.gvma                                   // flush G-stage TLB (must be M or HS — illegal in VS/VU)
+  G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V | PTE_SOFT), gpa_data, LEVEL0)  // G leaf RSW=11 (PTE_SOFT) R/W U=1
+  hfence.gvma                               // flush G-stage TLB (must be M or HS — illegal in VS/VU)
 
   RVTEST_TSBI_GOTO_SMODE                       // M→HS (T-SBI)
   LI(t0, 0x257A0241)                            // payload for RSW=11 HSV
@@ -122,8 +117,8 @@ main:
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 2b: G leaf RSW=01 (0x100) HS HSV+HLV | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
-  G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V | 0x100), gpa_data, LEVEL0)  // G leaf RSW=01 (bit 8) U=1 R/W
-  hfence.gvma                                   // flush G TLB after PTE rewrite
+  G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V | 0x100), gpa_data, LEVEL0)  // G leaf RSW=01 R/W U=1
+  hfence.gvma                               // flush G-stage TLB (must be M or HS — illegal in VS/VU)
   RVTEST_TSBI_GOTO_SMODE                       // M→HS (T-SBI)
   LI(t0, 0x257A0242)                            // payload for RSW=01 HSV
   LI(t1, gpa_data)                              // t1 = GPA
@@ -140,8 +135,8 @@ main:
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 2c: G leaf RSW=10 (0x200) HS HSV+HLV | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
-  G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V | 0x200), gpa_data, LEVEL0)  // G leaf RSW=10 (bit 9) U=1 R/W
-  hfence.gvma                                   // flush G TLB after PTE rewrite
+  G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V | 0x200), gpa_data, LEVEL0)  // G leaf RSW=10 R/W U=1
+  hfence.gvma                               // flush G-stage TLB (must be M or HS — illegal in VS/VU)
   RVTEST_TSBI_GOTO_SMODE                       // M→HS (T-SBI)
   LI(t0, 0x257A0243)                            // payload for RSW=10 HSV
   LI(t1, gpa_data)                              // t1 = GPA
@@ -161,12 +156,12 @@ main:
 // Distinct SPA patterns avoid HLV.W sign-extend DEADBEEF mistag (sail_to_rvvi filter).
 // Macro lines use /* */ then `\`: `//` would eat the backslash and break continuation.
 //---------------------------------------------------------------------------------------------------------------------------------
-#define G_RSVD_CASE(bitmask, reg, label, strlabel)                  /* one reserved-bit HLV+HSV case */ \
-  G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V | (bitmask)), gpa_data, LEVEL0); /* G leaf A=D=1 U=1 R/W + reserved bitmask */ \
-  hfence.gvma;                                                      /* flush G TLB so next HLV rewalks */ \
-  LI(t0, 0x257A02C0);                                               /* SPA preload before HLV (not DEADBEEF) */ \
-  la t1, test_region;                                               /* t1 = SPA of data page */ \
-  sw t0, 0(t1);                                                     /* write preload at SPA */ \
+#define G_RSVD_CASE(bitmask, reg, label, strlabel)                  \
+  G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V | (bitmask)), gpa_data, LEVEL0) ; /* G leaf + reserved bitmask */ \
+  hfence.gvma ; /* flush G-stage TLB (must be M or HS — illegal in VS/VU) */ \
+  LI(t0, 0x257A02C0) ; /* preload SPA */ \
+  la t1, test_region ; /* t1 = SPA of data page */ \
+  sw t0, 0(t1) ; /* SPA preload (known pattern before guest access) */ \
   RVTEST_TSBI_GOTO_SMODE;                                           /* M→HS identity (HLV is HS-only) */ \
   LI(reg, 0);                                                       /* sentinel — stays 0 if HLV faults */ \
   LI(t1, gpa_data);                                                 /* t1 = GPA for HLV */ \
@@ -201,8 +196,8 @@ main:
   LI(t0, MENVCFG_PBMTE)                         // t0 = menvcfg.PBMTE mask
   csrs menvcfg, t0                              // set menvcfg.PBMTE=1 so G-stage PBMT is defined
 
-  G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V | PTE_PBMT1), gpa_data, LEVEL0)  // G leaf PBMT=1 U=1 R/W
-  hfence.gvma                                   // flush G TLB after PTE rewrite
+  G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V | PTE_PBMT1), gpa_data, LEVEL0)  // G leaf with PBMT encoding
+  hfence.gvma                               // flush G-stage TLB (must be M or HS — illegal in VS/VU)
   RVTEST_TSBI_GOTO_SMODE                       // M→HS (T-SBI)
   LI(a7, 0)                                     // sentinel / result for HLV
   LI(t1, gpa_data)                              // t1 = GPA
@@ -215,8 +210,8 @@ main:
   test4a_pbmt1:                                     // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a7, test4a_pbmt1, test4a_pbmt1_str) // SIGUPD
 
-  G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V | PTE_PBMT2), gpa_data, LEVEL0)  // G leaf PBMT=2 U=1 R/W
-  hfence.gvma                                   // flush G TLB after PTE rewrite
+  G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V | PTE_PBMT2), gpa_data, LEVEL0)  // G leaf with PBMT encoding
+  hfence.gvma                               // flush G-stage TLB (must be M or HS — illegal in VS/VU)
   RVTEST_TSBI_GOTO_SMODE                       // M→HS (T-SBI)
   LI(s7, 0)                                     // sentinel / result for HLV
   LI(t1, gpa_data)                              // t1 = GPA
@@ -229,8 +224,8 @@ main:
   test4b_pbmt2:                                     // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s7, test4b_pbmt2, test4b_pbmt2_str) // SIGUPD
 
-  G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V | PTE_PBMT3), gpa_data, LEVEL0)  // G leaf PBMT=3 U=1 R/W
-  hfence.gvma                                   // flush G TLB after PTE rewrite
+  G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V | PTE_PBMT3), gpa_data, LEVEL0)  // G leaf with PBMT encoding
+  hfence.gvma                               // flush G-stage TLB (must be M or HS — illegal in VS/VU)
   RVTEST_TSBI_GOTO_SMODE                       // M→HS (T-SBI)
   LI(s8, 0)                                     // sentinel / result for HLV
   LI(t1, gpa_data)                              // t1 = GPA
@@ -249,8 +244,8 @@ main:
   LI(t0, MENVCFG_PBMTE)                         // t0 = menvcfg.PBMTE mask
   csrc menvcfg, t0                              // clear menvcfg.PBMTE — G PBMT encodings unsupported
 
-  G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V | PTE_PBMT1), gpa_data, LEVEL0)  // G leaf PBMT=1 with PBMTE=0
-  hfence.gvma                                   // flush G TLB after PTE rewrite
+  G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V | PTE_PBMT1), gpa_data, LEVEL0)  // G leaf with PBMT encoding
+  hfence.gvma                               // flush G-stage TLB (must be M or HS — illegal in VS/VU)
   RVTEST_TSBI_GOTO_SMODE                       // M→HS (T-SBI)
   LI(s9, 0)                                     // sentinel — stays 0 if HLV faults
   LI(t1, gpa_data)                              // t1 = GPA
@@ -263,8 +258,8 @@ main:
   test4d_pbmt1_nosup:                               // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s9, test4d_pbmt1_nosup, test4d_pbmt1_nosup_str) // SIGUPD
 
-  G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V | PTE_PBMT2), gpa_data, LEVEL0)  // G leaf PBMT=2 with PBMTE=0
-  hfence.gvma                                   // flush G TLB after PTE rewrite
+  G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V | PTE_PBMT2), gpa_data, LEVEL0)  // G leaf with PBMT encoding
+  hfence.gvma                               // flush G-stage TLB (must be M or HS — illegal in VS/VU)
   RVTEST_TSBI_GOTO_SMODE                       // M→HS (T-SBI)
   LI(s10, 0)                                    // sentinel — stays 0 if HLV faults
   LI(t1, gpa_data)                              // t1 = GPA
@@ -277,8 +272,8 @@ main:
   test4e_pbmt2_nosup:                               // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s10, test4e_pbmt2_nosup, test4e_pbmt2_nosup_str) // SIGUPD
 
-  G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V | PTE_PBMT3), gpa_data, LEVEL0)  // G leaf PBMT=3 with PBMTE=0
-  hfence.gvma                                   // flush G TLB after PTE rewrite
+  G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V | PTE_PBMT3), gpa_data, LEVEL0)  // G leaf with PBMT encoding
+  hfence.gvma                               // flush G-stage TLB (must be M or HS — illegal in VS/VU)
   RVTEST_TSBI_GOTO_SMODE                       // M→HS (T-SBI)
   LI(s11, 0)                                    // sentinel — stays 0 if HLV faults
   LI(t1, gpa_data)                              // t1 = GPA
@@ -295,9 +290,9 @@ main:
 // Test case 5: Restore valid G leaf HS HLV | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
   G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V), gpa_data, LEVEL0)  // restore valid G leaf RSW=00 U=1 R/W
-  LI(t0, 0x257A0241)                            // known SPA pattern for restore check
-  la t1, test_region                            // t1 = SPA
-  sw t0, 0(t1)                                  // write 0x257A0241 at SPA before HS HLV
+  LI(t0, 0x257A0241)                        // preload SPA
+  la t1, test_region                        // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
   hfence.gvma                                   // flush G TLB so walk sees restored leaf
 
   RVTEST_TSBI_GOTO_SMODE                       // M→HS (T-SBI)
@@ -311,8 +306,8 @@ main:
   RVTEST_SIGUPD(x2, x5, x4, s2, test5_restore, test5_restore_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
-RVTEST_CODE_END
-RVTEST_DATA_BEGIN
+RVTEST_CODE_END                             // framework: end code
+RVTEST_DATA_BEGIN                           // framework: start data
 
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            PHYSICAL ADDRESS REGION FOR TESTING
@@ -339,25 +334,49 @@ rvtest_hlvl0_pg_tbl:                            // G-stage L0 PTE storage
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            Mismatch strings (SIGUPD)
 // --------------------------------------------------------------------------------------------------------------------------------
-test1_rsw00_str:   .string "\"Mismatch on HS HLV/HSV with G RSW=00 in Test Case 1!\""
-test2_rsw11_str:   .string "\"Mismatch on HS HLV/HSV with G RSW=11 in Test Case 2!\""
-test2b_rsw01_str:  .string "\"Mismatch on HS HLV/HSV with G RSW=01 in Test Case 2b!\""
-test2c_rsw10_str:  .string "\"Mismatch on HS HLV/HSV with G RSW=10 in Test Case 2c!\""
-test3a_b54_str:    .string "\"Mismatch on G reserved bit54 HLV (expect fault) in Test Case 3a!\""
-test3b_b55_str:    .string "\"Mismatch on G reserved bit55 HLV (expect fault) in Test Case 3b!\""
-test3c_b56_str:    .string "\"Mismatch on G reserved bit56 HLV (expect fault) in Test Case 3c!\""
-test3d_b57_str:    .string "\"Mismatch on G reserved bit57 HLV (expect fault) in Test Case 3d!\""
-test3e_b58_str:    .string "\"Mismatch on G reserved bit58 HLV (expect fault) in Test Case 3e!\""
-test3f_b59_str:    .string "\"Mismatch on G reserved bit59 HLV (expect fault) in Test Case 3f!\""
-test3g_b60_str:    .string "\"Mismatch on G reserved bit60 HLV (expect fault) in Test Case 3g!\""
-test3h_all_str:    .string "\"Mismatch on G reserved all-ones HLV (expect fault) in Test Case 3h!\""
-test4a_pbmt1_str:  .string "\"Mismatch on G PBMT=1 HLV/HSV in Test Case 4a!\""
-test4b_pbmt2_str:  .string "\"Mismatch on G PBMT=2 HLV/HSV in Test Case 4b!\""
-test4c_pbmt3_str:  .string "\"Mismatch on G PBMT=3 HLV/HSV in Test Case 4c!\""
-test4d_pbmt1_nosup_str: .string "\"Mismatch on G PBMT=1 PBMTE=0 (expect fault) in Test Case 4d!\""
-test4e_pbmt2_nosup_str: .string "\"Mismatch on G PBMT=2 PBMTE=0 (expect fault) in Test Case 4e!\""
-test4f_pbmt3_nosup_str: .string "\"Mismatch on G PBMT=3 PBMTE=0 (expect fault) in Test Case 4f!\""
-test5_restore_str: .string "\"Mismatch on HS HLV after valid G leaf restore in Test Case 5!\""
+test1_rsw00_str:   .string "\"Mismatch on HS HLV/HSV with G RSW=00 in Test Case 1!\""  // mismatch string
+test2_rsw11_str:   .string "\"Mismatch on HS HLV/HSV with G RSW=11 in Test Case 2!\""  // mismatch string
+test2b_rsw01_str:  .string "\"Mismatch on HS HLV/HSV with G RSW=01 in Test Case 2b!\""  // mismatch string
+test2c_rsw10_str:  .string "\"Mismatch on HS HLV/HSV with G RSW=10 in Test Case 2c!\""  // mismatch string
+test3a_b54_str:    .string "\"Mismatch on G reserved bit54 HLV (expect fault) in Test Case 3a!\""  // mismatch string
+test3b_b55_str:    .string "\"Mismatch on G reserved bit55 HLV (expect fault) in Test Case 3b!\""  // mismatch string
+test3c_b56_str:    .string "\"Mismatch on G reserved bit56 HLV (expect fault) in Test Case 3c!\""  // mismatch string
+test3d_b57_str:    .string "\"Mismatch on G reserved bit57 HLV (expect fault) in Test Case 3d!\""  // mismatch string
+test3e_b58_str:    .string "\"Mismatch on G reserved bit58 HLV (expect fault) in Test Case 3e!\""  // mismatch string
+test3f_b59_str:    .string "\"Mismatch on G reserved bit59 HLV (expect fault) in Test Case 3f!\""  // mismatch string
+test3g_b60_str:    .string "\"Mismatch on G reserved bit60 HLV (expect fault) in Test Case 3g!\""  // mismatch string
+test3h_all_str:    .string "\"Mismatch on G reserved all-ones HLV (expect fault) in Test Case 3h!\""  // mismatch string
+test4a_pbmt1_str:  .string "\"Mismatch on G PBMT=1 HLV/HSV in Test Case 4a!\""  // mismatch string
+test4b_pbmt2_str:  .string "\"Mismatch on G PBMT=2 HLV/HSV in Test Case 4b!\""  // mismatch string
+test4c_pbmt3_str:  .string "\"Mismatch on G PBMT=3 HLV/HSV in Test Case 4c!\""  // mismatch string
+test4d_pbmt1_nosup_str: .string "\"Mismatch on G PBMT=1 PBMTE=0 (expect fault) in Test Case 4d!\""  // mismatch string
+test4e_pbmt2_nosup_str: .string "\"Mismatch on G PBMT=2 PBMTE=0 (expect fault) in Test Case 4e!\""  // mismatch string
+test4f_pbmt3_nosup_str: .string "\"Mismatch on G PBMT=3 PBMTE=0 (expect fault) in Test Case 4f!\""  // mismatch string
+test5_restore_str: .string "\"Mismatch on HS HLV after valid G leaf restore in Test Case 5!\""  // mismatch string
 
-RVTEST_DATA_END
-RVTEST_SIG_SETUP
+RVTEST_DATA_END                             // framework: end data
+RVTEST_SIG_SETUP                            // framework: signature region
+
+
+
+  //                Sv39x4 G PTE RSW ok via HS HLV+HSV; reserved/PBMT...
+  //                      │
+  //    ┌────────────────────────┬────────────────────────┬────────────────────────┐
+  //                │                           │                           │             
+  //              Test 1                      Test 2                      Test 3          
+  //                │                           │                           │             
+  //          G leaf RSW=00               G leaf RSW=11            G leaf reserved walk   
+  //                │                           │                           │             
+  //            HS HSV+HLV                  HS HSV+HLV               HS HLV+HSV each      
+  //                ▼                           ▼                           ▼             
+  //            0x257A0240                  0x257A0241                    FAULT           
+
+  //         ┌────────────┴────────────┐
+  //         │                         │
+  //      Test 4                             Test 5
+  //         │                         │
+  //      G leaf PBMT=1/2/3          Restore valid leaf
+  //         │                         │
+  //      HS HLV+HSV                 HS HLV
+  //         ▼                         ▼
+  //      dump                       0x257A0241

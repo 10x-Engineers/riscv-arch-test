@@ -24,15 +24,10 @@
 #define TRAP_SIGUPD_COUNT 32
 #define RVTEST_HYPERVISOR
 
-// Mode hops (Sv-style GOTO_* plus H T-SBI):
-//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
-//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
-//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
+RVTEST_BEGIN                                // framework: start code
 
-RVTEST_BEGIN
-
-main:
+main:                                       // test entry
   // ---- VS-stage map: keep code reachable while satp.MODE is flipped in VS ----
   // Keep PC mapped while we change MODE: VA 0x80000000 → real code PA
   .set va_code, 0x0000000080000000              // GVA where VS executes this test code
@@ -42,16 +37,16 @@ main:
 //                                   Page-table setup (G-stage and/or VS-stage)
 // --------------------------------------------------------------------------------------------------------------------------------
   VS_PTE_SETUP(sv39, PA, rvtest_code_begin, (PTE_D | PTE_A | PTE_X | PTE_R | PTE_W | PTE_V), va_code, LEVEL2)  // map code so MODE flips cannot unmap us
-  csrr a0, mscratch                             // needed by V_SAVE_AREA_SETUP
-  V_SAVE_AREA_SETUP(va_code, rvtest_code_begin, code, LEVEL2)  // tell framework: VS entry PC = va_code
+  csrr a0, mscratch                         // a0 = M save-area pointer (required by next macro)
+  V_SAVE_AREA_SETUP(va_code, rvtest_code_begin, code, LEVEL2)  // VA≠PA code entry
 
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                   Enable translation / TLB fences / preloads
 // --------------------------------------------------------------------------------------------------------------------------------
-  VSATP_SETUP(sv39, PA)                         // turn on VS paging (root at PA)
-  csrw hgatp, x0                                // G Bare (isolate satp/vsatp alias test)
-  hfence.vvma                                   // flush VS-stage TLB after vsatp write
-  hfence.gvma                                   // flush G-stage TLB (hgatp Bare)
+  VSATP_SETUP(sv39, PA)                     // vsatp ON (PPN = PA of VS root)
+  csrw hgatp, x0                            // hgatp Bare
+  hfence.vvma                               // flush VS-stage TLB
+  hfence.gvma                               // flush G-stage TLB (legal in M)
 
 
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -108,18 +103,32 @@ mode_walk:                                      // loop: try each MODE encoding
   RVTEST_SIGUPD(x2, x5, x4, a6, test3_final, test3_final_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
-RVTEST_CODE_END
-RVTEST_DATA_BEGIN
+RVTEST_CODE_END                             // framework: end code
+RVTEST_DATA_BEGIN                           // framework: start data
 // PASS/FAIL message strings for signature compares
 
 
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            Mismatch strings (SIGUPD)
 // --------------------------------------------------------------------------------------------------------------------------------
-test1_satp_str:       .string "\"Mismatch on satp read (Sv39) in Test Case 1!\""
-test1_vsatp_str:      .string "\"Mismatch on vsatp alias read in Test Case 1!\""
-test2_mode_walk_str:  .string "\"Mismatch on satp.MODE WARL walk in Test Case 2!\""
-test3_final_str:      .string "\"Mismatch on final satp read in Test Case 3!\""
+test1_satp_str:       .string "\"Mismatch on satp read (Sv39) in Test Case 1!\""  // mismatch string
+test1_vsatp_str:      .string "\"Mismatch on vsatp alias read in Test Case 1!\""  // mismatch string
+test2_mode_walk_str:  .string "\"Mismatch on satp.MODE WARL walk in Test Case 2!\""  // mismatch string
+test3_final_str:      .string "\"Mismatch on final satp read in Test Case 3!\""  // mismatch string
 
-RVTEST_DATA_END
-RVTEST_SIG_SETUP
+RVTEST_DATA_END                             // framework: end data
+RVTEST_SIG_SETUP                            // framework: signature region
+
+
+
+  //                In VS, satp.MODE is WARL; satp and vsatp stay ali...
+  //                      │
+  //    ┌────────────────────────┬────────────────────────┬────────────────────────┐
+  //                │                           │                           │             
+  //              Test 1                      Test 2                      Test 3          
+  //                │                           │                           │             
+  //      Read satp/vsatp alias        Walk satp.MODE 0..15       Final satp read after   
+  //                │                           │                           │             
+  //               PASS               dump last WARL sample                PASS           
+  //                                            ▼                                         
+  //                                           PASS                                       

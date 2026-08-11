@@ -30,15 +30,10 @@
 #define TRAP_SIGUPD_COUNT 64
 #define RVTEST_HYPERVISOR
 
-// Mode hops (Sv-style GOTO_* plus H T-SBI):
-//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
-//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
-//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
+RVTEST_BEGIN                                // framework: start code
 
-RVTEST_BEGIN
-
-main:
+main:                                       // test entry
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                   Virtual addresses / GPA definitions
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -52,8 +47,8 @@ main:
   // ---- VS-stage (vsatp Sv32): GVA -> PA  (hgatp Bare ⇒ PTE PPN fields are real PAs) ----
   SUPERPAGE_VS_PTE_SETUP(sv32, rvtest_code_begin, (PTE_D | PTE_A | PTE_X | PTE_R | PTE_V), va_code, LEVEL1)  // VS superpage: va_code → PA(code); X/R A=D=1
 
-  csrr a0, mscratch                             // a0 = M save-area pointer (required by next macro)
-  V_SAVE_AREA_SETUP(va_code, rvtest_code_begin, code, LEVEL1)  // framework: VS entry PC is under va_code (VA≠PA)
+  csrr a0, mscratch                         // a0 = M save-area pointer (required by next macro)
+  V_SAVE_AREA_SETUP(va_code, rvtest_code_begin, code, LEVEL1)  // VA≠PA code entry
 
   VS_PTE_SETUP(sv32, PA, rvtest_vlvl0_pg_tbl, (PTE_V), va_data, LEVEL1)  // VS non-leaf: va_data VPN1 → VS L0 table PA
   VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_W | PTE_R | PTE_V), va_data, LEVEL0)  // VS leaf: va_data → PA(test_region) R/W A=D=1 RSW=00
@@ -62,10 +57,10 @@ main:
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                   Enable translation / TLB fences / preloads
 // --------------------------------------------------------------------------------------------------------------------------------
-  VSATP_SETUP(sv32, PA)                         // vsatp = Sv32, PPN = PA of VS root
-  csrw hgatp, x0                                // hgatp = Bare (no G-stage; VS PPN is real PA)
-  hfence.vvma                                   // flush VS-stage TLB
-  hfence.gvma                                   // flush G-stage TLB (must be M or HS — illegal in VS/VU)
+  VSATP_SETUP(sv32, PA)                     // vsatp ON (PPN = PA of VS root)
+  csrw hgatp, x0                            // hgatp Bare
+  hfence.vvma                               // flush VS-stage TLB
+  hfence.gvma                               // flush G-stage TLB (legal in M)
 
   LI(a5, va_data)                               // a5 = GVA pointer for all RSW store/load cases
 
@@ -82,8 +77,8 @@ main:
   nop                                           // trap-skip pad
   RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
 
-  la t1, test_region                            // t1 = SPA of data page
-  lw s2, 0(t1)                                  // expect 0x257A0301 in SPA
+  la t1, test_region                        // t1 = SPA of data page
+  lw s2, 0(t1)                              // M-mode SPA readback
   test1_rsw00_sw:                                   // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s2, test1_rsw00_sw, test1_rsw00_sw_str) // SIGUPD
 
@@ -111,8 +106,8 @@ main:
   nop                                           // trap-skip pad
   RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
 
-  la t1, test_region                            // t1 = SPA
-  lw s3, 0(t1)                                  // expect 0x257A0302 in SPA
+  la t1, test_region                        // t1 = SPA of data page
+  lw s3, 0(t1)                              // M-mode SPA readback
   test3_rsw01_sw:                                   // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s3, test3_rsw01_sw, test3_rsw01_sw_str) // SIGUPD
 
@@ -140,8 +135,8 @@ main:
   nop                                           // trap-skip pad
   RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
 
-  la t1, test_region                            // t1 = SPA
-  lw s4, 0(t1)                                  // expect 0x257A0303 in SPA
+  la t1, test_region                        // t1 = SPA of data page
+  lw s4, 0(t1)                              // M-mode SPA readback
   test5_rsw10_sw:                                   // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s4, test5_rsw10_sw, test5_rsw10_sw_str) // SIGUPD
 
@@ -169,8 +164,8 @@ main:
   nop                                           // trap-skip pad
   RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
 
-  la t1, test_region                            // t1 = SPA
-  lw s5, 0(t1)                                  // expect 0x257A0304 in SPA
+  la t1, test_region                        // t1 = SPA of data page
+  lw s5, 0(t1)                              // M-mode SPA readback
   test7_rsw11_sw:                                   // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s5, test7_rsw11_sw, test7_rsw11_sw_str) // SIGUPD
 
@@ -187,8 +182,8 @@ main:
   RVTEST_SIGUPD(x2, x5, x4, a7, test8_rsw11_lw, test8_rsw11_lw_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
-RVTEST_CODE_END
-RVTEST_DATA_BEGIN
+RVTEST_CODE_END                             // framework: end code
+RVTEST_DATA_BEGIN                           // framework: start data
 
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            PHYSICAL ADDRESS REGION FOR TESTING
@@ -212,14 +207,48 @@ rvtest_vlvl0_pg_tbl:                            // VS-stage L0 PTE storage
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            Mismatch strings (SIGUPD)
 // --------------------------------------------------------------------------------------------------------------------------------
-test1_rsw00_sw_str: .string "\"Mismatch on RSW=00 VS sw SPA in Test Case 1!\""
-test2_rsw00_lw_str: .string "\"Mismatch on RSW=00 VS lw in Test Case 2!\""
-test3_rsw01_sw_str: .string "\"Mismatch on RSW=01 VS sw SPA in Test Case 3!\""
-test4_rsw01_lw_str: .string "\"Mismatch on RSW=01 VS lw in Test Case 4!\""
-test5_rsw10_sw_str: .string "\"Mismatch on RSW=10 VS sw SPA in Test Case 5!\""
-test6_rsw10_lw_str: .string "\"Mismatch on RSW=10 VS lw in Test Case 6!\""
-test7_rsw11_sw_str: .string "\"Mismatch on RSW=11 VS sw SPA in Test Case 7!\""
-test8_rsw11_lw_str: .string "\"Mismatch on RSW=11 VS lw in Test Case 8!\""
+test1_rsw00_sw_str: .string "\"Mismatch on RSW=00 VS sw SPA in Test Case 1!\""  // mismatch string
+test2_rsw00_lw_str: .string "\"Mismatch on RSW=00 VS lw in Test Case 2!\""  // mismatch string
+test3_rsw01_sw_str: .string "\"Mismatch on RSW=01 VS sw SPA in Test Case 3!\""  // mismatch string
+test4_rsw01_lw_str: .string "\"Mismatch on RSW=01 VS lw in Test Case 4!\""  // mismatch string
+test5_rsw10_sw_str: .string "\"Mismatch on RSW=10 VS sw SPA in Test Case 5!\""  // mismatch string
+test6_rsw10_lw_str: .string "\"Mismatch on RSW=10 VS lw in Test Case 6!\""  // mismatch string
+test7_rsw11_sw_str: .string "\"Mismatch on RSW=11 VS sw SPA in Test Case 7!\""  // mismatch string
+test8_rsw11_lw_str: .string "\"Mismatch on RSW=11 VS lw in Test Case 8!\""  // mismatch string
 
-RVTEST_DATA_END
-RVTEST_SIG_SETUP
+RVTEST_DATA_END                             // framework: end data
+RVTEST_SIG_SETUP                            // framework: signature region
+
+
+
+  //                VS-stage PTE RSW[9:8] is preserved; stores and lo...
+  //                      │
+  //    ┌────────────────────────┬────────────────────────┬────────────────────────┐
+  //                │                           │                           │             
+  //              Test 1                      Test 2                      Test 3          
+  //                │                           │                           │             
+  //              RSW=00                      RSW=00                      RSW=01          
+  //                │                           │                           │             
+  //              VS sw                     VS lw only                    VS sw           
+  //                ▼                           ▼                           ▼             
+  //          SPA 0x257A0301                0x257A0301                SPA 0x257A0302      
+
+  //    ┌────────────────────────┬────────────────────────┬────────────────────────┐
+  //                │                           │                           │             
+  //              Test 4                      Test 5                      Test 6          
+  //                │                           │                           │             
+  //              RSW=01                      RSW=10                      RSW=10          
+  //                │                           │                           │             
+  //            VS lw only                    VS sw                     VS lw only        
+  //                ▼                           ▼                           ▼             
+  //            0x257A0302                SPA 0x257A0303                0x257A0303        
+
+  //         ┌────────────┴────────────┐
+  //         │                         │
+  //      Test 7                             Test 8
+  //         │                         │
+  //      RSW=11                     RSW=11
+  //         │                         │
+  //      VS sw                      VS lw only
+  //         ▼                         ▼
+  //      SPA 0x257A0304             0x257A0304

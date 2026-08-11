@@ -5,7 +5,7 @@
 // Coverpoints mapped (SvH_cg):
 //   cp_vsatp_ppn_field      — HS write/read vsatp.PPN (Sv32)
 //   cp_vsatp_asidlen_detect — HS write all ASID bits, read back ASIDLEN
-// NOT mapped (RV64-only; see RV64 twin + UDB_MXLEN_64):
+//   NOT mapped (RV64-only; see RV64 twin + UDB_MXLEN_64):
 //   cp_vsatp_mode_field
 // What this proves (one line):
 //   From HS on RV32, vsatp PPN / ASID write+read (no MODE 0..15 walk — that is RV64-only).
@@ -30,15 +30,10 @@
 #define TRAP_SIGUPD_COUNT 16
 #define RVTEST_HYPERVISOR
 
-// Mode hops (Sv-style GOTO_* plus H T-SBI):
-//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
-//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
-//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
+RVTEST_BEGIN                                // framework: start code
 
-RVTEST_BEGIN
-
-main:
+main:                                       // test entry
   // Partner stage off (vsatp CSR tests use hgatp Bare)
   csrw hgatp, x0                                // hgatp=0 → G-stage Bare (isolate vsatp field bins)
   hfence.gvma                                   // flush old G TLB after hgatp clear
@@ -95,18 +90,40 @@ ppn_walk:                                       // loop: walking-1 across PPN bi
   RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
 
 //---------------------------------------------------------------------------------------------------------------------------------
-RVTEST_CODE_END
-RVTEST_DATA_BEGIN
+RVTEST_CODE_END                             // framework: end code
+RVTEST_DATA_BEGIN                           // framework: start data
 // PASS/FAIL message strings for signature compares
 
 
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            Mismatch strings (SIGUPD)
 // --------------------------------------------------------------------------------------------------------------------------------
-test1_mode_str:     .string "\"Mismatch on setting vsatp.MODE=Sv32 (PPN=0) in Test Case 1!\""
-test2_asid_str:     .string "\"Mismatch on vsatp.ASID=all-ones in Test Case 2!\""
-test3_ppn_ones_str: .string "\"Mismatch on vsatp.PPN=all-ones in Test Case 3!\""
-test4_ppn_walk_str: .string "\"Mismatch on walking ones in vsatp.PPN in Test Case 4!\""
+test1_mode_str:     .string "\"Mismatch on setting vsatp.MODE=Sv32 (PPN=0) in Test Case 1!\""  // mismatch string
+test2_asid_str:     .string "\"Mismatch on vsatp.ASID=all-ones in Test Case 2!\""  // mismatch string
+test3_ppn_ones_str: .string "\"Mismatch on vsatp.PPN=all-ones in Test Case 3!\""  // mismatch string
+test4_ppn_walk_str: .string "\"Mismatch on walking ones in vsatp.PPN in Test Case 4!\""  // mismatch string
 
-RVTEST_DATA_END
-RVTEST_SIG_SETUP
+RVTEST_DATA_END                             // framework: end data
+RVTEST_SIG_SETUP                            // framework: signature region
+
+
+
+  //                From HS on RV32, vsatp PPN / ASID write+read (no ...
+  //                      │
+  //         ┌────────────┴────────────┐
+  //         │                         │
+  //      Test 1                             Test 2
+  //         │                         │
+  //      vsatp.MODE=Sv32 +          vsatp.ASID = all
+  //         │                         │
+  //      not MODE WARL)             ASIDLEN detect
+  //         ▼                         ▼
+  //      PASS                       
+
+  //         ┌────────────┴────────────┐
+  //         │                         │
+  //      Test 3                             Test 4
+  //         │                         │
+  //      vsatp.PPN = all ones       Walking ones on
+  //         ▼                         ▼
+  //      PASS                       PASS

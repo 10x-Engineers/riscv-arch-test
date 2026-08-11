@@ -24,15 +24,10 @@
 #define TRAP_SIGUPD_COUNT 256
 #define RVTEST_HYPERVISOR
 
-// Mode hops (Sv-style GOTO_* plus H T-SBI):
-//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
-//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
-//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
+RVTEST_BEGIN                                // framework: start code
 
-RVTEST_BEGIN
-
-main:
+main:                                       // test entry
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                   Virtual addresses / GPA definitions
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -62,8 +57,8 @@ main:
 
   VS_PTE_SETUP(sv39, GPA, gpa_rvtest_vlvl1_pg_tbl, (PTE_V), va_code, LEVEL2)  // VS non-leaf: va_code VPN2 → VS L1 table GPA
   VS_PTE_SETUP(sv39, GPA, gpa_code, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_R | PTE_V), va_code, LEVEL1)  // VS leaf: va_code → gpa_code U=1 X/R (VU ifetch needs U=1)
-  csrr a0, mscratch                             // a0 = M save-area pointer (required by next macro)
-  V_SAVE_AREA_SETUP(va_code, rvtest_code_begin, code, LEVEL1)  // framework: VU entry PC is under va_code (VA≠PA)
+  csrr a0, mscratch                         // a0 = M save-area pointer (required by next macro)
+  V_SAVE_AREA_SETUP(va_code, rvtest_code_begin, code, LEVEL1)  // VA≠PA code entry
 
   VS_PTE_SETUP(sv39, GPA, gpa_rvtest_vlvl1_pg_tbl, (PTE_V), va_data, LEVEL2)  // VS non-leaf: va_data/va_deny VPN2 → VS L1 table GPA
   VS_PTE_SETUP(sv39, GPA, gpa_rvtest_vlvl0_pg_tbl, (PTE_V), va_data, LEVEL1)  // VS non-leaf: va_data/va_deny VPN1 → VS L0 table GPA
@@ -74,14 +69,14 @@ main:
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                   Enable translation / TLB fences / preloads
 // --------------------------------------------------------------------------------------------------------------------------------
-  VSATP_SETUP(sv39, GPA)                        // vsatp = Sv39, PPN = GPA of VS root
-  HGATP_SETUP(sv39x4)                           // hgatp = Sv39x4, PPN = G root
-  hfence.vvma                                   // flush VS-stage TLB
-  hfence.gvma                                   // flush G-stage TLB
+  VSATP_SETUP(sv39, GPA)                    // vsatp ON (PPN = GPA of VS root)
+  HGATP_SETUP(sv39x4)                       // G-stage ON
+  hfence.vvma                               // flush VS-stage TLB
+  hfence.gvma                               // flush G-stage TLB (legal in M)
 
-  LI(t0, 0x257A0B01)                            // known SPA preload / VU store payload
-  la t1, test_region                            // t1 = SPA of allow page
-  sw t0, 0(t1)                                  // SPA starts as 0x257A0B01
+  LI(t0, 0x257A0B01)                        // preload SPA
+  la t1, test_region                        // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
 
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                               Test Cases Start from here
@@ -110,8 +105,8 @@ main:
   test2_deny:                                       // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a4, test2_deny, test2_deny_str) // SIGUPD
 
-RVTEST_CODE_END
-RVTEST_DATA_BEGIN
+RVTEST_CODE_END                             // framework: end code
+RVTEST_DATA_BEGIN                           // framework: start data
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            PHYSICAL ADDRESS REGION FOR TESTING
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -147,7 +142,21 @@ rvtest_hlvl0_pg_tbl:                            // G-stage L0 PTE storage
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            Mismatch strings (SIGUPD)
 // --------------------------------------------------------------------------------------------------------------------------------
-test1_allow_str: .string "\"Mismatch on VU two-stage U=1 RWX in Test Case 1!\""
-test2_deny_str:  .string "\"Mismatch on VU two-stage U=0 deny in Test Case 2!\""
-RVTEST_DATA_END
-RVTEST_SIG_SETUP
+test1_allow_str: .string "\"Mismatch on VU two-stage U=1 RWX in Test Case 1!\""  // mismatch string
+test2_deny_str:  .string "\"Mismatch on VU two-stage U=0 deny in Test Case 2!\""  // mismatch string
+RVTEST_DATA_END                             // framework: end data
+RVTEST_SIG_SETUP                            // framework: signature region
+
+
+
+  //                VU R/W/X through both-stage U=1 pages; U=0 VS lea...
+  //                      │
+  //         ┌────────────┴────────────┐
+  //         │                         │
+  //      Test 1                             Test 2
+  //         │                         │
+  //      Both U=1 XWR=111           VS leaf U=0
+  //         │                         │
+  //      VU sw+lw                   VU lw
+  //         ▼                         ▼
+  //      0x257A0B01                 FAULT a4=0

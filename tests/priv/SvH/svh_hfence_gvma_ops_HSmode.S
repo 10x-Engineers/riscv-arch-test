@@ -24,15 +24,10 @@
 #define TRAP_SIGUPD_COUNT 64
 #define RVTEST_HYPERVISOR
 
-// Mode hops (Sv-style GOTO_* plus H T-SBI):
-//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
-//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
-//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
+RVTEST_BEGIN                                // framework: start code
 
-RVTEST_BEGIN
-
-main:
+main:                                       // test entry
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                   Virtual addresses / GPA definitions
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -54,9 +49,9 @@ main:
   csrw vsatp, x0                                // vsatp Bare — HLV address is a GPA (G-stage only)
   HGATP_SETUP(sv32x4)                           // hgatp = Sv32x4, PPN = G root
 
-  LI(t0, 0x257A0921)                            // known SPA preload for case 1
-  la t1, test_region                            // t1 = SPA of data page
-  sw t0, 0(t1)                                  // SPA starts as 0x257A0921
+  LI(t0, 0x257A0921)                        // preload SPA
+  la t1, test_region                        // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
 
   LI(a5, gpa_data)                              // a5 = GPA operand for HFENCE.GVMA rs1 and HLV
   LI(a6, 0)                                     // a6 = VMID 0 (matches hgatp VMID)
@@ -76,9 +71,9 @@ main:
   test1_gpa:                                        // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_gpa, test1_gpa_str) // SIGUPD
 
-  LI(t0, 0x257A0922)                            // known SPA preload for case 2
-  la t1, test_region                            // t1 = SPA of data page
-  sw t0, 0(t1)                                  // SPA now 0x257A0922
+  LI(t0, 0x257A0922)                        // preload SPA
+  la t1, test_region                        // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
 
   LI(a5, gpa_data)                              // a5 = GPA for HLV
   LI(a6, 0)                                     // a6 = VMID 0
@@ -90,9 +85,9 @@ main:
   test2_vmid:                                       // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test2_vmid, test2_vmid_str) // SIGUPD
 
-  LI(t0, 0x257A0923)                            // known SPA preload for case 3
-  la t1, test_region                            // t1 = SPA of data page
-  sw t0, 0(t1)                                  // SPA now 0x257A0923
+  LI(t0, 0x257A0923)                        // preload SPA
+  la t1, test_region                        // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
 
   LI(a5, gpa_data)                              // a5 = GPA operand + HLV address
   LI(a6, 0)                                     // a6 = VMID 0
@@ -104,8 +99,8 @@ main:
   test3_both:                                       // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test3_both, test3_both_str) // SIGUPD
 
-RVTEST_CODE_END
-RVTEST_DATA_BEGIN
+RVTEST_CODE_END                             // framework: end code
+RVTEST_DATA_BEGIN                           // framework: start data
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            PHYSICAL ADDRESS REGION FOR TESTING
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -126,8 +121,20 @@ rvtest_hlvl0_pg_tbl:                            // G-stage L0 PTE storage
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            Mismatch strings (SIGUPD)
 // --------------------------------------------------------------------------------------------------------------------------------
-test1_gpa_str:  .string "\"Mismatch on HFENCE.GVMA GPA + HLV in Test Case 1!\""
-test2_vmid_str: .string "\"Mismatch on HFENCE.GVMA VMID + HLV in Test Case 2!\""
-test3_both_str: .string "\"Mismatch on HFENCE.GVMA GPA+VMID + HLV in Test Case 3!\""
-RVTEST_DATA_END
-RVTEST_SIG_SETUP
+test1_gpa_str:  .string "\"Mismatch on HFENCE.GVMA GPA + HLV in Test Case 1!\""  // mismatch string
+test2_vmid_str: .string "\"Mismatch on HFENCE.GVMA VMID + HLV in Test Case 2!\""  // mismatch string
+test3_both_str: .string "\"Mismatch on HFENCE.GVMA GPA+VMID + HLV in Test Case 3!\""  // mismatch string
+RVTEST_DATA_END                             // framework: end data
+RVTEST_SIG_SETUP                            // framework: signature region
+
+
+
+  //                HS HFENCE.GVMA with GPA/VMID operand forms retire...
+  //                      │
+  //    ┌────────────────────────┬────────────────────────┬────────────────────────┐
+  //                │                           │                           │             
+  //              Test 1                      Test 2                      Test 3          
+  //                │                           │                           │             
+  //     HFENCE.GVMA a5,x0 (GPA)     HFENCE.GVMA x0,a6 (VMID)   HFENCE.GVMA a5,a6 then HLV
+  //                ▼                           ▼                           ▼             
+  //            0x257A0921                  0x257A0922                  0x257A0923        

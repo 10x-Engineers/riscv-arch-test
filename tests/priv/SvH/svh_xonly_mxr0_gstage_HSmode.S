@@ -22,15 +22,10 @@
 #define TRAP_SIGUPD_COUNT 256
 #define RVTEST_HYPERVISOR
 
-// Mode hops (Sv-style GOTO_* plus H T-SBI):
-//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
-//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
-//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
+RVTEST_BEGIN                                // framework: start code
 
-RVTEST_BEGIN
-
-main:
+main:                                       // test entry
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                   Virtual addresses / GPA definitions
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -49,18 +44,18 @@ main:
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                   Enable translation / TLB fences / preloads
 // --------------------------------------------------------------------------------------------------------------------------------
-  csrw vsatp, x0                                // vsatp Bare — HLV address is a GPA (G-stage only)
-  HGATP_SETUP(sv32x4)                           // hgatp = Sv32x4, PPN = G root
-  hfence.vvma                                   // flush VS-stage TLB
-  hfence.gvma                                   // flush G-stage TLB after PTE install
+  csrw vsatp, x0                            // VS Bare
+  HGATP_SETUP(sv32x4)                       // G-stage ON
+  hfence.vvma                               // flush VS-stage TLB
+  hfence.gvma                               // flush G-stage TLB (legal in M)
 
   LI(t0, SSTATUS_MXR)                           // MXR bit — if 1, X-only would be readable
   csrc sstatus, t0                              // sstatus.MXR=0 so G X-only is not readable
   csrc vsstatus, t0                             // vsstatus.MXR=0 (G walk still honors MXR=0)
 
-  LI(t0, 0x257A0821)                            // poison at SPA — successful HLV would copy this into a3
-  la t1, test_region                            // t1 = SPA of G X-only page
-  sw t0, 0(t1)                                  // M store via PA
+  LI(t0, 0x257A0821)                        // preload SPA
+  la t1, test_region                        // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
 
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                               Test Cases Start from here
@@ -79,8 +74,8 @@ main:
   test1_g_xonly:                                   // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_g_xonly, test1_g_xonly_str) // SIGUPD
 
-RVTEST_CODE_END
-RVTEST_DATA_BEGIN
+RVTEST_CODE_END                             // framework: end code
+RVTEST_DATA_BEGIN                           // framework: start data
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            PHYSICAL ADDRESS REGION FOR TESTING
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -101,6 +96,18 @@ rvtest_hlvl0_pg_tbl:                            // G-stage L0 PTE storage
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            Mismatch strings (SIGUPD)
 // --------------------------------------------------------------------------------------------------------------------------------
-test1_g_xonly_str: .string "\"Mismatch on HS HLV G X-only MXR=0 (expect fault) in Test Case 1!\""
-RVTEST_DATA_END
-RVTEST_SIG_SETUP
+test1_g_xonly_str: .string "\"Mismatch on HS HLV G X-only MXR=0 (expect fault) in Test Case 1!\""  // mismatch string
+RVTEST_DATA_END                             // framework: end data
+RVTEST_SIG_SETUP                            // framework: signature region
+
+
+
+  //                HS HLV of G-stage X-only leaf with MXR=0 raises g...
+  //                      │
+  //              Test 1
+  //                      │
+  //              G X-only U=1, MXR=0
+  //                      │
+  //              HS hlv.w
+  //                      ▼
+  //              FAULT a3=0

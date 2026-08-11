@@ -23,15 +23,10 @@
 #define TRAP_SIGUPD_COUNT 64
 #define RVTEST_HYPERVISOR
 
-// Mode hops (Sv-style GOTO_* plus H T-SBI):
-//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
-//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
-//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
+RVTEST_BEGIN                                // framework: start code
 
-RVTEST_BEGIN
-
-main:
+main:                                       // test entry
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                   Virtual addresses / GPA definitions
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -54,9 +49,9 @@ main:
   csrw hgatp, x0                                // start Bare (address used as-is until MODE switch)
   hfence.gvma                                   // flush G TLB after forcing Bare
 
-  LI(t0, 0x257A0911)                            // known SPA preload for case 1
-  la t1, test_region                            // t1 = SPA of data page
-  sw t0, 0(t1)                                  // SPA starts as 0x257A0911
+  LI(t0, 0x257A0911)                        // preload SPA
+  la t1, test_region                        // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
 
 
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -74,9 +69,9 @@ main:
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_bare_to_paged, test1_bare_to_paged_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
-  LI(t0, 0x257A0912)                            // known SPA preload for case 2
-  la t1, test_region                            // t1 = SPA of data page
-  sw t0, 0(t1)                                  // SPA now 0x257A0912
+  LI(t0, 0x257A0912)                        // preload SPA
+  la t1, test_region                        // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
 
   csrw hgatp, x0                                // Sv32x4 → Bare (HLV address is now SPA)
   RVTEST_TSBI_GOTO_SMODE                       // M→HS (T-SBI)
@@ -88,8 +83,8 @@ main:
   test2_paged_to_bare:                              // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test2_paged_to_bare, test2_paged_to_bare_str) // SIGUPD
 
-RVTEST_CODE_END
-RVTEST_DATA_BEGIN
+RVTEST_CODE_END                             // framework: end code
+RVTEST_DATA_BEGIN                           // framework: start data
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            PHYSICAL ADDRESS REGION FOR TESTING
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -110,7 +105,28 @@ rvtest_hlvl0_pg_tbl:                            // G-stage L0 PTE storage
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            Mismatch strings (SIGUPD)
 // --------------------------------------------------------------------------------------------------------------------------------
-test1_bare_to_paged_str: .string "\"Mismatch on Bare→Paged HFENCE.GVMA HLV in Test Case 1!\""
-test2_paged_to_bare_str: .string "\"Mismatch on Paged→Bare HFENCE.GVMA HLV in Test Case 2!\""
-RVTEST_DATA_END
-RVTEST_SIG_SETUP
+test1_bare_to_paged_str: .string "\"Mismatch on Bare→Paged HFENCE.GVMA HLV in Test Case 1!\""  // mismatch string
+test2_paged_to_bare_str: .string "\"Mismatch on Paged→Bare HFENCE.GVMA HLV in Test Case 2!\""  // mismatch string
+RVTEST_DATA_END                             // framework: end data
+RVTEST_SIG_SETUP                            // framework: signature region
+
+
+
+  //                hgatp MODE change
+  //                      │
+  //         ┌────────────┴────────────┐
+  //         │                         │
+  //      Test 1                    Test 2
+  //    Bare → Sv32x4              Sv32x4 → Bare
+  //         │                         │
+  //    HFENCE.GVMA               HFENCE.GVMA
+  //         │                         │
+  //         ▼                         ▼
+  //    HLV(gpa_data)             HLV(test_region)
+  //         │                         │
+  //      G walk                    No G walk
+  //         │                         │
+  //         ▼                         ▼
+  //  test_region / SPA          test_region / SPA
+  //         │                         │
+  //    0x257A0911                 0x257A0912

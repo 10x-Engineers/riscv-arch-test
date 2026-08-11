@@ -23,15 +23,10 @@
 #define TRAP_SIGUPD_COUNT 16
 #define RVTEST_HYPERVISOR
 
-// Mode hops (Sv-style GOTO_* plus H T-SBI):
-//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
-//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
-//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
+RVTEST_BEGIN                                // framework: start code
 
-RVTEST_BEGIN
-
-main:
+main:                                       // test entry
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                   Virtual addresses / GPA definitions
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -59,17 +54,17 @@ main:
   VS_PTE_SETUP(sv39, GPA, gpa_rvtest_vlvl1_pg_tbl, (PTE_V), va_code, LEVEL2)  // non-leaf: va_code VPN2 -> VS L1 table GPA
   VS_PTE_SETUP(sv39, GPA, gpa_code, (PTE_D | PTE_A | PTE_X | PTE_R | PTE_V), va_code, LEVEL1)  // leaf: va_code -> gpa_code (X/R, 2 MiB)
 
-  csrr a0, mscratch                             // a0 = Msave_area (required by next macro)
-  V_SAVE_AREA_SETUP(va_code, rvtest_code_begin, code, LEVEL1)  // framework: VS entry PC under va_code
+  csrr a0, mscratch                         // a0 = M save-area pointer (required by next macro)
+  V_SAVE_AREA_SETUP(va_code, rvtest_code_begin, code, LEVEL1)  // VA≠PA code entry
 
 
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                   Enable translation / TLB fences / preloads
 // --------------------------------------------------------------------------------------------------------------------------------
-  VSATP_SETUP(sv39, GPA)                        // vsatp = Sv39, PPN = GPA of VS root
-  HGATP_SETUP(sv39x4)                           // hgatp = Sv39x4, PPN = G root
-  hfence.vvma                                   // invalidate VS-stage TLB entries
-  hfence.gvma                                   // invalidate G-stage TLB entries
+  VSATP_SETUP(sv39, GPA)                    // vsatp ON (PPN = GPA of VS root)
+  HGATP_SETUP(sv39x4)                       // G-stage ON
+  hfence.vvma                               // flush VS-stage TLB
+  hfence.gvma                               // flush G-stage TLB (legal in M)
 
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
 
@@ -90,8 +85,8 @@ main:
   RVTEST_SIGUPD(x2, x5, x4, a2, test1_ifetch, test1_ifetch_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
-RVTEST_CODE_END
-RVTEST_DATA_BEGIN
+RVTEST_CODE_END                             // framework: end code
+RVTEST_DATA_BEGIN                           // framework: start data
 
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            PHYSICAL ADDRESS REGION FOR TESTING
@@ -114,7 +109,17 @@ rvtest_vlvl1_pg_tbl:                            // VS-stage level-1 PTE storage
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            Mismatch strings (SIGUPD)
 // --------------------------------------------------------------------------------------------------------------------------------
-test1_ifetch_str: .string "\"Mismatch on VS ifetch result (expect 0x257A0011) in Test Case 1!\""
+test1_ifetch_str: .string "\"Mismatch on VS ifetch result (expect 0x257A0011) in Test Case 1!\""  // mismatch string
 
-RVTEST_DATA_END
-RVTEST_SIG_SETUP
+RVTEST_DATA_END                             // framework: end data
+RVTEST_SIG_SETUP                            // framework: signature region
+
+
+
+  //                Same two-stage ifetch on RV64 (Sv39 + Sv39x4).
+  //                      │
+  //              Test 1
+  //                      │
+  //              VS ifetch through Sv39+Sv39x4 translation
+  //                      ▼
+  //              a2=0x257A0011

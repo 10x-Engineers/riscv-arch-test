@@ -23,15 +23,10 @@
 #define TRAP_SIGUPD_COUNT 64
 #define RVTEST_HYPERVISOR
 
-// Mode hops (Sv-style GOTO_* plus H T-SBI):
-//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
-//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
-//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
+RVTEST_BEGIN                                // framework: start code
 
-RVTEST_BEGIN
-
-main:
+main:                                       // test entry
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                   Virtual addresses / GPA definitions
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -52,7 +47,7 @@ main:
 // --------------------------------------------------------------------------------------------------------------------------------
   csrw vsatp, x0                                // vsatp Bare (HS HLV uses G-stage only)
   HGATP_SETUP(sv39x4)                           // hgatp = Sv39x4, PPN = G root
-  hfence.gvma                                   // flush G-stage TLB
+  hfence.gvma                               // flush G-stage TLB (must be M or HS — illegal in VS/VU)
 
   LI(t0, 0x257A0D12)                            // known SPA preload
   la t1, test_region                            // t1 = SPA of data page
@@ -87,8 +82,8 @@ main:
   test2_ok:                                         // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a4, test2_ok, test2_ok_str) // SIGUPD
 
-RVTEST_CODE_END
-RVTEST_DATA_BEGIN
+RVTEST_CODE_END                             // framework: end code
+RVTEST_DATA_BEGIN                           // framework: start data
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            PHYSICAL ADDRESS REGION FOR TESTING
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -110,7 +105,21 @@ rvtest_hlvl0_pg_tbl:                            // G-stage L0 PTE storage
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            Mismatch strings (SIGUPD)
 // --------------------------------------------------------------------------------------------------------------------------------
-test1_misalign_str: .string "\"Mismatch on RV64 misaligned G superpage (expect fault) in Test Case 1!\""
-test2_ok_str:       .string "\"Mismatch on RV64 restored G leaf HLV in Test Case 2!\""
-RVTEST_DATA_END
-RVTEST_SIG_SETUP
+test1_misalign_str: .string "\"Mismatch on RV64 misaligned G superpage (expect fault) in Test Case 1!\""  // mismatch string
+test2_ok_str:       .string "\"Mismatch on RV64 restored G leaf HLV in Test Case 2!\""  // mismatch string
+RVTEST_DATA_END                             // framework: end data
+RVTEST_SIG_SETUP                            // framework: signature region
+
+
+
+  //                RV64 twin: misaligned G megapage faults; HFENCE.G...
+  //                      │
+  //         ┌────────────┴────────────┐
+  //         │                         │
+  //      Test 1                             Test 2
+  //         │                         │
+  //      Misaligned LEVEL2          Valid 4KiB leaf +
+  //         │                         │
+  //      HS HLV                     HS HLV
+  //         ▼                         ▼
+  //      FAULT a3=0                 0x257A0D12

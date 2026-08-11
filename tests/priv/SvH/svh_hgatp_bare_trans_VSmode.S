@@ -25,15 +25,10 @@
 #define TRAP_SIGUPD_COUNT 16
 #define RVTEST_HYPERVISOR
 
-// Mode hops (Sv-style GOTO_* plus H T-SBI):
-//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
-//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
-//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
+RVTEST_BEGIN                                // framework: start code
 
-RVTEST_BEGIN
-
-main:
+main:                                       // test entry
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                   Virtual addresses / GPA definitions
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -47,8 +42,8 @@ main:
   // ---- VS-stage (vsatp Sv32): GVA -> GPA; hgatp Bare ⇒ GPA==SPA ----
   SUPERPAGE_VS_PTE_SETUP(sv32, rvtest_code_begin, (PTE_D | PTE_A | PTE_X | PTE_R | PTE_V), va_code, LEVEL1)  // map va_code → PA(code), 4 MiB leaf
 
-  csrr a0, mscratch                             // a0 = M save area (needed by next macro)
-  V_SAVE_AREA_SETUP(va_code, rvtest_code_begin, code, LEVEL1)  // VS entry PC under va_code
+  csrr a0, mscratch                         // a0 = M save-area pointer (required by next macro)
+  V_SAVE_AREA_SETUP(va_code, rvtest_code_begin, code, LEVEL1)  // VA≠PA code entry
 
   VS_PTE_SETUP(sv32, PA, rvtest_vlvl0_pg_tbl, (PTE_V), va_data, LEVEL1)  // non-leaf → L0 table (PA)
   VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_W | PTE_R | PTE_V), va_data, LEVEL0)  // leaf: va_data → PA(test_region)
@@ -57,14 +52,14 @@ main:
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                   Enable translation / TLB fences / preloads
 // --------------------------------------------------------------------------------------------------------------------------------
-  VSATP_SETUP(sv32, PA)                         // turn on VS Sv32 (root at PA)
-  csrw hgatp, x0                                // G Bare — GPA from VS walk used directly as SPA
-  hfence.vvma                                   // flush VS TLB
-  hfence.gvma                                   // flush G TLB (hgatp changed to Bare)
+  VSATP_SETUP(sv32, PA)                     // vsatp ON (PPN = PA of VS root)
+  csrw hgatp, x0                            // hgatp Bare
+  hfence.vvma                               // flush VS-stage TLB
+  hfence.gvma                               // flush G-stage TLB (legal in M)
 
-  LI(t0, 0xDEADBEEF)                            // poison SPA
-  la t1, test_region                            // SPA of data page
-  sw t0, 0(t1)                                  // preload poison at SPA before guest access
+  LI(t0, 0xDEADBEEF)                        // preload SPA
+  la t1, test_region                        // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
 
   LI(a5, va_data)                               // a5 = guest VA pointer
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
@@ -89,8 +84,8 @@ main:
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: M-mode SPA readback | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
-  la t1, test_region                            // SPA of data page
-  lw t2, 0(t1)                                  // SPA expect 0x257A0031
+  la t1, test_region                        // t1 = SPA of data page
+  lw t2, 0(t1)                              // M-mode SPA readback
   test2_spa:                                        // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, t2, test2_spa, test2_spa_str) // SIGUPD
 
@@ -101,8 +96,8 @@ main:
   RVTEST_SIGUPD_CSR_READ(hgatp, a4, test3_hgatp, test3_hgatp_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
-RVTEST_CODE_END
-RVTEST_DATA_BEGIN
+RVTEST_CODE_END                             // framework: end code
+RVTEST_DATA_BEGIN                           // framework: start data
 
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            PHYSICAL ADDRESS REGION FOR TESTING
@@ -126,9 +121,21 @@ rvtest_vlvl0_pg_tbl:                          // VS-stage L0 PTE storage (4 KiB)
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            Mismatch strings (SIGUPD)
 // --------------------------------------------------------------------------------------------------------------------------------
-test1_vs_str:    .string "\"Mismatch on VS lw after sw (hgatp Bare) in Test Case 1!\""
-test2_spa_str:   .string "\"Mismatch on SPA readback after VS store in Test Case 2!\""
-test3_hgatp_str: .string "\"Mismatch on hgatp readback (expect Bare) in Test Case 3!\""
+test1_vs_str:    .string "\"Mismatch on VS lw after sw (hgatp Bare) in Test Case 1!\""  // mismatch string
+test2_spa_str:   .string "\"Mismatch on SPA readback after VS store in Test Case 2!\""  // mismatch string
+test3_hgatp_str: .string "\"Mismatch on hgatp readback (expect Bare) in Test Case 3!\""  // mismatch string
 
-RVTEST_DATA_END
-RVTEST_SIG_SETUP
+RVTEST_DATA_END                             // framework: end data
+RVTEST_SIG_SETUP                            // framework: signature region
+
+
+
+  //                With hgatp Bare, VS Sv32 alone turns GVA into the...
+  //                      │
+  //    ┌────────────────────────┬────────────────────────┬────────────────────────┐
+  //                │                           │                           │             
+  //              Test 1                      Test 2                      Test 3          
+  //                │                           │                           │             
+  //       VS sw/lw through VS          M-mode SPA rdback        hgatp rdback still Bare  
+  //                ▼                           ▼                           ▼             
+  //          GPA→SPA) → OK                    PASS                        PASS           

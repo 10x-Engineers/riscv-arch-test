@@ -30,15 +30,10 @@
 
 // Mode hops: none for MPRV cases (stay in M). Case 7 uses HS HLV (T-SBI → S then
 // back to M). MPRV×MPP×MPV select whether M loads walk hgatp as VS/VU.
-// Mode hops (Sv-style GOTO_* plus H T-SBI):
-//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
-//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
-//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
+RVTEST_BEGIN                                // framework: start code
 
-RVTEST_BEGIN
-
-main:
+main:                                       // test entry
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                   Virtual addresses / GPA definitions
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -67,12 +62,12 @@ main:
   hfence.vvma                               // flush VS TLB (vsatp Bare)
   hfence.gvma                               // flush G TLB after hgatp setup
 
-  LI(t0, 0x257A0151)                        // expected value in the X-only physical page
-  la t1, test_region_x                      // t1 = real PA for X-only backing memory
-  sw t0, 0(t1)                              // store the X-only page value in real memory
-  LI(t0, 0x257A0152)                        // expected value in the read/write physical page
-  la t1, test_region_rw                     // t1 = real PA for read/write backing memory
-  sw t0, 0(t1)                              // store the read/write page value in real memory
+  LI(t0, 0x257A0151)                        // preload SPA
+  la t1, test_region_x                      // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
+  LI(t0, 0x257A0152)                        // preload SPA
+  la t1, test_region_rw                     // t1 = SPA of data page
+  sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
 
 
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -179,8 +174,8 @@ main:
   RVTEST_SIGUPD(x2, x5, x4, s2, test7_hlv, test7_hlv_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
-RVTEST_CODE_END
-RVTEST_DATA_BEGIN
+RVTEST_CODE_END                             // framework: end code
+RVTEST_DATA_BEGIN                           // framework: start data
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            PHYSICAL ADDRESS REGION FOR TESTING
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -208,13 +203,41 @@ rvtest_hlvl0_pg_tbl:                        // G-stage level-0 PTE storage
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            Mismatch strings (SIGUPD)
 // --------------------------------------------------------------------------------------------------------------------------------
-test1_spa_str: .string "\"Mismatch on direct SPA load in Test Case 1!\""
-test2_m_str:   .string "\"Mismatch on MPRV MPP=M load in Test Case 2!\""
-test3_hs_str:  .string "\"Mismatch on MPRV HS load in Test Case 3!\""
-test4_vs_str:  .string "\"Mismatch on MPRV VS X-only GPA load (expect fault) in Test Case 4!\""
-test5_u_str:   .string "\"Mismatch on MPRV U load in Test Case 5!\""
-test6_vu_str:  .string "\"Mismatch on MPRV VU X-only GPA load (expect fault) in Test Case 6!\""
-test7_hlv_str: .string "\"Mismatch on HLV R/W GPA load in Test Case 7!\""
+test1_spa_str: .string "\"Mismatch on direct SPA load in Test Case 1!\""  // mismatch string
+test2_m_str:   .string "\"Mismatch on MPRV MPP=M load in Test Case 2!\""  // mismatch string
+test3_hs_str:  .string "\"Mismatch on MPRV HS load in Test Case 3!\""  // mismatch string
+test4_vs_str:  .string "\"Mismatch on MPRV VS X-only GPA load (expect fault) in Test Case 4!\""  // mismatch string
+test5_u_str:   .string "\"Mismatch on MPRV U load in Test Case 5!\""  // mismatch string
+test6_vu_str:  .string "\"Mismatch on MPRV VU X-only GPA load (expect fault) in Test Case 6!\""  // mismatch string
+test7_hlv_str: .string "\"Mismatch on HLV R/W GPA load in Test Case 7!\""  // mismatch string
 
-RVTEST_DATA_END
-RVTEST_SIG_SETUP
+RVTEST_DATA_END                             // framework: end data
+RVTEST_SIG_SETUP                            // framework: signature region
+
+
+
+  //                MPRV×MPP×MPV selects how M-mode loads walk throug...
+  //                      │
+  //    ┌────────────────────────┬────────────────────────┬────────────────────────┐
+  //                │                           │                           │             
+  //              Test 1                      Test 2                      Test 3          
+  //                │                           │                           │             
+  //     Direct SPA lw of X-only     MPRV=1, MPP=M lw of SPA       MPRV=1, MPP=S, MPV=0   
+  //                ▼                           ▼                           ▼             
+  //            0x257A0151                  no G walk                   no G walk         
+
+  //         ┌────────────┴────────────┐
+  //         │                         │
+  //      Test 4                             Test 5
+  //         │                         │
+  //      MPRV=1, MPP=S, MPV=1       MPRV=1, MPP=U, MPV=0
+  //         ▼                         ▼
+  //      FAULT a6=0                 no G walk
+
+  //         ┌────────────┴────────────┐
+  //         │                         │
+  //      Test 6                             Test 7
+  //         │                         │
+  //      MPRV=1, MPP=U, MPV=1       HLV of R/W GPA
+  //         ▼                         ▼
+  //      FAULT s1=0                 0x257A0152

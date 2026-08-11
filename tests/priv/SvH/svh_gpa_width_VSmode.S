@@ -24,15 +24,10 @@
 #define TRAP_SIGUPD_COUNT 64
 #define RVTEST_HYPERVISOR
 
-// Mode hops (Sv-style GOTO_* plus H T-SBI):
-//   Enter PA/identity → RVTEST_TSBI_GOTO_VSMODE / _SMODE / _VUMODE
-//   Enter VA≠PA (V_SAVE_AREA) → RVTEST_GOTO_LOWER_MODE
-//   Return to M → always RVTEST_TSBI_GOTO_MMODE
 #include "riscv_arch_test.h"
+RVTEST_BEGIN                                // framework: start code
 
-RVTEST_BEGIN
-
-main:
+main:                                       // test entry
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                   Virtual addresses / GPA definitions
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -101,8 +96,8 @@ main:
   test3_wide_sw:                                    // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a6, test3_wide_sw, test3_wide_sw_str) // SIGUPD
 
-RVTEST_CODE_END
-RVTEST_DATA_BEGIN
+RVTEST_CODE_END                             // framework: end code
+RVTEST_DATA_BEGIN                           // framework: start data
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            PHYSICAL ADDRESS REGION FOR TESTING
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -124,8 +119,22 @@ rvtest_hlvl0_pg_tbl:                            // G-stage L1 PTE storage (LEVEL
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                            Mismatch strings (SIGUPD)
 // --------------------------------------------------------------------------------------------------------------------------------
-test1_wide_str: .string "\"Mismatch on non-canonical GPA lw (expect fault) in Test Case 1!\""
-test2_ok_str:   .string "\"Mismatch on canonical GPA lw in Test Case 2!\""
-test3_wide_sw_str: .string "\"Mismatch on non-canonical GPA sw (SPA must stay) in Test Case 3!\""
-RVTEST_DATA_END
-RVTEST_SIG_SETUP
+test1_wide_str: .string "\"Mismatch on non-canonical GPA lw (expect fault) in Test Case 1!\""  // mismatch string
+test2_ok_str:   .string "\"Mismatch on canonical GPA lw in Test Case 2!\""  // mismatch string
+test3_wide_sw_str: .string "\"Mismatch on non-canonical GPA sw (SPA must stay) in Test Case 3!\""  // mismatch string
+RVTEST_DATA_END                             // framework: end data
+RVTEST_SIG_SETUP                            // framework: signature region
+
+
+
+  //                Non-canonical high GPA bits under Sv39x4 raise gu...
+  //                      │
+  //    ┌────────────────────────┬────────────────────────┬────────────────────────┐
+  //                │                           │                           │             
+  //              Test 1                      Test 2                      Test 3          
+  //                │                           │                           │             
+  //       GPA with bit 41 set            Canonical GPA            GPA with bit 41 set    
+  //                │                           │                           │             
+  //            VS Bare lw                  VS Bare lw                  VS Bare sw        
+  //                ▼                           ▼                           ▼             
+  //            FAULT a3=0                  0x257A0E02            FAULT SPA 0x257A0E02)   

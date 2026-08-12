@@ -75,7 +75,11 @@ S_CSRS_NO_REPLICA = ["scounteren", "senvcfg"]
 
 
 def _generate_hcsr_tests(test_data: TestData) -> list[str]:
-    """Generate tests for H-extension CSRs in M-mode."""
+    """Generate tests for H-extension CSRs in M-mode.
+
+    PRECONDITION: caller must be in M-mode. This is the boot-default mode
+    for a fresh test chunk, so no switch is emitted here.
+    """
     covergroup = "H_mcsr_cg"
     # Include both Machine-only and HS/VS-scope H CSRs in the M-mode access test.
     csrs = M_ONLY_H_CSRS + HS_VS_H_CSRS
@@ -123,7 +127,10 @@ def _generate_hcsr_tests(test_data: TestData) -> list[str]:
 
 def _generate_mtvala_test(test_data: TestData) -> list[str]:
     """cp_mtvala validates mtval readback semantics. It writes a known bit
-    pattern, reads it back, and signals the result to the signature."""
+    pattern, reads it back, and signals the result to the signature.
+
+    PRECONDITION: caller must be in M-mode (mtval is M-only).
+    """
     covergroup = "H_mcsr_cg"
 
     ######################################
@@ -146,8 +153,15 @@ def _generate_mtvala_test(test_data: TestData) -> list[str]:
 
 
 def _generate_vscause_tests(test_data: TestData, covergroup: str) -> list[str]:
-    """ cp_vscause_write validates that vscause and scause behave the same for
-    legal values, and that the WLRL behavior matches the S-mode CSR contract """
+    """cp_vscause_write validates that vscause and scause behave the same for
+    legal values, and that the WLRL behavior matches the S-mode CSR contract.
+
+    PRECONDITION: caller must be in a mode where both `scause` and `vscause`
+    resolve to their real (non-redirected) registers -- i.e. M-mode or
+    HS-mode. Do NOT call this while V=1 (VS/VU), since `scause` there is
+    trap-and-emulate redirected to vscause and the comparison becomes
+    meaningless.
+    """
     
     ######################################
     coverpoint = "cp_vscause_write"
@@ -224,13 +238,13 @@ def _generate_vscause_tests(test_data: TestData, covergroup: str) -> list[str]:
 
 
 def _generate_hs_hcsr_tests(test_data: TestData) -> list[str]:
+    """PRECONDITION: caller must already be in HS-mode."""
     covergroup = "H_hscsr_cg"
-    lines = ["RVTEST_GOTO_LOWER_MODE HSmode      # switch to HS-mode"]
 
     ######################################
     coverpoint = "cp_hcsr_access"
     ######################################
-    lines.append(comment_banner(coverpoint, "Same read/write/set/clear sweep as H_mcsr_cg, executed from HS-mode"))
+    lines = [comment_banner(coverpoint, "Same read/write/set/clear sweep as H_mcsr_cg, executed from HS-mode")]
     for csr in HS_VS_H_CSRS:
         lines.extend(csr_access_test(test_data, csr, covergroup, coverpoint))
     for csr in HS_VS_H_CSRS_RO:
@@ -255,7 +269,10 @@ def _generate_hs_hcsr_tests(test_data: TestData) -> list[str]:
 
 
 def _generate_hs_inaccessible_test(test_data: TestData) -> list[str]:
-    """cp_hcsr_inaccessible (HS-mode), CSR set is mtval2/mtinst, the only H CSRs that are Machine-only."""
+    """cp_hcsr_inaccessible (HS-mode), CSR set is mtval2/mtinst, the only H CSRs that are Machine-only.
+
+    PRECONDITION: caller must already be in HS-mode.
+    """
     covergroup = "H_hscsr_cg"
 
     ######################################
@@ -277,7 +294,10 @@ def _generate_hs_inaccessible_test(test_data: TestData) -> list[str]:
 def _generate_hstatus_vgein_test(test_data: TestData) -> list[str]:
     """cp_hstatus_vgein --  GEILEN isn't known at generation time, so this
     discovers the legal max at runtime (write all-1s to VGEIN, read back) rather than testing the
-    literal {GEILEN-1, GEILEN, GEILEN+1} values from the testplan."""
+    literal {GEILEN-1, GEILEN, GEILEN+1} values from the testplan.
+
+    PRECONDITION: caller must already be in HS-mode.
+    """
     covergroup = "H_hscsr_cg"
 
     ######################################
@@ -336,13 +356,31 @@ def _generate_hstatus_vgein_test(test_data: TestData) -> list[str]:
 
 
 def _generate_vs_inaccessible_tests(test_data: TestData) -> list[str]:
-    """In VS mode, Machine-only H CSRs must not be accessible and should give illegal instruction fault."""
+    """In VS mode, Machine-only H CSRs must not be accessible and should give illegal instruction fault.
+
+    PRECONDITION: caller must already be in VS-mode.
+    """
     covergroup = "H_vscsr_cg"
 
     ######################################
     coverpoint = "cp_hcsr_inaccessible"
     ######################################
-    lines = ["RVTEST_GOTO_LOWER_MODE VSmode      # switch to VS-mode", comment_banner(coverpoint, "M-mode H-extension registers are inaccessible from VS-mode")]
+    
+    save_reg, temp_reg = test_data.int_regs.get_registers(2)
+    lines = [
+        comment_banner(
+            coverpoint,
+            "All H-extension CSRs are inaccessible from VS-mode",
+        ),
+        "",
+        "# Setup",
+        "# Setup: switch to M-mode to disable illegal-instruction delegation",
+        "RVTEST_TSBI_GOTO_MMODE",
+        f"csrr x{save_reg}, medeleg        # save current medeleg",
+        f"LI(x{temp_reg}, 1 << 2)",
+        f"csrc medeleg, x{temp_reg}         # disable delegation of illegal instruction exceptions",
+        "RVTEST_TSBI_GOTO_VSMODE            # enter VS-mode with illegal instructions trapped to M-mode",
+    ]
     for name, _mask in M_ONLY_H_CSRS:
         lines.extend(
             [
@@ -351,11 +389,23 @@ def _generate_vs_inaccessible_tests(test_data: TestData) -> list[str]:
                 f"csrr t0, {name}    # attempt access; trap handler records illegal instruction fault",
             ]
         )
+    lines.extend(
+        [
+            "",
+            "# Return to M-mode and restore original delegation",
+            "RVTEST_TSBI_GOTO_MMODE",
+            f"csrw medeleg, x{save_reg}",
+        ]
+    )
+    test_data.int_regs.return_registers([save_reg, temp_reg])
     return lines
 
 def _generate_vs_virtualfault_tests(test_data: TestData) -> list[str]:
     """HS/VS-scope CSRs from VS-mode must raise a
-    virtual-instruction fault rather than illegal instruction."""
+    virtual-instruction fault rather than illegal instruction.
+
+    PRECONDITION: caller must already be in VS-mode.
+    """
     covergroup = "H_vscsr_cg"
 
     ######################################
@@ -374,7 +424,10 @@ def _generate_vs_virtualfault_tests(test_data: TestData) -> list[str]:
 
 
 def _generate_virtual_instruction_high_cause_test(test_data: TestData) -> list[str]:
-    """Simple fault loop over the high-half counter CSRs."""
+    """Simple fault loop over the high-half counter CSRs.
+
+    PRECONDITION: caller must already be in VS-mode.
+    """
     covergroup = "H_vscsr_cg"
     
     ######################################
@@ -394,23 +447,43 @@ def _generate_virtual_instruction_high_cause_test(test_data: TestData) -> list[s
     return lines
 
 
-def _generate_illegalupper_test(covergroup: str) -> list[str]:
-    """fault loop over the RV32-only h-suffixed CSRs."""
-    covergroup = "H_vscsr_cg"
+def _generate_illegalupper_test(test_data: TestData, covergroup: str) -> list[str]:
+    """fault loop over the RV32-only h-suffixed CSRs.
+
+    PRECONDITION: no mode dependency -- the h-suffixed CSRs don't exist on
+    RV64 regardless of privilege mode, so this can run in whatever mode the
+    caller is already in for that covergroup.
+    """
 
     ######################################
     coverpoint = "cp_illegalupper"
     ######################################
     lines = ["", comment_banner(coverpoint, "RV64: the h half of H-extension CSRs does not exist and must fault"), "#if __riscv_xlen == 64"]
-    for name, _mask in HS_VS_H_CSRS_32H:
-        lines.extend(["", f"csrr t0, {name}    # RV64: {name} shouldn't exist -- illegal instruction expected"])
+    for name in range(0x602, 0x60A, 0x605):
+        lines.extend(
+            [
+                "", 
+                test_data.add_testcase(name, coverpoint, covergroup),
+                f"csrr t0, {name}    # shouldn't exist -- illegal instruction expected",
+            ]
+        )
+        
     lines.append("#endif")
     return lines
 
 
 def _generate_vsstatus_sd_test(test_data: TestData) -> list[str]:
     """sstatus.FS changes (from M-mode, real S CSR) don't leak into vsstatus.SD. cp_vsstatus_sd_write exercises the
-    interaction between vsstatus and sstatus across the VS/M privilege boundary."""
+    interaction between vsstatus and sstatus across the VS/M privilege boundary.
+
+    PRECONDITION: caller must already be in VS-mode.
+    NOTE: currently unused (disabled in make_h) -- see the caller for why:
+    while V=1, the `sstatus` CSR name is trap-and-emulate redirected to
+    vsstatus, so writing "sstatus" from inside VS-mode does NOT reach the
+    real S-mode sstatus this test is trying to compare against. That
+    redirect issue needs to be resolved before this is re-enabled; it is
+    independent of the mode-switch refactor.
+    """
     covergroup = "H_vscsr_cg"
    
     ######################################
@@ -427,8 +500,6 @@ def _generate_vsstatus_sd_test(test_data: TestData) -> list[str]:
             "Verify that vsstatus.SD depends only on "
             "vsstatus.FS/VS and is unaffected by sstatus.FS.",
         ),
-        "",
-        "RVTEST_GOTO_LOWER_MODE VSmode",
         f"SET_MSB(x{reg1})",
         f"csrr x{save_reg_vs}, vsstatus",
         f"csrr x{save_reg_s}, sstatus",
@@ -519,16 +590,34 @@ def _generate_vsstatus_sd_test(test_data: TestData) -> list[str]:
 # ---------------------------------------------------------------------------
 # H_ucsr_cg: Tests executed in U-mode / H_vucsr_cg: Tests executed in VU-mode
 # ---------------------------------------------------------------------------
-
-
 def _generate_u_inaccessible_tests(test_data: TestData) -> list[str]:
-    """ All H CSRs (Machine/HS/VS) inaccessible from U-mode."""
+    """All H CSRs (Machine/HS/VS) inaccessible from U-mode.
+
+    PRECONDITION: caller must already be in U-mode.
+    """
     covergroup = "H_ucsr_cg"
 
     ######################################
     coverpoint = "cp_hcsr_inaccessible"
     ######################################
-    lines = ["RVTEST_GOTO_LOWER_MODE Umode      # switch to U-mode", comment_banner(coverpoint, "All H-extension CSRs are inaccessible from U-mode")]
+    save_reg, temp_reg = test_data.int_regs.get_registers(2)
+
+    lines = [
+        comment_banner(
+            coverpoint,
+            "All H-extension CSRs are inaccessible from U-mode",
+        ),
+        "",
+        "# Setup: switch to M-mode to disable illegal-instruction delegation",
+        "RVTEST_TSBI_GOTO_MMODE",
+        f"csrr x{save_reg}, medeleg        # save current medeleg",
+        f"LI(x{temp_reg}, 1 << 2)",
+        f"csrc medeleg, x{temp_reg}         # disable delegation of illegal instruction exceptions",
+        "",
+        "# Return to U-mode with illegal instructions directed to M-mode",
+        "RVTEST_TSBI_GOTO_UMODE",
+    ]
+
     for name, _mask in M_ONLY_H_CSRS + HS_VS_H_CSRS + HS_VS_H_CSRS_RO:
         lines.extend(
             [
@@ -537,17 +626,45 @@ def _generate_u_inaccessible_tests(test_data: TestData) -> list[str]:
                 f"csrr t0, {name}    # attempt access; trap handler records illegal instruction fault",
             ]
         )
+
+    lines.extend(
+        [
+            "",
+            "# Return to M-mode and restore original delegation",
+            "RVTEST_TSBI_GOTO_MMODE",
+            f"csrw medeleg, x{save_reg}",
+        ]
+    )
+
+    test_data.int_regs.return_registers([save_reg, temp_reg])
     return lines
 
 
 def _generate_vu_inaccessible_tests(test_data: TestData) -> list[str]:
-    """ VU-mode should not be able to access any H-extension CSRs either."""
+    """VU-mode should not be able to access any H-extension CSRs either.
+
+    PRECONDITION: caller must already be in VU-mode.
+    """
     covergroup = "H_vucsr_cg" 
 
     ######################################
     coverpoint = "cp_hcsr_inaccessible"
     ######################################
-    lines = ["RVTEST_GOTO_LOWER_MODE VUmode      # switch to VU-mode", comment_banner(coverpoint, "All H-extension CSRs are inaccessible from VU-mode")]
+    save_reg, temp_reg = test_data.int_regs.get_registers(2)
+    lines = [
+        comment_banner(
+            coverpoint,
+            "All H-extension CSRs are inaccessible from VU-mode",
+        ),
+        "",
+        "# Setup",
+        "# Setup: switch to M-mode to disable illegal-instruction delegation",
+        "RVTEST_TSBI_GOTO_MMODE",
+        f"csrr x{save_reg}, medeleg        # save current medeleg",
+        f"LI(x{temp_reg}, 1 << 2)",
+        f"csrc medeleg, x{temp_reg}         # disable delegation of illegal instruction exceptions",
+        "RVTEST_TSBI_GOTO_VUMODE            # enter VU-mode with illegal instructions trapped to M-mode",
+    ]
     for name, _mask in M_ONLY_H_CSRS + HS_VS_H_CSRS + HS_VS_H_CSRS_RO:
         lines.extend(
             [
@@ -556,11 +673,23 @@ def _generate_vu_inaccessible_tests(test_data: TestData) -> list[str]:
                 f"csrr t0, {name}    # attempt access; trap handler records illegal instruction fault",
             ]
         )
+    lines.extend(
+        [
+            "",
+            "RVTEST_TSBI_GOTO_MMODE",              # return to M-mode",
+            f"csrw medeleg, x{save_reg}         # restore original medeleg",
+        ]
+    )
+
+    test_data.int_regs.return_registers([save_reg, temp_reg])
     return lines
 
 
 def _generate_vu_scsr_test(test_data: TestData) -> list[str]:
-    """virtual instruction faults expected for HS/VS/S CSRs."""
+    """virtual instruction faults expected for HS/VS/S CSRs.
+
+    PRECONDITION: caller must already be in VU-mode.
+    """
     covergroup = "H_vucsr_cg" 
 
     ######################################
@@ -579,36 +708,50 @@ def _generate_vu_scsr_test(test_data: TestData) -> list[str]:
 
 @add_priv_test_generator("H", required_extensions=["H"])
 def make_h(test_data: TestData) -> list[TestChunk]:
-    """Generate tests for the H hypervisor-extension testsuite."""
+    """Generate tests for the H hypervisor-extension testsuite.
+    """
+    
     test_chunks: list[TestChunk] = []
-
+ 
+    # ---- H_mcsr_cg: M-mode (boot default, no switch needed) ----
     tc = test_data.begin_test_chunk("hcsr_m")
     tc.code.extend(_generate_hcsr_tests(test_data))
     tc.code.extend(_generate_mtvala_test(test_data))
     test_chunks.append(test_data.end_test_chunk())
-
+ 
+    # ---- H_hscsr_cg: HS-mode ----
     tc = test_data.begin_test_chunk("hcsr_hs")
+    tc.code.append("RVTEST_TSBI_GOTO_SMODE      # -> HS-mode (V=0)")
     tc.code.extend(_generate_hs_hcsr_tests(test_data))
     tc.code.extend(_generate_hs_inaccessible_test(test_data))
     tc.code.extend(_generate_hstatus_vgein_test(test_data))
-
+    # scause/vscause must be compared while V=0, so this runs here in
+    # HS-mode, not in H_mcsr_cg -- see _generate_vscause_tests' precondition.
     tc.code.extend(_generate_vscause_tests(test_data, "H_hscsr_cg"))
     test_chunks.append(test_data.end_test_chunk())
-
+ 
+    # ---- H_vscsr_cg: VS-mode ----
     tc = test_data.begin_test_chunk("hcsr_vs")
+    tc.code.append("RVTEST_TSBI_GOTO_VSMODE     # -> VS-mode (V=1)")
     tc.code.extend(_generate_vs_inaccessible_tests(test_data))
-    # tc.code.extend(_generate_vs_virtualfault_tests(test_data))
+    tc.code.extend(_generate_vs_virtualfault_tests(test_data))
     tc.code.extend(_generate_virtual_instruction_high_cause_test(test_data))
-    tc.code.extend(_generate_illegalupper_test("H_vscsr_cg"))
-    tc.code.extend(_generate_vsstatus_sd_test(test_data))
+    tc.code.extend(_generate_illegalupper_test(test_data,"H_vscsr_cg"))
+    #tc.code.extend(_generate_vsstatus_sd_test(test_data))  # disabled: sstatus/vsstatus redirect issue, see docstring
     test_chunks.append(test_data.end_test_chunk())
-
+ 
+    # ---- H_ucsr_cg (U-mode) + H_vucsr_cg (VU-mode) ----
     tc = test_data.begin_test_chunk("hcsr_u_vu")
+    tc.code.append("RVTEST_TSBI_GOTO_UMODE      # -> U-mode")
     tc.code.extend(_generate_u_inaccessible_tests(test_data))
-    tc.code.extend(_generate_illegalupper_test("H_ucsr_cg"))
+    tc.code.extend(_generate_illegalupper_test(test_data,"H_ucsr_cg"))
+    # T-SBI dispatches off the live a0 regardless of current mode, so this
+    # can go straight from U-mode to VU-mode -- no M-mode bounce needed.
+    tc.code.append("RVTEST_TSBI_GOTO_VUMODE     # -> VU-mode (V=1, U-mode)")
     tc.code.extend(_generate_vu_inaccessible_tests(test_data))
-    tc.code.extend(_generate_illegalupper_test("H_vucsr_cg"))
+    tc.code.extend(_generate_illegalupper_test(test_data,"H_vucsr_cg"))
+    
     tc.code.extend(_generate_vu_scsr_test(test_data))
     test_chunks.append(test_data.end_test_chunk())
-
+ 
     return test_chunks

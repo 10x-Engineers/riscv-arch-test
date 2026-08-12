@@ -58,6 +58,8 @@ main:                                       // test entry
 //                                               Test Cases Start from here
 // --------------------------------------------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------------------------------------------------
+// Test case 1: hgatp Bare→Sv32x4 + HFENCE.GVMA x0,x0; HS HLV | Expected: Successful (0x257A0911)
+//---------------------------------------------------------------------------------------------------------------------------------
   HGATP_SETUP(sv32x4)                           // Bare → Sv32x4 (G paging now on)
   RVTEST_TSBI_GOTO_SMODE                       // M→HS (T-SBI)
   hfence.gvma                                   // HS HFENCE.GVMA x0,x0 after MODE change: drop stale Bare G TLB
@@ -68,6 +70,8 @@ main:                                       // test entry
   test1_bare_to_paged:                              // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_bare_to_paged, test1_bare_to_paged_str) // SIGUPD
 
+//---------------------------------------------------------------------------------------------------------------------------------
+// Test case 2: hgatp Sv32x4→Bare + HFENCE.GVMA; HS HLV of SPA | Expected: Successful (0x257A0912)
 //---------------------------------------------------------------------------------------------------------------------------------
   LI(t0, 0x257A0912)                        // preload SPA
   la t1, test_region                        // t1 = SPA of data page

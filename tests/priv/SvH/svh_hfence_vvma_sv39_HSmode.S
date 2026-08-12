@@ -64,6 +64,8 @@ main:                                       // test entry
 //                                               Test Cases Start from here
 // --------------------------------------------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------------------------------------------------
+// Test case 1: HFENCE.VVMA x0,x0 then VS lw | Expected: Successful (0x257A0901)
+//---------------------------------------------------------------------------------------------------------------------------------
   RVTEST_TSBI_GOTO_SMODE                       // M→HS (T-SBI)
   hfence.vvma                                   // HS HFENCE.VVMA x0,x0: flush all VS-stage TLB (all ASIDs + GVAs)
   RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
@@ -76,6 +78,8 @@ main:                                       // test entry
   test1_all:                                        // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_all, test1_all_str) // SIGUPD
 
+//---------------------------------------------------------------------------------------------------------------------------------
+// Test case 2: HFENCE.VVMA a5,x0 (GVA) then VS lw | Expected: Successful (0x257A0902)
 //---------------------------------------------------------------------------------------------------------------------------------
   LI(t0, 0x257A0902)                        // preload SPA
   la t1, test_region                        // t1 = SPA of data page
@@ -93,6 +97,8 @@ main:                                       // test entry
   test2_gva:                                        // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test2_gva, test2_gva_str) // SIGUPD
 
+//---------------------------------------------------------------------------------------------------------------------------------
+// Test case 3: HFENCE.VVMA x0,a6 (ASID) then VS lw | Expected: Successful (0x257A0903)
 //---------------------------------------------------------------------------------------------------------------------------------
   LI(t0, 0x257A0903)                        // preload SPA
   la t1, test_region                        // t1 = SPA of data page

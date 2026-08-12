@@ -101,6 +101,9 @@ main:                                       // test entry
   test1_sum0:                                       // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_sum0, test1_sum0_str) // SIGUPD
 
+//---------------------------------------------------------------------------------------------------------------------------------
+// Test case 2: MPRV=1 MPP=S MPV=1 SUM=1 U-page: lw | Expected: Successful (0x257A0C02)
+//---------------------------------------------------------------------------------------------------------------------------------
   LI(t0, SSTATUS_SUM)                           // SUM bit mask
   csrs sstatus, t0                              // set HS SUM
   csrs vsstatus, t0                             // set VS SUM — U=1 R/W allowed
@@ -116,7 +119,9 @@ main:                                       // test entry
   test2_sum1:                                       // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a4, test2_sum1, test2_sum1_str) // SIGUPD
 
-  // Case 3: SUM=1 store through both stages (scores write_acc on mprv_sum cross)
+//---------------------------------------------------------------------------------------------------------------------------------
+// Test case 3: MPRV=1 MPP=S MPV=1 SUM=1 U-page: sw+lw | Expected: Successful (0x257A0C03)
+//---------------------------------------------------------------------------------------------------------------------------------
   LI(t0, MSTATUS_MPRV)                          // MPRV bit mask
   csrs mstatus, t0                              // re-enable MPRV for case 3 store
   LI(a5, va_u)                                  // a5 = GVA of U=1 page

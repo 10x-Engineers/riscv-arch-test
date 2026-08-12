@@ -71,6 +71,9 @@ main:                                       // test entry
   test1_gpa:                                        // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_gpa, test1_gpa_str) // SIGUPD
 
+//---------------------------------------------------------------------------------------------------------------------------------
+// Test case 2: HFENCE.GVMA x0,a6 (VMID) then HLV | Expected: Successful (0x257A0922)
+//---------------------------------------------------------------------------------------------------------------------------------
   LI(t0, 0x257A0922)                        // preload SPA
   la t1, test_region                        // t1 = SPA of data page
   sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
@@ -85,6 +88,9 @@ main:                                       // test entry
   test2_vmid:                                       // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test2_vmid, test2_vmid_str) // SIGUPD
 
+//---------------------------------------------------------------------------------------------------------------------------------
+// Test case 3: HFENCE.GVMA a5,a6 then HLV | Expected: Successful (0x257A0923)
+//---------------------------------------------------------------------------------------------------------------------------------
   LI(t0, 0x257A0923)                        // preload SPA
   la t1, test_region                        // t1 = SPA of data page
   sw t0, 0(t1)                              // SPA preload (known pattern before guest access)

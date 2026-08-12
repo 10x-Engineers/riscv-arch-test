@@ -69,6 +69,8 @@ main:                                       // test entry
 //                                               Test Cases Start from here
 // --------------------------------------------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------------------------------------------------
+// Test case 1: VS lw X-only MXR=0 | Expected: Expected Fault (sentinel 0)
+//---------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_x)                                  // a5 = GVA of X-only page
   LI(a3, 0)                                     // sentinel — stays 0 if load page-faults
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
@@ -78,6 +80,8 @@ main:                                       // test entry
   test1_mxr0_lw:                                    // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_mxr0_lw, test1_mxr0_lw_str) // SIGUPD
 
+//---------------------------------------------------------------------------------------------------------------------------------
+// Test case 2: Control addi (no memory) | Expected: Successful (0x257A0802)
 //---------------------------------------------------------------------------------------------------------------------------------
   LI(a4, 0x257A0801)                            // control start value (same pattern as SPA poison)
   addi a4, a4, 1                                // a4 = 0x257A0802 — proves VS ifetch of X/R code returned to M

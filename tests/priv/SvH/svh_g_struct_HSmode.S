@@ -71,7 +71,9 @@ main:                                       // test entry
   test1_misalign:                                   // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_misalign, test1_misalign_str) // SIGUPD
 
-  // Restore valid 4KiB leaf path + HFENCE (root alignment cover via hfence after setup)
+//---------------------------------------------------------------------------------------------------------------------------------
+// Test case 2: Restore aligned root + HFENCE.GVMA; HS HLV valid | Expected: Successful (0x257A0D02)
+//---------------------------------------------------------------------------------------------------------------------------------
   G_PTE_SETUP(sv32x4, rvtest_hlvl0_pg_tbl, (PTE_V), gpa_data, LEVEL1)  // G non-leaf: data GPA VPN1 → G L0 (aligned path)
   G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V), gpa_data, LEVEL0)  // G leaf: gpa_data → PA(test_region) R/W U=1
   HGATP_SETUP(sv32x4)                           // rewrite hgatp after PTE restore

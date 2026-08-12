@@ -96,6 +96,9 @@ main:                                       // test entry
   test1_allow:                                      // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_allow, test1_allow_str)  // record VU lw (expect 0x257A0B01)
 
+//---------------------------------------------------------------------------------------------------------------------------------
+// Test case 2: VS leaf U=0: VU lw | Expected: Expected Fault (sentinel 0)
+//---------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_deny)                               // a5 = GVA deny pointer (VS leaf U=0)
   LI(a4, 0)                                     // sentinel — stays 0 if VU load page-faults
   RVTEST_GOTO_LOWER_MODE VUmode                 // M→VU (VA≠PA relocate)

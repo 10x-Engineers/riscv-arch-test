@@ -416,6 +416,9 @@ main:                                       // test entry
   test8c_pbmt3_nosup:                               // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s2, test8c_pbmt3_nosup, test8c_pbmt3_nosup_str) // SIGUPD
 
+//---------------------------------------------------------------------------------------------------------------------------------
+// Test case 8d/9: PBMT=1 X-leaf VS jalr (PBMTE=0) | Expected: Expected Fault
+//---------------------------------------------------------------------------------------------------------------------------------
   VS_PTE_SETUP(sv39, PA, test_region5, (PTE_D | PTE_A | PTE_X | PTE_R | PTE_V | PTE_PBMT1), va_pbmt, LEVEL0)  // VS X-leaf PBMT=1 with PBMTE=0
   hfence.vvma                                   // flush VS TLB after PTE rewrite
   LI(a5, va_pbmt)                               // a5 = GVA fetch target

@@ -76,7 +76,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   a3, 0(a5)                                // VS load X-only with MXR=0 → load page-fault (a3 stays 0)
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   test1_mxr0_lw:                                    // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_mxr0_lw, test1_mxr0_lw_str) // SIGUPD
 

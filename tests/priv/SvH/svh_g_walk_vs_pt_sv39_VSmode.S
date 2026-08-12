@@ -90,7 +90,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   a3, 0(a5)                                // cp_h_vm_gstagetrans: VS walk hits G-mapped VS L0 PT GPA
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test1_allow:                                     // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_allow, test1_allow_str) // SIGUPD
@@ -107,7 +107,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   a4, 0(a5)                                // expect guest-page fault (handler skips)
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test2_deny:                                      // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a4, test2_deny, test2_deny_str) // SIGUPD

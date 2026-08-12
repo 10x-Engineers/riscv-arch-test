@@ -85,7 +85,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   a3, 0(a5)                                // VS load: V=0 leaf → load page-fault (a3 stays 0)
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test1_v0_lw:                                     // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_v0_lw, test1_v0_lw_str) // SIGUPD
@@ -99,7 +99,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   sw   t0, 0(a5)                                // VS store: V=0 leaf → store page-fault
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test2_v0_sw:                                     // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s2, test2_v0_sw, test2_v0_sw_str) // SIGUPD
@@ -112,7 +112,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   a4, 0(a5)                                // VS load: non-leaf at L0 → load page-fault (a4 stays 0)
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test3_nleaf_lw:                                  // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a4, test3_nleaf_lw, test3_nleaf_lw_str) // SIGUPD
@@ -127,7 +127,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   sw   t0, 0(a5)                                // VS store: non-leaf at L0 → store page-fault
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test4_nleaf_sw:                                  // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s3, test4_nleaf_sw, test4_nleaf_sw_str) // SIGUPD
@@ -143,7 +143,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE HSmode                 // M→HS (mret; HS uses vsatp when SPVP=1)
   hlv.w a6, (a5)                                // HS hyper-load through vsatp V=0 → page-fault
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test5_hlv:                                       // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a6, test5_hlv, test5_hlv_str) // SIGUPD
@@ -158,7 +158,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE HSmode                 // M→HS
   hsv.w t0, (a5)                                // HS hyper-store through vsatp V=0 → page-fault
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   LI(t0, HSTATUS_SPVP)                          // t0 = SPVP bit mask
   csrc hstatus, t0                              // clear SPVP (tidy for harness)
@@ -173,7 +173,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   a7, 0(a5)                                // VS load through valid leaf; expect 0x257A0310
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test7_ok:                                        // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a7, test7_ok, test7_ok_str) // SIGUPD
@@ -188,7 +188,7 @@ main:                                       // test entry
   nop                                           // pad so priv_mode_vs samples prev=VS on jalr
   jalr ra, a5, 0                                // VS ifetch of V=0 leaf → fetch page-fault
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test8_v0_ifetch:                                 // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s5, test8_v0_ifetch, test8_v0_ifetch_str) // SIGUPD

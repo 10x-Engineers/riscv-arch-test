@@ -65,7 +65,7 @@ main:                                       // test entry
   RVTEST_TSBI_GOTO_SMODE                       // M→HS (T-SBI)
   hlv.w a3, (a5)                                // HS HLV of VS X-only leaf, MXR=0 SPVP=1 → load page-fault
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                               Test Cases Start from here

@@ -61,12 +61,18 @@ main:                                       // test entry
 // Test case 1: hgatp Bare→Sv32x4 + HFENCE.GVMA x0,x0; HS HLV | Expected: Successful (0x257A0911)
 //---------------------------------------------------------------------------------------------------------------------------------
   HGATP_SETUP(sv32x4)                           // Bare → Sv32x4 (G paging now on)
+  csrr t0, hgatp                                // hgatp.VMID=1 for HFENCE rs2 nz bin
+  LI(t1, 1)
+  slli t1, t1, 22
+  or   t0, t0, t1
+  csrw hgatp, t0
   RVTEST_TSBI_GOTO_SMODE                       // M→HS (T-SBI)
-  hfence.gvma                                   // HS HFENCE.GVMA x0,x0 after MODE change: drop stale Bare G TLB
+  LI(a6, 1)                                     // rs2 non-zero VMID operand
+  hfence.gvma x0, a6                            // HS HFENCE.GVMA after MODE change: drop stale Bare G TLB
   LI(t1, gpa_data)                              // t1 = GPA (must walk G now, not treat as SPA)
   hlv.w a3, (t1)                                // HS HLV of GPA through new Sv32x4 map; expect 0x257A0911
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   test1_bare_to_paged:                              // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_bare_to_paged, test1_bare_to_paged_str) // SIGUPD
 
@@ -83,7 +89,7 @@ main:                                       // test entry
   la t1, test_region                            // t1 = SPA (Bare: HLV uses address as-is)
   hlv.w a3, (t1)                                // HS HLV of SPA under Bare; expect 0x257A0912
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   test2_paged_to_bare:                              // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test2_paged_to_bare, test2_paged_to_bare_str) // SIGUPD
 

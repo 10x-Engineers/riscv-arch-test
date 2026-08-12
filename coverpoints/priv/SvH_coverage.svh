@@ -19,8 +19,6 @@ covergroup SvH_cg with function sample(ins_t ins);
     //   What / Test — cite ELF + Sail path/symbol or sail_to_rvvi.py when bins stay empty.
     //   Our side = tests + sail_to_rvvi.py. Sail side = model under sail-riscv-hypervisor/.
     // Open Sail hole: vsbe_hstatus.set (sys_regs.sail::legalize_hstatus leaves VSBE unassigned).
-    // Speculative VS A-bit (sheet cp_vsatp_speculative_a_bit): no cross — .rvvi has no
-    // squash/speculation sideband; waived in status tracker until converter/Sail emit it.
 
     read_write_acc: coverpoint {ins.current.write_access, ins.current.read_access} {
         bins read_acc = {2'b01};
@@ -66,17 +64,18 @@ covergroup SvH_cg with function sample(ins_t ins);
             bins values_to_write[] = {[0:15]};
         }
 
-        mode_vsatp: coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_CURRENT, "vsatp", "mode") {
+        // Starting MODE before this CSRRW (-: {16 encodings} × {Bare, Sv39/Sv39x4}).
+        mode_vsatp: coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_PREV, "vsatp", "mode") {
             bins bare = {0};
             bins sv39 = {8};
         }
 
-        mode_hgatp: coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_CURRENT, "hgatp", "mode") {
+        mode_hgatp: coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_PREV, "hgatp", "mode") {
             bins bare = {0};
             bins sv39x4 = {8};
         }
 
-        mode_satp: coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_CURRENT, "satp", "mode") {
+        mode_satp: coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_PREV, "satp", "mode") {
             bins bare = {0};
             bins sv39 = {8};
         }
@@ -411,6 +410,7 @@ covergroup SvH_cg with function sample(ins_t ins);
     }
 
     // G PTE that maps VS page-table pages: A=D=0, R/W (no X). Implicit PT walk, not data XWR=111.
+    // X=0 because that G page is only used as a page table (CPU reads PTEs from it) it is not code to execute, so Execute is off.
     g_pte_ad_unset: coverpoint ins.current.g_pte_d[7:0] {
         wildcard bins g_pte_ad = {8'b00??0111};
     }
@@ -469,10 +469,22 @@ covergroup SvH_cg with function sample(ins_t ins);
         wildcard bins xonly = {8'b????1001};
     }
 
-    // HS sstatus.MXR (used if a cross samples HS MXR).
+    // HS sstatus.MXR — - cp_two_stage_mxr (HS MXR applies to both stages).
     mxr_sstatus: coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_CURRENT, "sstatus", "mxr") {
         bins unset = {0};
         bins set = {1};
+    }
+
+    // HFENCE rs1/rs2: decode GPR operands from insn (covergroupgen has no hfence.* dispatch).
+    hfence_rs1: coverpoint (ins.current.insn[19:15] == 5'd0)
+                ? '0 : ins.prev.x_wdata[ins.current.insn[19:15]] {
+        bins x0 = {0};
+        bins nz = {[1:$]};
+    }
+    hfence_rs2: coverpoint (ins.current.insn[24:20] == 5'd0)
+                ? '0 : ins.prev.x_wdata[ins.current.insn[24:20]] {
+        bins x0 = {0};
+        bins nz = {[1:$]};
     }
 
     // lw/sw vs HLV/HSV (HLV/HSV do not follow MPRV).
@@ -492,14 +504,14 @@ covergroup SvH_cg with function sample(ins_t ins);
     //   BOTH: cp_vsatp_ppn_field, cp_vsatp_asidlen_detect (Sv32 or Sv39)
     `ifdef UDB_MXLEN_64
         // Write vsatp MODE in HS. Test: svh_csr_vsatp_fields_RV64_HSmode.S
-        // RV64-only: 16× MODE encodings from Bare/Sv39 starts.
-        cp_vsatp_mode_field: cross priv_mode_hs, csrrw, vsatp, mode_field_values;
+        // - bins: {16 encodings} × {Bare, Sv39} starting MODE.
+        cp_vsatp_mode_field: cross priv_mode_hs, csrrw, vsatp, mode_field_values, mode_vsatp;
         // Write satp MODE from VS. Test: svh_csr_satp_mode_VSmode.S
-        // RV64-only.
-        cp_satp_mode_field:  cross priv_mode_vs, csrrw, satp, mode_field_values;
+        // - bins: {16 encodings} × {Bare, Sv39} starting MODE.
+        cp_satp_mode_field:  cross priv_mode_vs, csrrw, satp, mode_field_values, mode_satp;
         // Write hgatp MODE in HS. Test: svh_csr_hgatp_fields_RV64_HSmode.S
-        // RV64 16-encoding walk (RV32 Bare/Sv32x4 is the `else` branch).
-        cp_hgatp_mode_field: cross priv_mode_hs, csrrw, hgatp, mode_field_values;
+        // -: first Bare/Sv39x4, then MODE=x. RV32 Bare/Sv32x4 is the `else` branch.
+        cp_hgatp_mode_field: cross priv_mode_hs, csrrw, hgatp, mode_field_values, mode_hgatp;
     `else
         // RV32 hgatp MODE is 1 bit: Bare / Sv32x4 only (no third MODE encoding).
         // Test: svh_csr_hgatp_fields_HSmode.S
@@ -600,15 +612,19 @@ covergroup SvH_cg with function sample(ins_t ins);
     // ("We don't currently support changing VSBE"); bit stays 0.
     // Sail fix needed: honor VSBE writes in legalize_hstatus and use it for guest
     // data endian in the mem path. Then vsbe_hstatus.set / this cross can hit.
-    cp_vsatp_endianess:   cross priv_mode_vs, vsatp_mode, vsbe_hstatus, vs_pte_xwr111_d, read_write_acc;
+    // Sail legalize_hstatus leaves VSBE unset — waive BE half (user: VSBE exception).
+    cp_vsatp_endianess:   cross priv_mode_vs, vsatp_mode, vsbe_hstatus, vs_pte_xwr111_d, read_write_acc {
+        ignore_bins vsbe_set = binsof(vsbe_hstatus.set);
+    }
 
     // TVM=1 illegal hgatp CSR access. Test: svh_tvm_hgatp_*_HSmode.S
     // Hit: 100% both arch. Our side fixed (test + TRAP in sail_to_rvvi.py).
     cp_hgatp_tvm_effects: cross priv_mode_hs, tvm_mstatus, csrrw, hgatp;
 
-    // RSW bits [9:8] on the leaf. VS guest vs HS HLV/HSV.
-    cp_vsatp_pte_rsw: cross priv_mode_vs, vsatp_mode, vs_pte_rsw, read_write_acc;
-    cp_hgatp_pte_rsw: cross priv_mode_hs, hgatp_mode, g_pte_rsw, read_write_acc;
+    // RSW bits [9:8] on the leaf. -: VS {00..11}; G {read,write,exec}×4.
+    cp_vsatp_pte_rsw:   cross priv_mode_vs, vsatp_mode, vs_pte_rsw, read_write_acc;
+    cp_hgatp_pte_rsw:   cross priv_mode_hs, hgatp_mode, g_pte_rsw, read_write_acc;
+    cp_hgatp_pte_rsw_x: cross priv_mode_hs, hgatp_mode, g_pte_rsw, exec_acc;
 
     // VS PTE V=0. Test: svh_vsatp_fault_VSmode.S (lw/sw + jalr into V=0).
     // Hit: 100% both. Our side fixed: fetch-fault walks → VS_PTE_I in sail_to_rvvi.py.
@@ -682,14 +698,16 @@ covergroup SvH_cg with function sample(ins_t ins);
     two_stage_ifetch: cross priv_mode_vs, vsatp_mode, hgatp_mode, exec_acc;
     // Both Bare. Test: svh_stage_both_bare_VSmode.S
     stage_both_bare: cross priv_mode_vs, vsatp_bare, hgatp_bare, read_write_acc;
-    // vsatp on, hgatp Bare.
-    cp_hgatp_bare_trans: cross priv_mode_vs, vsatp_mode, hgatp_bare, read_write_acc;
-    // Both stages on (G walks VS page tables too).
+    // vsatp on, hgatp Bare. -: 2 VS-stage modes × {load,store,fetch}.
+    cp_hgatp_bare_trans:   cross priv_mode_vs, vsatp_mode, hgatp_bare, read_write_acc;
+    cp_hgatp_bare_trans_x: cross priv_mode_vs, vsatp_mode, hgatp_bare, exec_acc;
+    // Both stages on (G walks VS page tables too). -: {read, write}.
     cp_h_vm_gstagetrans: cross priv_mode_vs, vsatp_mode, hgatp_mode, read_write_acc;
 
-    // Two-stage load of X-only page. MXR=0 fault, MXR=1 allow. Not cp_vsstatus_mxr_sum.
-    // Sheet R43: loads from {VS,VU}. Tests: svh_two_stage_mxr_*_{VS,VU}mode.S (+ Sv39).
-    cp_two_stage_mxr: cross priv_mode_vs_vu, vsatp_mode, hgatp_mode, mxr_vsstatus, vs_pte_xonly_d, read_write_acc {
+    // Two-stage load of X-only page. -: sstatus.MXR × VS x-only × G x-only × {VS,VU}.
+    // Tests: svh_two_stage_mxr_*_{VS,VU}mode.S (+ Sv39) set HS+VS MXR and both-stage X-only.
+    // LB/LH/LD and “not x-only” halves are not in .rvvi-directed ELFs yet.
+    cp_two_stage_mxr: cross priv_mode_vs_vu, vsatp_mode, hgatp_mode, mxr_sstatus, vs_pte_xonly_d, g_pte_xonly_d, read_write_acc {
         ignore_bins writes = binsof(read_write_acc.write_acc);
     }
 
@@ -711,14 +729,16 @@ covergroup SvH_cg with function sample(ins_t ins);
     hgatp_exception_reporting_rw: cross priv_mode_vs, hgatp_mode, g_pte_d_inv, read_write_acc, trap_set;
     hgatp_exception_reporting_x:  cross priv_mode_vs, hgatp_mode, g_pte_i_inv, exec_acc, trap_set;
 
-    // Two-stage V=0 deny (both stages ON). Test: svh_twostage_invalid_VSmode.S (+ Sv39 twin).
-    // lw + sw (separate hops + hfence) so read_acc and write_acc both hit with TRAP.
-    // Distinct from cp_*_invalid_pte_* (those allow partner Bare).
+    // Two-stage V=0 deny (both stages ON). -: {HS,VS,U,VU}×{load,store,fetch}.
+    // Directed ELFs today: VS lw/sw. HS/U/VU and fetch need extra ELFs (not ignored — - axes).
     VM_permission_invalid_vs_rw: cross priv_mode_vs, vsatp_mode, hgatp_mode, vs_pte_d_inv, read_write_acc, trap_set;
+    VM_permission_invalid_vs_x:  cross priv_mode_vs, vsatp_mode, hgatp_mode, vs_pte_i_inv, exec_acc, trap_set;
     VM_permission_invalid_g_rw:  cross priv_mode_vs, vsatp_mode, hgatp_mode, g_pte_d_inv, read_write_acc, trap_set;
+    VM_permission_invalid_g_x:   cross priv_mode_vs, vsatp_mode, hgatp_mode, g_pte_i_inv, exec_acc, trap_set;
 
-    // MPRV+SUM with both stages paged (not Bare-G MPRV). Test: svh_mprv_sum_two_stage_Mmode.S
-    mprv_sum_effect_hs_two_stage: cross priv_mode_m, mstatus_mprv_set, sum_vsstatus, vsatp_mode, hgatp_mode, read_write_acc;
+    // MPRV+SUM with both stages paged. -: {load,store,fetch}×SUM. Fetch not in ELF yet.
+    mprv_sum_effect_hs_two_stage:   cross priv_mode_m, mstatus_mprv_set, sum_vsstatus, vsatp_mode, hgatp_mode, read_write_acc;
+    mprv_sum_effect_hs_two_stage_x: cross priv_mode_m, mstatus_mprv_set, sum_vsstatus, vsatp_mode, hgatp_mode, exec_acc;
 
     // VU, both stages, U=1 pages. Test: svh_vu_rwx_two_stage_VUmode.S
     rwx_umode_pages_umode_rw: cross priv_mode_vu, vsatp_mode, hgatp_mode, vs_pte_xwr111_u_d, read_write_acc;
@@ -744,19 +764,23 @@ covergroup SvH_cg with function sample(ins_t ins);
     }
 
     // Bad G superpage / root table. Trap on walk. Test: svh_g_struct_HSmode.S (+ Sv39).
-    hgatp_misaligned_superpage: cross priv_mode_hs, hgatp_mode, read_write_acc, trap_set;
+    hgatp_misaligned_superpage:   cross priv_mode_hs, hgatp_mode, read_write_acc, trap_set;
+    hgatp_misaligned_superpage_x: cross priv_mode_hs, hgatp_mode, exec_acc, trap_set;
     hgatp_root_table_alignment_and_size: cross priv_mode_hs, hgatp_mode, hfence_gvma_insn;
 
-    // RV64: GPA too wide / not canonical. Test: svh_gpa_width_VSmode.S
+    // RV64: GPA too wide / not canonical. -: modes × GPA bits × access. GPA bit walk not in .rvvi.
     `ifdef UDB_MXLEN_64
-    cp_hgatp_gpa_width_checks: cross priv_mode_vs, hgatp_mode, read_write_acc, trap_set;
+    cp_hgatp_gpa_width_checks:   cross priv_mode_vs, hgatp_mode, read_write_acc, trap_set;
+    cp_hgatp_gpa_width_checks_x: cross priv_mode_vs, hgatp_mode, exec_acc, trap_set;
     `endif
 
     // HFENCE.VVMA / HFENCE.GVMA in HS (illegal in VS/VU). Tests: svh_hfence_*.S
-    cp_hfence_functionality: cross priv_mode_hs, hfence_vvma_insn, vsatp_mode;
-    cp_hfence_vvma_operand: cross priv_mode_hs, hfence_vvma_insn;
-    cp_hgatp_mode_change_hfence: cross priv_mode_hs, hgatp_mode, hfence_gvma_insn;
-    cp_hfence_gvma_operand: cross priv_mode_hs, hfence_gvma_insn;
+    // - functionality: {M,HS}×cached×PT-update — TLB-cache not in .rvvi; M-mode ELF not written.
+    // - operands: rs1/rs2 ×{x0,nz}. ASID/VMID encoding + GPA-match not in .rvvi.
+    cp_hfence_functionality: cross priv_mode_m_s, hfence_vvma_insn, vsatp_mode;
+    cp_hfence_vvma_operand: cross priv_mode_hs, hfence_vvma_insn, hfence_rs1, hfence_rs2;
+    cp_hgatp_mode_change_hfence: cross priv_mode_hs, hgatp_mode, hfence_gvma_insn, hfence_rs2;
+    cp_hfence_gvma_operand: cross priv_mode_hs, hfence_gvma_insn, hfence_rs1, hfence_rs2;
 
 
 

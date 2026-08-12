@@ -59,7 +59,7 @@ main:                                       // test entry
   test1_vs:                                         // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_vs, test1_vs_str) // SIGUPD
 
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: M-mode SPA readback | Expected: Successful

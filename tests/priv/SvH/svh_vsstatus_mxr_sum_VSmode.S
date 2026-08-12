@@ -128,7 +128,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   a3, 0(a5)                                // X-only without MXR → load-page-fault; insn skipped
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test1_mxr0_xs:                                   // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_mxr0_xs, test1_mxr0_xs_str) // SIGUPD
@@ -146,7 +146,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   a4, 0(a5)                                // MXR=1 treats X-only as readable; expect 0x257A0501
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test2_mxr1_xs_lw:                                // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a4, test2_mxr1_xs_lw, test2_mxr1_xs_lw_str) // SIGUPD
@@ -159,7 +159,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   sw   a3, 0(a5)                                // X-only has no W; MXR does not help stores → store-page-fault
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test3_mxr1_xs_sw:                                // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test3_mxr1_xs_sw, test3_mxr1_xs_sw_str) // SIGUPD
@@ -177,7 +177,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   a6, 0(a5)                                // U-page blocked by SUM=0 → fault
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test4_mxr0_xu:                                   // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a6, test4_mxr0_xu, test4_mxr0_xu_str) // SIGUPD
@@ -195,7 +195,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   a7, 0(a5)                                // MXR alone cannot bypass U-page without SUM → fault
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test5_mxr1_xu:                                   // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a7, test5_mxr1_xu, test5_mxr1_xu_str) // SIGUPD
@@ -213,7 +213,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   a3, 0(a5)                                // MXR+SUM allow U X-only load; expect 0xDEADBEEF
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test6_mxr1_sum1_xu:                              // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test6_mxr1_sum1_xu, test6_mxr1_sum1_xu_str) // SIGUPD
@@ -231,7 +231,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   a4, 0(a5)                                // SUM=1 allows U-page load via R; expect 0x257A0502
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test7_sum1_urw_lw:                               // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a4, test7_sum1_urw_lw, test7_sum1_urw_lw_str) // SIGUPD
@@ -251,7 +251,7 @@ main:                                       // test entry
   nop                                           // trap-skip pad
   lw   a6, 0(a5)                                // load back; expect 0x257A0508
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test8_sum1_urw_swlw:                             // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a6, test8_sum1_urw_swlw, test8_sum1_urw_swlw_str) // SIGUPD
@@ -269,7 +269,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   sw   s2, 0(a5)                                // U-page with SUM=0 → store-page-fault
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test9_sum0_urw_sw:                               // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s2, test9_sum0_urw_sw, test9_sum0_urw_sw_str) // SIGUPD
@@ -284,7 +284,7 @@ main:                                       // test entry
   nop                                           // trap-skip pad
   lw   a7, 0(a5)                                // load back; expect 0x257A050A
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test10_srw_swlw:                                 // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a7, test10_srw_swlw, test10_srw_swlw_str) // SIGUPD
@@ -305,7 +305,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   s3, 0(a5)                                // guest load (expect fault; sentinel stays 0)
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test11_sum1_mxr0_xs:                             // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s3, test11_sum1_mxr0_xs, test11_sum1_mxr0_xs_str) // SIGUPD
@@ -323,7 +323,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   s2, 0(a5)                                // guest load through current PTE perms (expect allow)
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test12_mxr1_sum1_srw:                            // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s2, test12_mxr1_sum1_srw, test12_mxr1_sum1_srw_str) // SIGUPD
@@ -341,7 +341,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   s4, 0(a5)                                // guest load (expect fault; sentinel stays 0)
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test13_sum1_mxr0_xu:                             // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s4, test13_sum1_mxr0_xu, test13_sum1_mxr0_xu_str) // SIGUPD
@@ -359,7 +359,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   sw   s5, 0(a5)                                // guest store through current PTE perms
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test14_mxr1_sum1_xu_sw:                          // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s5, test14_mxr1_sum1_xu_sw, test14_mxr1_sum1_xu_sw_str) // SIGUPD
@@ -377,7 +377,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   s6, 0(a5)                                // guest load (expect fault; sentinel stays 0)
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test15_mxr1_sum0_urw:                            // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s6, test15_mxr1_sum0_urw, test15_mxr1_sum0_urw_str) // SIGUPD
@@ -395,7 +395,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   sw   s7, 0(a5)                                // guest store through current PTE perms
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test16_mxr1_sum1_xs_sw:                          // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s7, test16_mxr1_sum1_xs_sw, test16_mxr1_sum1_xs_sw_str) // SIGUPD
@@ -416,7 +416,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   s2, 0(a5)                                // VS load from S-page RWX: MXR=0 SUM=1 → success
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test17_sum1_mxr0_srw:                            // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s2, test17_sum1_mxr0_srw, test17_sum1_mxr0_srw_str) // SIGUPD
@@ -439,7 +439,7 @@ main:                                       // test entry
   nop                                           // trap-skip pad
   lw   s3, 0(a5)                                // VS load from S-page RWX: MXR=1 SUM=0 → success
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test18_mxr1_sum0_srw_sw:                         // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s3, test18_mxr1_sum0_srw_sw, test18_mxr1_sum0_srw_sw_str) // SIGUPD
@@ -460,7 +460,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   sw   t0, 0(a5)                                // VS store to S-page X-only: MXR=0 SUM=1 → store-page-fault (no W)
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   la t1, test_region_x_s                        // t1 = SPA of S-page X-only region
   lw s4, 0(t1)                                  // M-mode SPA readback; expect preload unchanged (SPA of S-page X-only region)
 
@@ -475,7 +475,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   sw   t0, 0(a5)                                // VS store to U-page X-only: MXR=0 SUM=1 → store-page-fault (no W)
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   la t1, test_region_x_u                        // t1 = SPA of U-page X-only region
   lw s5, 0(t1)                                  // M-mode SPA readback; expect preload unchanged (SPA of U-page X-only region)
 
@@ -503,7 +503,7 @@ main:                                       // test entry
   jalr ra, a5, 0                                // VS ifetch of S-page RWX: MXR=0 SUM=0 → success (X allowed); ret trampoline returns
   LI(s8, 0x257A0515)                            // magic proving jalr returned (case 21)
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test21_srw_jalr:                                 // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s8, test21_srw_jalr, test21_srw_jalr_str) // SIGUPD
@@ -527,7 +527,7 @@ main:                                       // test entry
   jalr ra, a5, 0                                // VS ifetch of S-page RWX: MXR=0 SUM=1 → success (X allowed); ret trampoline returns
   LI(s9, 0x257A0516)                            // magic proving jalr returned (case 22)
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test22_sum1_srw_jalr:                            // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s9, test22_sum1_srw_jalr, test22_sum1_srw_jalr_str) // SIGUPD
@@ -551,7 +551,7 @@ main:                                       // test entry
   jalr ra, a5, 0                                // VS ifetch of U-page RWX: MXR=1 SUM=1 → success (X allowed); ret trampoline returns
   LI(s10, 0x257A0517)                           // magic proving jalr returned (case 23)
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test23_urw_jalr:                                 // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s10, test23_urw_jalr, test23_urw_jalr_str) // SIGUPD
@@ -575,7 +575,7 @@ main:                                       // test entry
   nop                                           // trap-skip pad
   lw   s2, 0(a5)                                // VS load from S-page RWX: MXR=1 SUM=1 → success
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test24_mxr1_sum1_srw_sw:                         // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s2, test24_mxr1_sum1_srw_sw, test24_mxr1_sum1_srw_sw_str) // SIGUPD
@@ -593,7 +593,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   sw   t0, 0(a5)                                // VS store to U-page X-only: MXR=1 SUM=0 → store-page-fault (U=1 blocked without SUM)
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   la t1, test_region_x_u                        // t1 = SPA of U-page X-only region
   lw s3, 0(t1)                                  // M-mode SPA readback; expect preload unchanged (SPA of U-page X-only region)
 
@@ -608,7 +608,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   sw   t0, 0(a5)                                // VS store to S-page X-only: MXR=1 SUM=0 → store-page-fault (no W)
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   la t1, test_region_x_s                        // t1 = SPA of S-page X-only region
   lw s4, 0(t1)                                  // M-mode SPA readback; expect preload unchanged (SPA of S-page X-only region)
 
@@ -623,7 +623,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   sw   t0, 0(a5)                                // VS store to U-page RWX: MXR=1 SUM=0 → store-page-fault (U=1 blocked without SUM)
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   la t1, test_region_u_rw                       // t1 = SPA of U-page RWX region
   lw s5, 0(t1)                                  // M-mode SPA readback; expect preload unchanged (SPA of U-page RWX region)
 
@@ -642,7 +642,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   sw   t0, 0(a5)                                // VS store to U-page X-only: MXR=0 SUM=0 → store-page-fault (U=1 blocked without SUM)
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   la t1, test_region_x_u                        // t1 = SPA of U-page X-only region
   lw s2, 0(t1)                                  // M-mode SPA readback; expect preload unchanged (SPA of U-page X-only region)
 
@@ -664,7 +664,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   s3, 0(a5)                                // VS load from U-page RWX: MXR=1 SUM=1 → success
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test29_mxr1_sum1_urw_lw:                         // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s3, test29_mxr1_sum1_urw_lw, test29_mxr1_sum1_urw_lw_str) // SIGUPD
@@ -678,7 +678,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   s4, 0(a5)                                // VS load from S-page X-only: MXR=1 SUM=1 → success; MXR makes X readable
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test30_mxr1_sum1_xs_lw:                          // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s4, test30_mxr1_sum1_xs_lw, test30_mxr1_sum1_xs_lw_str) // SIGUPD
@@ -701,7 +701,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   s5, 0(a5)                                // VS load from S-page RWX: MXR=1 SUM=0 → success
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test31_mxr1_sum0_srw_lw:                         // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s5, test31_mxr1_sum0_srw_lw, test31_mxr1_sum0_srw_lw_str) // SIGUPD
@@ -720,7 +720,7 @@ main:                                       // test entry
   jalr ra, a5, 0                                // VS ifetch of S-page RWX: MXR=1 SUM=0 → success (X allowed); ret trampoline returns
   LI(s6, 0x257A0520)                            // magic proving jalr returned (case 32)
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test32_mxr1_sum0_srw_jalr:                       // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s6, test32_mxr1_sum0_srw_jalr, test32_mxr1_sum0_srw_jalr_str) // SIGUPD
@@ -740,7 +740,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   s7, 0(a5)                                // VS load from S-page X-only: MXR=1 SUM=1 → success; MXR makes X readable
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test33_mxr1_sum1_xs_lw2:                         // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s7, test33_mxr1_sum1_xs_lw2, test33_mxr1_sum1_xs_lw2_str) // SIGUPD

@@ -147,7 +147,7 @@ main:                                       // test entry
   nop                                           // trap-skip pad
   lw   a3, 0(a5)                                // VS load; expect 0x257A0301
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test1_rsw00:                                     // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_rsw00, test1_rsw00_str) // SIGUPD
@@ -162,7 +162,7 @@ main:                                       // test entry
   nop                                           // trap-skip pad
   lw   a4, 0(a5)                                // VS load; expect 0x257A0302
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test2_rsw01:                                     // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a4, test2_rsw01, test2_rsw01_str) // SIGUPD
@@ -175,7 +175,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   s2, 0(a5)                                // VS load through RSW=01 leaf; expect 0x257A0302
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test2b_rsw01_lw:                                 // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s2, test2b_rsw01_lw, test2b_rsw01_lw_str) // SIGUPD
@@ -190,7 +190,7 @@ main:                                       // test entry
   nop                                           // trap-skip pad
   lw   a6, 0(a5)                                // VS load; expect 0x257A0303
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test3_rsw10:                                     // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a6, test3_rsw10, test3_rsw10_str) // SIGUPD
@@ -203,7 +203,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   s3, 0(a5)                                // VS load through RSW=10 leaf; expect 0x257A0303
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test3b_rsw10_lw:                                 // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s3, test3b_rsw10_lw, test3b_rsw10_lw_str) // SIGUPD
@@ -218,7 +218,7 @@ main:                                       // test entry
   nop                                           // trap-skip pad
   lw   a7, 0(a5)                                // VS load; expect 0x257A0304
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test4_rsw11:                                     // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a7, test4_rsw11, test4_rsw11_str) // SIGUPD
@@ -232,7 +232,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   s4, 0(a5)                                // VS load through RSW=11 leaf; expect 0x257A0304
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   test4b_rsw11_lw:                                  // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s4, test4b_rsw11_lw, test4b_rsw11_lw_str) // SIGUPD
 
@@ -248,7 +248,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode;                                    /* M→VS mret + PA↔VA relocate */ \
   lw   reg, 0(a5);                                                  /* VS load through reserved leaf */ \
   nop;                                                              /* trap-skip padding after load */ \
-  RVTEST_TSBI_GOTO_MMODE;                                           /* back to M */ \
+  RVTEST_GOTO_MMODE;                                           /* back to M */ \
   label:                                                            /* signature dump point for this bit */ \
   RVTEST_SIGUPD(x2, x5, x4, reg, label, strlabel)                   /* dump load result (0 if page-fault) */
 
@@ -275,7 +275,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode;                                    /* M→VS mret + PA↔VA relocate */ \
   sw   t0, 0(a5);                                                   /* VS store through reserved leaf */ \
   nop;                                                              /* trap-skip padding after store */ \
-  RVTEST_TSBI_GOTO_MMODE;                                           /* back to M */ \
+  RVTEST_GOTO_MMODE;                                           /* back to M */ \
   la t1, test_region4                                               ; /* t1 = SPA of data page */ \
   lw a3, 0(t1)                                                      ; /* M-mode SPA readback */ \
   label:                                                            /* signature dump point for this bit */ \
@@ -301,7 +301,7 @@ main:                                       // test entry
   nop                                           // trap-skip pad
   lw   a3, 0(a5)                                // VS load; expect 0x257A0359
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   test6g_sw59:                                      // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test6g_sw59, test6g_sw59_str) // SIGUPD
 
@@ -314,7 +314,7 @@ main:                                       // test entry
   nop                                           // trap-skip pad
   lw   a4, 0(a5)                                // VS load; expect 0x257A0360
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   test6h_sw60:                                      // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a4, test6h_sw60, test6h_sw60_str) // SIGUPD
 
@@ -329,7 +329,7 @@ main:                                       // test entry
   nop                                           // pad so priv_mode_vs samples prev=VS on jalr
   jalr ra, a5, 0                                // VS ifetch reserved bit54 X-leaf → fetch page-fault
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   test7_rsvd_jalr:                                  // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a4, test7_rsvd_jalr, test7_rsvd_jalr_str) // SIGUPD
 
@@ -348,7 +348,7 @@ main:                                       // test entry
   jalr ra, a5, 0                                // VS ifetch soft-RSW bit59 — expect success + ret
   LI(s2, 0x257A0759)                            // reached only if jalr returned; success marker
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   test7b_jalr59:                                    // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s2, test7b_jalr59, test7b_jalr59_str) // SIGUPD
 
@@ -364,7 +364,7 @@ main:                                       // test entry
   jalr ra, a5, 0                                // VS ifetch soft-RSW bit60 — expect success + ret
   LI(s3, 0x257A0760)                            // reached only if jalr returned; success marker
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   test7c_jalr60:                                    // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s3, test7c_jalr60, test7c_jalr60_str) // SIGUPD
 
@@ -386,7 +386,7 @@ main:                                       // test entry
   nop                                           // trap-skip pad
   sw   a6, 0(a5)                                // VS store same leaf → expect fault if load trapped
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   test8a_pbmt1_nosup:                               // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a6, test8a_pbmt1_nosup, test8a_pbmt1_nosup_str) // SIGUPD
 
@@ -399,7 +399,7 @@ main:                                       // test entry
   nop                                           // trap-skip pad
   sw   a7, 0(a5)                                // VS store same leaf → expect fault
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   test8b_pbmt2_nosup:                               // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a7, test8b_pbmt2_nosup, test8b_pbmt2_nosup_str) // SIGUPD
 
@@ -412,7 +412,7 @@ main:                                       // test entry
   nop                                           // trap-skip pad
   sw   s2, 0(a5)                                // VS store same leaf → expect fault
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   test8c_pbmt3_nosup:                               // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s2, test8c_pbmt3_nosup, test8c_pbmt3_nosup_str) // SIGUPD
 
@@ -427,7 +427,7 @@ main:                                       // test entry
   nop                                           // pad so priv_mode_vs samples prev=VS on jalr
   jalr ra, a5, 0                                // VS ifetch PBMT=1 PBMTE=0 → expect fetch fault
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   test8d_pbmt1_nosup_x:                             // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s3, test8d_pbmt1_nosup_x, test8d_pbmt1_nosup_x_str) // SIGUPD
 

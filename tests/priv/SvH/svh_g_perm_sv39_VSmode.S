@@ -82,12 +82,12 @@ main:                                       // test entry
   RVTEST_TSBI_GOTO_VSMODE                      // M→VS (T-SBI)
   sw   a2, 0(a5)                                // VS store through G-stage (U=1 XWR=111)
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   hfence.gvma                                   // force next VS load to rewalk leaf (G_PTE_D in .rvvi)
   RVTEST_TSBI_GOTO_VSMODE                      // M→VS (T-SBI)
   lw   a3, 0(a5)                                // expect 0x257A0201
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test1_u1_rwx:                                    // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_u1_rwx, test1_u1_rwx_str) // SIGUPD
@@ -102,7 +102,7 @@ main:                                       // test entry
   RVTEST_TSBI_GOTO_VSMODE                      // M→VS (T-SBI)
   lw   a4, 0(a5)                                // U=0 → guest-page fault (G walks as U)
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test2_u0_lw:                                     // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a4, test2_u0_lw, test2_u0_lw_str) // SIGUPD
@@ -115,7 +115,7 @@ main:                                       // test entry
   RVTEST_TSBI_GOTO_VSMODE                      // M→VS (T-SBI)
   sw   t0, 0(a5)                                // U=0 → store guest-page fault
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   la t3, test_region                            // t3 = SPA of data page
   lw s2, 0(t3)                                  // expect preload 0x257A0201 unchanged
@@ -132,7 +132,7 @@ main:                                       // test entry
   RVTEST_TSBI_GOTO_VSMODE                      // M→VS (T-SBI)
   lw   a6, 0(a5)                                // no R → guest-page fault
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test4_xonly:                                     // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a6, test4_xonly, test4_xonly_str) // SIGUPD
@@ -148,7 +148,7 @@ main:                                       // test entry
   RVTEST_TSBI_GOTO_VSMODE                      // M→VS (T-SBI)
   lw   s3, 0(a5)                                // V-only → fault
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test5_vonly_u1:                                  // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s3, test5_vonly_u1, test5_vonly_u1_str) // SIGUPD
@@ -163,7 +163,7 @@ main:                                       // test entry
   RVTEST_TSBI_GOTO_VSMODE                      // M→VS (T-SBI)
   lw   a7, 0(a5)                                // expect 0x257A0201
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test6_restore:                                   // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a7, test6_restore, test6_restore_str) // SIGUPD
@@ -178,7 +178,7 @@ main:                                       // test entry
   hfence.gvma                                   // force walk for G_PTE_D + G bit (legal in HS)
   hlv.w s4, (t1)                                // HS hyper-load of guest GPA
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test7_hlv_g:                                     // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s4, test7_hlv_g, test7_hlv_g_str) // SIGUPD
@@ -197,7 +197,7 @@ main:                                       // test entry
   LI(s5, 0)                                     // s5 will hold HLV after HSV
   hlv.w s5, (t1)                                // expect 0x257A0208
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test8_hsv_g:                                     // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s5, test8_hsv_g, test8_hsv_g_str) // SIGUPD
@@ -212,7 +212,7 @@ main:                                       // test entry
   RVTEST_TSBI_GOTO_VSMODE                      // M→VS (T-SBI)
   sw   t0, 0(a5)                                // V-only → store guest-page fault
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   la t3, test_region                            // t3 = SPA of data page
   lw s6, 0(t3)                                  // expect 0x257A0208 from case 8
@@ -229,7 +229,7 @@ main:                                       // test entry
   RVTEST_TSBI_GOTO_VSMODE                      // M→VS (T-SBI)
   sw   t0, 0(a5)                                // guest store (expect fault; SPA must stay unchanged)
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   la t3, test_region                            // t3 = SPA of data page
   lw s7, 0(t3)                                  // expect 0x257A0208 still

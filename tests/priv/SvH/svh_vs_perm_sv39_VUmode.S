@@ -34,7 +34,7 @@
 #define TRAP_SIGUPD_COUNT 256
 #define RVTEST_HYPERVISOR
 
-// Mode hops (T-SBI) — return-to-M always uses RVTEST_TSBI_GOTO_MMODE (ecall a0=1;
+// Mode hops (T-SBI) — return-to-M always uses RVTEST_GOTO_MMODE (ecall a0=1;
 //   handler rtn2mmode relocates EPC VA→PA). Enter:
 //   • Guest code VA≠PA (V_SAVE_AREA_*): RVTEST_GOTO_LOWER_MODE VUmode
 #include "riscv_arch_test.h"
@@ -126,7 +126,7 @@ main:                                       // test entry
   nop                                           // trap-skip pad
   lw   a3, 0(a5)                                // guest load through current PTE perms (expect allow)
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test1_urw_rwx:                                   // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_urw_rwx, test1_urw_rwx_str) // SIGUPD
@@ -139,7 +139,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VUmode                 // M→VU (VA≠PA relocate)
   lw   a4, 0(a5)                                // guest load (expect fault; sentinel stays 0)
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test2_ux_lw:                                     // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a4, test2_ux_lw, test2_ux_lw_str) // SIGUPD
@@ -153,7 +153,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VUmode                 // M→VU (VA≠PA relocate)
   sw   t0, 0(a5)                                // X-only → store-page-fault
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   la t1, test_region_u_xonly                    // t1 = SPA of U-page X-only region
   lw a3, 0(t1)                                  // expect preload 0x257A0702
@@ -170,7 +170,7 @@ main:                                       // test entry
   LI(a4, 0)                                     // sentinel — a4 stays 0 if store is skipped by trap
   sw   a4, 0(a5)                                // R-only → store-page-fault (SPA unchanged)
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test4_ur_only:                                   // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test4_ur_only, test4_ur_only_str) // SIGUPD
@@ -185,7 +185,7 @@ main:                                       // test entry
   nop                                           // trap-skip pad
   lw   a3, 0(a5)                                // U=1 R/W → load OK (expect 0x257A0705)
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test5_urw:                                       // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test5_urw, test5_urw_str) // SIGUPD
@@ -200,7 +200,7 @@ main:                                       // test entry
   LI(a4, 0)                                     // sentinel — a4 stays 0 if store is skipped by trap
   sw   a4, 0(a5)                                // R/X → store-page-fault (SPA unchanged)
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test6_urx:                                       // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test6_urx, test6_urx_str) // SIGUPD
@@ -213,7 +213,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VUmode                 // M→VU (VA≠PA relocate)
   lw   a6, 0(a5)                                // guest load (expect fault; sentinel stays 0)
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test7_s_lw:                                      // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a6, test7_s_lw, test7_s_lw_str) // SIGUPD
@@ -226,7 +226,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VUmode                 // M→VU (VA≠PA relocate)
   lw   a7, 0(a5)                                // guest load (expect fault; sentinel stays 0)
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test8_uv_lw:                                     // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a7, test8_uv_lw, test8_uv_lw_str) // SIGUPD
@@ -239,7 +239,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VUmode                 // M→VU (VA≠PA relocate)
   sw   t0, 0(a5)                                // VU cannot use U=0 pages → store-page-fault
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   la t1, test_region_s_rwx                      // t1 = SPA of S-page RWX region (VU deny)
   lw s2, 0(t1)                                  // expect preload 0x257A0707
@@ -254,7 +254,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VUmode                 // M→VU (VA≠PA relocate)
   lw   s3, 0(a5)                                // guest load (expect fault; sentinel stays 0)
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test10_sv_lw:                                    // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s3, test10_sv_lw, test10_sv_lw_str) // SIGUPD
@@ -267,7 +267,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VUmode                 // M→VU (VA≠PA relocate)
   sw   t0, 0(a5)                                // guest store through current PTE perms
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   la t1, test_region_s_vonly                    // t1 = SPA of S-page V-only region
   lw s4, 0(t1)                                  // expect zero preload (never written)
@@ -282,7 +282,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VUmode                 // M→VU (VA≠PA relocate)
   sw   t0, 0(a5)                                // guest store through current PTE perms
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   la t1, test_region_u_vonly                    // t1 = SPA of U-page V-only region
   lw s5, 0(t1)                                  // expect zero preload (never written)

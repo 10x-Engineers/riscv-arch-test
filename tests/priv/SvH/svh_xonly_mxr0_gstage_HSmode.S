@@ -69,7 +69,7 @@ main:                                       // test entry
   RVTEST_TSBI_GOTO_SMODE                       // M→HS (T-SBI)
   hlv.w a3, (t1)                                // HS HLV of G X-only U=1 leaf, MXR=0 → guest-page-fault
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test1_g_xonly:                                   // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_g_xonly, test1_g_xonly_str) // SIGUPD

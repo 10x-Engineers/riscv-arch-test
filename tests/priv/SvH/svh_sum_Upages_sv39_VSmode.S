@@ -84,7 +84,7 @@ main:                                       // test entry
   nop                                           // trap-skip pad
   sw   a4, 0(a5)                                // same leaf → store-page-fault; insn skipped
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test1_sum0_lw:                                   // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_sum0_lw, test1_sum0_lw_str) // SIGUPD
@@ -112,14 +112,14 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   sw   a6, 0(a5)                                // SUM=1 store through U=1 leaf → SPA
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   hfence.vvma                                   // force next VS load to page-walk (coverpoint sampling)
   LI(a7, 0)                                     // a7 will hold VS load result
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   a7, 0(a5)                                // SUM=1 load of U=1 page; expect 0x257A0201
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test3_sum1_lw:                                   // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a7, test3_sum1_lw, test3_sum1_lw_str) // SIGUPD

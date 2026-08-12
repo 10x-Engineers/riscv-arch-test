@@ -48,13 +48,18 @@ main:                                       // test entry
 // --------------------------------------------------------------------------------------------------------------------------------
   csrw vsatp, x0                                // vsatp Bare — HLV address is a GPA (G-stage only)
   HGATP_SETUP(sv32x4)                           // hgatp = Sv32x4, PPN = G root
+  csrr t0, hgatp                                // hgatp.VMID=1 for HFENCE rs2 nz bins
+  LI(t1, 1)
+  slli t1, t1, 22
+  or   t0, t0, t1
+  csrw hgatp, t0
 
   LI(t0, 0x257A0921)                        // preload SPA
   la t1, test_region                        // t1 = SPA of data page
   sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
 
   LI(a5, gpa_data)                              // a5 = GPA operand for HFENCE.GVMA rs1 and HLV
-  LI(a6, 0)                                     // a6 = VMID 0 (matches hgatp VMID)
+  LI(a6, 1)                                     // a6 = VMID 1 (matches hgatp VMID for rs2 nz bins)
 
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                               Test Cases Start from here
@@ -67,7 +72,7 @@ main:                                       // test entry
   hfence.gvma a5, x0                            // HS HFENCE.GVMA GPA=a5, VMID=all: flush that GPA in G TLB
   hlv.w a3, (a5)                                // HS hypervisor load of GPA: G-stage walk → SPA; expect 0x257A0921
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   test1_gpa:                                        // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_gpa, test1_gpa_str) // SIGUPD
 
@@ -79,12 +84,12 @@ main:                                       // test entry
   sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
 
   LI(a5, gpa_data)                              // a5 = GPA for HLV
-  LI(a6, 0)                                     // a6 = VMID 0
+  LI(a6, 1)                                     // a6 = VMID 1
   RVTEST_TSBI_GOTO_SMODE                       // M→HS (T-SBI)
   hfence.gvma x0, a6                            // HS HFENCE.GVMA GPA=all, VMID=a6: flush that VMID in G TLB
   hlv.w a3, (a5)                                // HS HLV after VMID fence: expect 0x257A0922
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   test2_vmid:                                       // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test2_vmid, test2_vmid_str) // SIGUPD
 
@@ -96,12 +101,12 @@ main:                                       // test entry
   sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
 
   LI(a5, gpa_data)                              // a5 = GPA operand + HLV address
-  LI(a6, 0)                                     // a6 = VMID 0
+  LI(a6, 1)                                     // a6 = VMID 1
   RVTEST_TSBI_GOTO_SMODE                       // M→HS (T-SBI)
   hfence.gvma a5, a6                            // HS HFENCE.GVMA GPA=a5 + VMID=a6: flush that (GPA,VMID) pair
   hlv.w a3, (a5)                                // HS HLV after combined fence: expect 0x257A0923
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   test3_both:                                       // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test3_both, test3_both_str) // SIGUPD
 

@@ -79,7 +79,7 @@ main:                                       // test entry
   addi a2, a2, 1                                // a2 = 0x257A0011 — two_stage_ifetch bin
   nop                                           // another two-stage ifetch retire
   nop                                           // one more simple VS instruction fetch
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test1_ifetch:                                    // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a2, test1_ifetch, test1_ifetch_str) // SIGUPD

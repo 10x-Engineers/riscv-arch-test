@@ -99,7 +99,7 @@ main:                                       // test entry
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 3: G leaf U=0 XWR=111 HS HLV | Expected: Expected Fault
 //---------------------------------------------------------------------------------------------------------------------------------
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V), gpa_data, LEVEL0)  // U=0
   hfence.gvma                               // flush G-stage TLB (must be M or HS — illegal in VS/VU)
   RVTEST_TSBI_GOTO_SMODE                       // M→HS (T-SBI)
@@ -126,7 +126,7 @@ main:                                       // test entry
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 5: Restore G leaf U=1 XWR=111 HS HLV | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R | PTE_V), gpa_data, LEVEL0)  // restore U=1 XWR=111+G leaf
   hfence.gvma                               // flush G-stage TLB (must be M or HS — illegal in VS/VU)
   RVTEST_TSBI_GOTO_SMODE                       // M→HS (T-SBI)
@@ -138,7 +138,7 @@ main:                                       // test entry
   test5_restore:                                    // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a7, test5_restore, test5_restore_str) // SIGUPD
 
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
 //---------------------------------------------------------------------------------------------------------------------------------
 RVTEST_CODE_END                             // framework: end code

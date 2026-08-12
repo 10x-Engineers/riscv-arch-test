@@ -87,7 +87,7 @@ ppn_walk:                                       // loop: walking-1 across PPN bi
   LI(t4, 22)                                    // stop after bits 0..21 (22 iterations)
   blt t3, t4, ppn_walk                          // bits 0..21
 
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
 //---------------------------------------------------------------------------------------------------------------------------------
 RVTEST_CODE_END                             // framework: end code

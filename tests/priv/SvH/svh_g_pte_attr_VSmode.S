@@ -77,7 +77,7 @@ main:                                       // test entry
   hfence.gvma                                   // legal in HS — force HLV to rewalk (not TLB-hit)
   hlv.w a3, (t1)                                // HS hyper-load; expect 0x257A0210
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test1_rsw00:                                     // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_rsw00, test1_rsw00_str) // SIGUPD
@@ -96,7 +96,7 @@ main:                                       // test entry
   hfence.gvma                                   // flush G TLB so HLV rewalks
   hlv.w a4, (t1)                                // HS hyper-load; expect 0x257A0211
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test2_rsw01:                                     // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a4, test2_rsw01, test2_rsw01_str) // SIGUPD
@@ -115,7 +115,7 @@ main:                                       // test entry
   hfence.gvma                                   // flush G TLB so HLV rewalks
   hlv.w a6, (t1)                                // HS hyper-load; expect 0x257A0212
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test3_rsw10:                                     // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a6, test3_rsw10, test3_rsw10_str) // SIGUPD
@@ -134,7 +134,7 @@ main:                                       // test entry
   hfence.gvma                                   // flush G TLB so HLV rewalks
   hlv.w a7, (t1)                                // HS hyper-load; expect 0x257A0213
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test4_rsw11:                                     // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a7, test4_rsw11, test4_rsw11_str) // SIGUPD

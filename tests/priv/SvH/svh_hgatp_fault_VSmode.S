@@ -81,7 +81,7 @@ main:                                       // test entry
   RVTEST_TSBI_GOTO_VSMODE                      // M→VS (T-SBI)
   lw   a3, 0(a5)                                // invalid G leaf → fault before load completes
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test1_v0:                                        // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_v0, test1_v0_str) // SIGUPD
@@ -97,7 +97,7 @@ main:                                       // test entry
   RVTEST_TSBI_GOTO_VSMODE                      // M→VS (T-SBI)
   lw   a4, 0(a5)                                // walk stops at non-leaf L0 → guest-page fault
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test2_nonleaf:                                   // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a4, test2_nonleaf, test2_nonleaf_str) // SIGUPD
@@ -114,7 +114,7 @@ main:                                       // test entry
   LI(t1, gpa_data)                              // t1 = GPA pointer for HLV/HSV
   hlv.w a6, (t1)                                // HS hypervisor load hits V=0 → guest-page fault
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test3_hlv_v0:                                    // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a6, test3_hlv_v0, test3_hlv_v0_str) // SIGUPD
@@ -131,7 +131,7 @@ main:                                       // test entry
   LI(t1, gpa_data)                              // t1 = GPA pointer for HSV
   hsv.w t0, (t1)                                // HS hypervisor store hits V=0 → guest-page fault
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test4_hsv_v0:                                    // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s2, test4_hsv_v0, test4_hsv_v0_str) // SIGUPD
@@ -149,7 +149,7 @@ main:                                       // test entry
   LI(t1, gpa_data)                              // t1 = GPA pointer for HSV
   hsv.w t0, (t1)                                // HS store through non-leaf L0 → guest-page fault
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test5_hsv_nonleaf:                               // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s3, test5_hsv_nonleaf, test5_hsv_nonleaf_str) // SIGUPD
@@ -164,7 +164,7 @@ main:                                       // test entry
   LI(t1, gpa_data)                              // t1 = GPA pointer for HLV
   hlv.w s5, (t1)                                // HS load through non-leaf L0 → guest-page fault
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test5b_hlv_nonleaf:                              // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s5, test5b_hlv_nonleaf, test5b_hlv_nonleaf_str) // SIGUPD
@@ -179,7 +179,7 @@ main:                                       // test entry
   RVTEST_TSBI_GOTO_VSMODE                      // M→VS (T-SBI)
   lw   a7, 0(a5)                                // expect 0x257A0221
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test6_restore:                                   // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a7, test6_restore, test6_restore_str) // SIGUPD
@@ -196,7 +196,7 @@ main:                                       // test entry
   nop                                           // pad so priv_mode_vs samples prev=VS on jalr
   jalr ra, a5, 0                                // ifetch through invalid G leaf → fetch-guest-page-fault
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test7_v0_ifetch:                                 // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s4, test7_v0_ifetch, test7_v0_ifetch_str) // SIGUPD
@@ -213,7 +213,7 @@ main:                                       // test entry
   nop                                           // pad before faulting store
   sw   t0, 0(a5)                                // VS Bare store: G leaf V=0 → guest-page
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   la t1, test_region                        // t1 = SPA of data page
   lw a3, 0(t1)                              // M-mode SPA readback

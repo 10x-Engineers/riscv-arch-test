@@ -67,7 +67,7 @@ main:                                       // test entry
   RVTEST_TSBI_GOTO_SMODE                       // M→HS (T-SBI)
   hlv.w a3, (t1)                                // HS hyper-load of misaligned G superpage → fault
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   test1_misalign:                                   // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_misalign, test1_misalign_str) // SIGUPD
 
@@ -82,7 +82,7 @@ main:                                       // test entry
   LI(t1, gpa_data)                              // t1 = GPA for HS HLV
   hlv.w a4, (t1)                                // HS hyper-load of aligned G leaf → success
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   test2_ok:                                         // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a4, test2_ok, test2_ok_str) // SIGUPD
 

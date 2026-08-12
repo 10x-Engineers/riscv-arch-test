@@ -95,7 +95,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   a3, 0(a5)                                // VS load: implicit G read of VS L0 PTE A=0 → guest-page
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   test1_impl_g_lw:                                  // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_impl_g_lw, test1_impl_g_lw_str) // SIGUPD
 
@@ -110,7 +110,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   sw   t0, 0(a5)                                // VS store: implicit G read of VS L0 PTE A=0 → guest-page
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   la t3, test_region                            // t3 = SPA
   lw s3, 0(t3)                                  // expect preload 0x257A0251 unchanged
   test2_impl_g_sw:                                  // SIGUPD label
@@ -128,7 +128,7 @@ main:                                       // test entry
   nop                                           // pad so priv_mode_vs samples prev=VS on jalr
   jalr ra, a5, 0                                // VS ifetch of va_data: implicit G A=0 → fetch guest-page : CPU walks VS page tables; G mapping for that table has A=0 → guest-page fault (fetch), so the jump never succeeds
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   test3_impl_g_jalr:                                // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s4, test3_impl_g_jalr, test3_impl_g_jalr_str) // SIGUPD
 
@@ -149,7 +149,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   a4, 0(a5)                                // VS load: VS leaf A=0 → load page-fault (not guest-page)
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   test4_vs_ad00_lw:                                 // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a4, test4_vs_ad00_lw, test4_vs_ad00_lw_str) // SIGUPD
 
@@ -164,7 +164,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   sw   t0, 0(a5)                                // VS store: VS leaf A=0 D=0 → store page-fault
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   la t3, test_region                            // t3 = SPA
   lw s3, 0(t3)                                  // expect preload 0x257A0251 unchanged
   test5_vs_ad00_sw:                                 // SIGUPD label
@@ -182,7 +182,7 @@ main:                                       // test entry
   nop                                           // pad so priv_mode_vs samples prev=VS on jalr
   jalr ra, a5, 0                                // VS ifetch: VS leaf A=0 → fetch page-fault
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   test6_vs_ad00_jalr:                               // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s5, test6_vs_ad00_jalr, test6_vs_ad00_jalr_str) // SIGUPD
 

@@ -27,7 +27,7 @@
 ##### END_TEST_CONFIG #####
 
 #define TEST_FILE "svh_csr_vsatp_fields_RV64_HSmode.S"
-#define SIGUPD_COUNT 64
+#define SIGUPD_COUNT 80
 #define TRAP_SIGUPD_COUNT 16
 #define RVTEST_HYPERVISOR
 
@@ -54,18 +54,36 @@ main:                                       // test entry
   RVTEST_SIGUPD_CSR_READ(vsatp, a4, test1_mode, test1_mode_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
-// Test case 2: Try vsatp.MODE encodings 0..15 | Expected: Successful
+// Test case 2a: vsatp.MODE walk 0..15 starting Bare | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
-  // cp_vsatp_mode_field bin: WARL walk — try MODE encodings 0..15, read back legal value
+  csrw vsatp, x0                                // Bare starting MODE for cp_vsatp_mode_field
   LI(t3, 0)                                     // bit/index = 0
-mode_walk:                                      // loop: try each MODE encoding
+bare_mode_walk:                                 // loop: try each MODE from Bare
+  csrw vsatp, x0                                // force prev=Bare every iter (encodings 9..15)
   sll t0, t3, 60                                // put t3 into MODE field
-  csrw vsatp, t0                                // write that MODE
-  test2_mode_walk:                                  // SIGUPD label
-  RVTEST_SIGUPD_CSR_READ(vsatp, a4, test2_mode_walk, test2_mode_walk_str) // SIGUPD
+  csrw vsatp, t0                                // write that MODE (prev=Bare except first iter may stay Bare)
+  test2a_mode_walk:                               // SIGUPD label
+  RVTEST_SIGUPD_CSR_READ(vsatp, a4, test2a_mode_walk, test2a_mode_walk_str) // SIGUPD
   addi t3, t3, 1                                // next MODE value
   LI(t4, 16)                                    // loop until 16 MODE values tried
-  blt t3, t4, mode_walk                         // 16 tries
+  blt t3, t4, bare_mode_walk                     // 16 tries from Bare
+
+//---------------------------------------------------------------------------------------------------------------------------------
+// Test case 2b: vsatp.MODE walk 0..15 starting Sv39 | Expected: Successful
+//---------------------------------------------------------------------------------------------------------------------------------
+  LI(t0, (SATP_MODE_SV39 << 60))                // restore Sv39 before each write (prev=Sv39)
+  csrw vsatp, t0                                // Sv39 starting MODE
+  LI(t3, 0)                                     // bit/index = 0
+sv39_mode_walk:                                 // loop: try each MODE from Sv39
+  sll t0, t3, 60                                // candidate MODE encoding
+  csrw vsatp, t0                                // write (SAMPLE_PREV=Sv39 from restore below)
+  test2b_mode_walk:                               // SIGUPD label
+  RVTEST_SIGUPD_CSR_READ(vsatp, a4, test2b_mode_walk, test2b_mode_walk_str) // SIGUPD
+  LI(t0, (SATP_MODE_SV39 << 60))                // restore Sv39 for next iteration prev
+  csrw vsatp, t0                                // keep Sv39 for next encoding
+  addi t3, t3, 1                                // next MODE value
+  LI(t4, 16)                                    // loop until 16 MODE values tried
+  blt t3, t4, sv39_mode_walk                     // 16 tries from Sv39
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 3: Set vsatp.MODE=1 sample | Expected: Successful
@@ -115,7 +133,7 @@ ppn_walk:                                       // loop: walking-1 across PPN bi
   LI(t4, 44)                                    // loop until PPN bits done (44)
   blt t3, t4, ppn_walk                          // bits 0..43
 
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
 //---------------------------------------------------------------------------------------------------------------------------------
 RVTEST_CODE_END                             // framework: end code
@@ -127,7 +145,8 @@ RVTEST_DATA_BEGIN                           // framework: start data
 //                                            Mismatch strings (SIGUPD)
 // --------------------------------------------------------------------------------------------------------------------------------
 test1_mode_str:       .string "\"Mismatch on setting vsatp.MODE=Sv39 (PPN=0) in Test Case 1!\""  // mismatch string
-test2_mode_walk_str:  .string "\"Mismatch on vsatp.MODE WARL walk in Test Case 2!\""  // mismatch string
+test2a_mode_walk_str: .string "\"Mismatch on vsatp.MODE Bare-start walk in Test Case 2a!\""  // mismatch string
+test2b_mode_walk_str: .string "\"Mismatch on vsatp.MODE Sv39-start walk in Test Case 2b!\""  // mismatch string
 test3_mode1_str:      .string "\"Mismatch on setting vsatp.MODE=1 in Test Case 3!\""  // mismatch string
 test4_asid_str:       .string "\"Mismatch on vsatp.ASID=all-ones in Test Case 4!\""  // mismatch string
 test5_ppn_ones_str:   .string "\"Mismatch on vsatp.PPN=all-ones in Test Case 5!\""  // mismatch string

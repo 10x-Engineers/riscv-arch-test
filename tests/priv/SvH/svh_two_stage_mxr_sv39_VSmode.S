@@ -21,7 +21,7 @@
 
 #define TEST_FILE "svh_two_stage_mxr_sv39_VSmode.S"
 #define SIGUPD_COUNT 2
-#define TRAP_SIGUPD_COUNT 16
+#define TRAP_SIGUPD_COUNT 256
 #define RVTEST_HYPERVISOR
 
 #include "riscv_arch_test.h"
@@ -89,15 +89,15 @@ main:                                       // test entry
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 1: MXR=0 load of X-only page | Expected: Expected Fault
 //---------------------------------------------------------------------------------------------------------------------------------
-  // MXR=0 on both HS and VS: X-only leaf rejects load through both stages
+  // MXR=0: clear in HS before VS entry (VS cannot csrrc sstatus — virtual-instruction)
   LI(t0, SSTATUS_MXR)                           // t0 = bit mask for MXR
-  csrc sstatus, t0                              // clear HS MXR setting
-  csrc vsstatus, t0                             // clear VS MXR setting
+  csrc sstatus, t0                              // clear HS sstatus.MXR
+  csrc vsstatus, t0                             // clear VS view MXR
   LI(a3, 0)                                     // a3 stays 0 if the load faults and is skipped
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   a3, 0(a5)                                // expect fault -> skipped
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test1_mxr0:                                      // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_mxr0, test1_mxr0_str) // SIGUPD
@@ -105,16 +105,16 @@ main:                                       // test entry
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: MXR=1 load of X-only page | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
-  // MXR=1: VS may load from X-only pages; hfence.vvma after status change
+  // MXR=1: set in HS before VS entry
   LI(t0, SSTATUS_MXR)                           // t0 = bit mask for MXR
-  csrs sstatus, t0                              // set HS MXR setting
-  csrs vsstatus, t0                             // set VS MXR setting
+  csrs sstatus, t0                              // set HS sstatus.MXR
+  csrs vsstatus, t0                             // set VS view MXR
   hfence.vvma                                   // status change may affect TLB perm cache; flush VS TLB
   LI(a4, 0)                                     // a4 should receive the real memory value
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   a4, 0(a5)                                // expect 0x257A0101
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test2_mxr1:                                      // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a4, test2_mxr1, test2_mxr1_str) // SIGUPD

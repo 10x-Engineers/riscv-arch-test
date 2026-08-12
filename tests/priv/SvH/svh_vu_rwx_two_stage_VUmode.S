@@ -86,7 +86,7 @@ main:                                       // test entry
   nop                                           // trap-skip pad
   lw   a3, 0(a5)                                // VU load same GVA; expect 0x257A0B01
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   test1_allow:                                      // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_allow, test1_allow_str)  // record VU lw (expect 0x257A0B01)
 
@@ -98,7 +98,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VUmode                 // M→VU (VA≠PA relocate)
   lw   a4, 0(a5)                                // VU load of U=0 VS leaf → page-fault (a4 stays 0)
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   test2_deny:                                       // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a4, test2_deny, test2_deny_str) // SIGUPD
 

@@ -65,13 +65,13 @@ main:                                       // test entry
 //---------------------------------------------------------------------------------------------------------------------------------
   RVTEST_TSBI_GOTO_SMODE                       // M→HS (T-SBI)
   hfence.vvma                                   // HS HFENCE.VVMA x0,x0: flush all VS-stage TLB (all ASIDs + GVAs)
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   LI(a5, va_data)                               // a5 = GVA pointer for VS load
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   a3, 0(a5)                                // VS load after all-ASID fence: GVA→PA; expect 0x257A0901
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   test1_all:                                        // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_all, test1_all_str) // SIGUPD
 
@@ -85,12 +85,12 @@ main:                                       // test entry
   LI(a5, va_data)                               // a5 = GVA operand for HFENCE.VVMA rs1 and later VS lw
   RVTEST_TSBI_GOTO_SMODE                       // M→HS (T-SBI)
   hfence.vvma a5, x0                            // HS HFENCE.VVMA GVA=a5, ASID=all: flush that GVA in VS TLB
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   a3, 0(a5)                                // VS load after GVA-operand fence: expect 0x257A0902
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   test2_gva:                                        // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test2_gva, test2_gva_str) // SIGUPD
 
@@ -102,15 +102,21 @@ main:                                       // test entry
   sw t0, 0(t1)                              // SPA preload (known pattern before guest access)
 
   LI(a5, va_data)                               // a5 = GVA pointer for VS load
-  LI(a6, 0)                                     // a6 = ASID 0 (matches vsatp ASID)
+  csrr t0, vsatp                                // vsatp.ASID=1 so rs2 operand value is non-zero (cp_hfence_* rs2 nz)
+  LI(t1, 1)
+  slli t1, t1, 22
+  or   t0, t0, t1
+  csrw vsatp, t0
+  LI(a6, 1)                                     // a6 = ASID 1 (matches vsatp ASID)
   RVTEST_TSBI_GOTO_SMODE                       // M→HS (T-SBI)
-  hfence.vvma x0, a6                            // HS HFENCE.VVMA GVA=all, ASID=a6: flush that ASID in VS TLB
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  hfence.vvma x0, a6                            // HS HFENCE.VVMA ASID-only (rs2 nz)
+  hfence.vvma a5, a6                            // HS HFENCE.VVMA GVA+ASID (rs1/rs2 nz)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   a3, 0(a5)                                // VS load after ASID-operand fence: expect 0x257A0903
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   test3_asid:                                       // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test3_asid, test3_asid_str) // SIGUPD
 

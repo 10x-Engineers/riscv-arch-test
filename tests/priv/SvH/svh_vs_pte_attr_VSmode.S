@@ -75,7 +75,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   sw   t0, 0(a5)                                // VS store through RSW=00 leaf → SPA
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   la t1, test_region                        // t1 = SPA of data page
   lw s2, 0(t1)                              // M-mode SPA readback
@@ -89,7 +89,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   a3, 0(a5)                                // VS load through RSW=00 leaf; expect 0x257A0301
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test2_rsw00_lw:                                  // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test2_rsw00_lw, test2_rsw00_lw_str) // SIGUPD
@@ -104,7 +104,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   sw   t0, 0(a5)                                // VS store through RSW=01 leaf → SPA
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   la t1, test_region                        // t1 = SPA of data page
   lw s3, 0(t1)                              // M-mode SPA readback
@@ -118,7 +118,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   a4, 0(a5)                                // VS load through RSW=01 leaf; expect 0x257A0302
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test4_rsw01_lw:                                  // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a4, test4_rsw01_lw, test4_rsw01_lw_str) // SIGUPD
@@ -133,7 +133,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   sw   t0, 0(a5)                                // VS store through RSW=10 leaf → SPA
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   la t1, test_region                        // t1 = SPA of data page
   lw s4, 0(t1)                              // M-mode SPA readback
@@ -147,7 +147,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   a6, 0(a5)                                // VS load through RSW=10 leaf; expect 0x257A0303
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test6_rsw10_lw:                                  // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a6, test6_rsw10_lw, test6_rsw10_lw_str) // SIGUPD
@@ -162,7 +162,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   sw   t0, 0(a5)                                // VS store through RSW=11 leaf → SPA
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   la t1, test_region                        // t1 = SPA of data page
   lw s5, 0(t1)                              // M-mode SPA readback
@@ -176,7 +176,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   a7, 0(a5)                                // VS load through RSW=11 leaf; expect 0x257A0304
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test8_rsw11_lw:                                  // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a7, test8_rsw11_lw, test8_rsw11_lw_str) // SIGUPD

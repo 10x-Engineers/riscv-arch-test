@@ -304,16 +304,29 @@ def sailLog2Trace(inputLogFile: Path, outputTraceFile: Path) -> None:
             # Fault quirk: sometimes Sail never walks a G data leaf. Then the
             # last leaf may be the VS data page (e.g. X-only) and the one before
             # it is G's map of that VS PTE (R+W). Swap so labels stay correct.
-            def stage(ptes: list[int]) -> tuple[int, int]:
+            def stage(ptes: list[int], *, trapped_load: bool = False) -> tuple[int, int]:
                 leaves = [p for p in ptes if (p & 0xE) != 0]    # leaf: any of R/W/X set
                 non_leaf = [p for p in ptes if (p & 1) and (p & 0xE) == 0]  # V=1, no R/W/X
 
                 if vsatp_on and hgatp_on and len(leaves) >= 2:  # two-stage walk with both leaves
                     vs_leaf = leaves[-2]                        # assume VS then G
                     g_leaf = leaves[-1]
-                    # MXR=0 fault walk can end [..., G R+W PT, VS X-only]; swap once.
-                    if (g_leaf & 0xE) == 0x8 and (vs_leaf & 0xE) == 0x6:
+                    # Non-trap: [VS R+W PT, G X-only] leaf order is swapped.
+                    if (
+                        not trapped_load
+                        and (g_leaf & 0xE) == 0x8
+                        and (vs_leaf & 0xE) == 0x6
+                    ):
                         vs_leaf, g_leaf = g_leaf, vs_leaf        # fix swapped order
+                    # Trap: [G R+W PT-map, VS X-only] — VS fault before G data leaf is read.
+                    elif (vs_leaf & 0xE) == 0x6 and (g_leaf & 0xE) == 0x8:
+                        xonly_vs = g_leaf                           # VS data leaf is last
+                        vs_leaf = xonly_vs
+                        g_leaf = xonly_vs                           # mirror VS X-only perm for G
+                        for p in reversed(leaves[:-1]):
+                            if (p & 0xE) == 0x8:
+                                g_leaf = p                            # prefer earlier G xonly if present
+                                break
                     # VS A/D (Svade) fault: walk ends [..., G U=1 R+W PT-map, VS U=0 leaf].
                     elif (vs_leaf & 0x10) and not (g_leaf & 0x10) and (vs_leaf & 0xE) == 0x6:
                         vs_leaf, g_leaf = g_leaf, vs_leaf
@@ -334,7 +347,7 @@ def sailLog2Trace(inputLogFile: Path, outputTraceFile: Path) -> None:
                 return 0, 0                                     # no paging stage on
 
             vs_i, g_i = stage(ifetch_ptes)                      # ifetch: VS leaf, G leaf
-            vs_d, g_d = stage(data_ptes)                        # data:   VS leaf, G leaf
+            vs_d, g_d = stage(data_ptes, trapped_load=trapped and is_load)  # data walk
 
             # ============================================================
             # Emit PTE keys only if that translation is actually on

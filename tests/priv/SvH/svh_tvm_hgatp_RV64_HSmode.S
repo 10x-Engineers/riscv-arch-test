@@ -49,7 +49,7 @@ main:                                       // test entry
   csrw hgatp, t0                                // should succeed under TVM=0
   test1_hgatp:                                      // SIGUPD label
   RVTEST_SIGUPD_CSR_READ(hgatp, a4, test1_hgatp, test1_hgatp_str) // SIGUPD
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: TVM=1 write hgatp illegal | Expected: Expected Fault
@@ -62,7 +62,7 @@ main:                                       // test entry
   csrw hgatp, x0                                // illegal; trap handler skips this insn
   nop                                           // pad after possible skip
   addi a4, a4, 1                                // if we continued → 0x257A0132
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   LI(t0, MSTATUS_TVM)                           // t0 = TVM bit mask
   csrc mstatus, t0                              // clear TVM again (tidy)

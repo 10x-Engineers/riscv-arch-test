@@ -24,7 +24,7 @@
 ##### END_TEST_CONFIG #####
 
 #define TEST_FILE "svh_csr_hgatp_fields_RV64_HSmode.S"
-#define SIGUPD_COUNT 63
+#define SIGUPD_COUNT 79
 #define TRAP_SIGUPD_COUNT 16
 #define RVTEST_HYPERVISOR
 
@@ -51,18 +51,36 @@ main:                                       // test entry
   RVTEST_SIGUPD_CSR_READ(hgatp, a4, test1_mode, test1_mode_str) // SIGUPD
 
 //---------------------------------------------------------------------------------------------------------------------------------
-// Test case 2: Try hgatp.MODE encodings 0..15 | Expected: Successful
+// Test case 2a: hgatp.MODE walk 0..15 starting Bare | Expected: Successful
 //---------------------------------------------------------------------------------------------------------------------------------
-  // cp_hgatp_mode_field bin: WARL walk — try MODE encodings 0..15, read back legal value
+  csrw hgatp, x0                                // Bare starting MODE for cp_hgatp_mode_field
   LI(t3, 0)                                     // bit/index = 0
-mode_walk:                                      // loop: try each MODE encoding
+bare_mode_walk:                                 // loop: try each MODE from Bare
+  csrw hgatp, x0                                // force prev=Bare every iter (encodings 9..15)
   sll t0, t3, 60                                // MODE = t3
   csrw hgatp, t0                                // write hgatp (G-stage CSR)
-  test2_mode_walk:                                  // SIGUPD label
-  RVTEST_SIGUPD_CSR_READ(hgatp, a4, test2_mode_walk, test2_mode_walk_str) // SIGUPD
+  test2a_mode_walk:                               // SIGUPD label
+  RVTEST_SIGUPD_CSR_READ(hgatp, a4, test2a_mode_walk, test2a_mode_walk_str) // SIGUPD
   addi t3, t3, 1                                // next MODE value
   LI(t4, 16)                                    // loop until 16 MODE values tried
-  blt t3, t4, mode_walk                         // repeat until all MODE values tried
+  blt t3, t4, bare_mode_walk                     // repeat until all MODE values tried
+
+//---------------------------------------------------------------------------------------------------------------------------------
+// Test case 2b: hgatp.MODE walk 0..15 starting Sv39x4 | Expected: Successful
+//---------------------------------------------------------------------------------------------------------------------------------
+  LI(t0, (HGATP_MODE_SV39X4 << 60))             // restore Sv39x4 before each write
+  csrw hgatp, t0                                // Sv39x4 starting MODE
+  LI(t3, 0)                                     // bit/index = 0
+sv39x4_mode_walk:                               // loop: try each MODE from Sv39x4
+  sll t0, t3, 60                                // candidate MODE encoding
+  csrw hgatp, t0                                // write (SAMPLE_PREV=Sv39x4 from restore)
+  test2b_mode_walk:                               // SIGUPD label
+  RVTEST_SIGUPD_CSR_READ(hgatp, a4, test2b_mode_walk, test2b_mode_walk_str) // SIGUPD
+  LI(t0, (HGATP_MODE_SV39X4 << 60))             // restore Sv39x4 for next iteration prev
+  csrw hgatp, t0                                // keep Sv39x4 for next encoding
+  addi t3, t3, 1                                // next MODE value
+  LI(t4, 16)                                    // loop until 16 MODE values tried
+  blt t3, t4, sv39x4_mode_walk                   // repeat until all MODE values tried
 
 //---------------------------------------------------------------------------------------------------------------------------------
 // Test case 3: Set hgatp.MODE=1 sample | Expected: Successful
@@ -117,7 +135,7 @@ ppn_walk:                                       // loop: walking-1 across PPN bi
   LI(t4, 44)                                    // stop after bits 2..43 (42 iterations)
   blt t3, t4, ppn_walk                          // repeat until all PPN bits tried
 
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
 //---------------------------------------------------------------------------------------------------------------------------------
 RVTEST_CODE_END                             // framework: end code
@@ -129,7 +147,8 @@ RVTEST_DATA_BEGIN                           // framework: start data
 //                                            Mismatch strings (SIGUPD)
 // --------------------------------------------------------------------------------------------------------------------------------
 test1_mode_str:       .string "\"Mismatch on setting hgatp.MODE=Sv39x4 (PPN=0) in Test Case 1!\""  // mismatch string
-test2_mode_walk_str:  .string "\"Mismatch on hgatp.MODE WARL walk in Test Case 2!\""  // mismatch string
+test2a_mode_walk_str: .string "\"Mismatch on hgatp.MODE Bare-start walk in Test Case 2a!\""  // mismatch string
+test2b_mode_walk_str: .string "\"Mismatch on hgatp.MODE Sv39x4-start walk in Test Case 2b!\""  // mismatch string
 test3_mode1_str:      .string "\"Mismatch on setting hgatp.MODE=1 in Test Case 3!\""  // mismatch string
 test4_vmid1_str:      .string "\"Mismatch on hgatp.VMID=all-ones (VMIDLEN) in Test Case 4!\""  // mismatch string
 test4_vmid2_str:      .string "\"Mismatch on hgatp.VMID scoping read in Test Case 4!\""  // mismatch string

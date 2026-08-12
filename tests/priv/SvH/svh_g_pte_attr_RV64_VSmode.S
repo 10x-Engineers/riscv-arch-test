@@ -89,7 +89,7 @@ main:                                       // test entry
   LI(a3, 0)                                     // clear result; stays 0 if HLV faults
   hlv.w a3, (t1)                                // HS hyper-load; expect 0x257A0240
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test1_rsw00:                                     // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_rsw00, test1_rsw00_str) // SIGUPD
@@ -109,7 +109,7 @@ main:                                       // test entry
   LI(a6, 0)                                     // clear result; stays 0 if HLV faults
   hlv.w a6, (t1)                                // HS hyper-load; expect 0x257A0241
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test2_rsw11:                                     // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a6, test2_rsw11, test2_rsw11_str) // SIGUPD
@@ -128,7 +128,7 @@ main:                                       // test entry
   LI(a4, 0)                                     // clear result; stays 0 if HLV faults
   hlv.w a4, (t1)                                // HS hyper-load; expect 0x257A0242
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   test2b_rsw01:                                     // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a4, test2b_rsw01, test2b_rsw01_str) // SIGUPD
 
@@ -146,7 +146,7 @@ main:                                       // test entry
   LI(a5, 0)                                     // clear result; stays 0 if HLV faults
   hlv.w a5, (t1)                                // HS hyper-load; expect 0x257A0243
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   test2c_rsw10:                                     // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a5, test2c_rsw10, test2c_rsw10_str) // SIGUPD
 
@@ -167,14 +167,14 @@ main:                                       // test entry
   LI(t1, gpa_data);                                                 /* t1 = GPA for HLV */ \
   hlv.w reg, (t1);                                                  /* HS hyper-load through reserved G leaf */ \
   nop;                                                              /* trap-skip padding after HLV */ \
-  RVTEST_TSBI_GOTO_MMODE;                                           /* back to M */ \
+  RVTEST_GOTO_MMODE;                                           /* back to M */ \
   hfence.gvma;                                                      /* flush G TLB so HSV is a fresh walk */ \
   RVTEST_TSBI_GOTO_SMODE;                                           /* M→HS for HSV */ \
   LI(t0, 0x257A02C1);                                               /* HSV payload (must not land if fault) */ \
   LI(t1, gpa_data);                                                 /* t1 = GPA for HSV */ \
   hsv.w t0, (t1);                                                   /* HS hyper-store through same reserved G leaf */ \
   nop;                                                              /* trap-skip padding after HSV */ \
-  RVTEST_TSBI_GOTO_MMODE;                                           /* back to M */ \
+  RVTEST_GOTO_MMODE;                                           /* back to M */ \
   label:                                                            /* signature dump point for this bit */ \
   RVTEST_SIGUPD(x2, x5, x4, reg, label, strlabel)                   /* dump HLV result (0 if guest-page) */
 
@@ -206,7 +206,7 @@ main:                                       // test entry
   LI(t0, 0x257A0244)                            // payload for PBMT=1 HSV
   hsv.w t0, (t1)                                // HS hyper-store PBMT=1 — dump Sail result
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   test4a_pbmt1:                                     // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a7, test4a_pbmt1, test4a_pbmt1_str) // SIGUPD
 
@@ -220,7 +220,7 @@ main:                                       // test entry
   LI(t0, 0x257A0245)                            // payload for PBMT=2 HSV
   hsv.w t0, (t1)                                // HS hyper-store PBMT=2 — dump Sail result
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   test4b_pbmt2:                                     // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s7, test4b_pbmt2, test4b_pbmt2_str) // SIGUPD
 
@@ -234,7 +234,7 @@ main:                                       // test entry
   LI(t0, 0x257A0246)                            // payload for PBMT=3 HSV
   hsv.w t0, (t1)                                // HS hyper-store PBMT=3 — dump Sail result
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   test4c_pbmt3:                                     // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s8, test4c_pbmt3, test4c_pbmt3_str) // SIGUPD
 
@@ -254,7 +254,7 @@ main:                                       // test entry
   LI(t0, 0xDEADBEEF)                            // payload that must not land if HSV faults
   hsv.w t0, (t1)                                // HS hyper-store PBMT=1 PBMTE=0 → expect fault
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   test4d_pbmt1_nosup:                               // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s9, test4d_pbmt1_nosup, test4d_pbmt1_nosup_str) // SIGUPD
 
@@ -268,7 +268,7 @@ main:                                       // test entry
   LI(t0, 0xDEADBEEF)                            // payload that must not land if HSV faults
   hsv.w t0, (t1)                                // HS hyper-store PBMT=2 PBMTE=0 → expect fault
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   test4e_pbmt2_nosup:                               // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s10, test4e_pbmt2_nosup, test4e_pbmt2_nosup_str) // SIGUPD
 
@@ -282,7 +282,7 @@ main:                                       // test entry
   LI(t0, 0xDEADBEEF)                            // payload that must not land if HSV faults
   hsv.w t0, (t1)                                // HS hyper-store PBMT=3 PBMTE=0 → expect fault
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   test4f_pbmt3_nosup:                               // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s11, test4f_pbmt3_nosup, test4f_pbmt3_nosup_str) // SIGUPD
 
@@ -300,7 +300,7 @@ main:                                       // test entry
   LI(t1, gpa_data)                              // t1 = GPA
   hlv.w s2, (t1)                                // HS hyper-load valid leaf; expect 0x257A0241
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test5_restore:                                   // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, s2, test5_restore, test5_restore_str) // SIGUPD

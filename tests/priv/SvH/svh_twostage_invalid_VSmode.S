@@ -1,7 +1,8 @@
 // --------------------------------------------------------------------------------------------------------------------------------
 // svh_twostage_invalid_VSmode.S
 // Config: sail-rv32-max | VS=Sv32 + G=Sv32x4 both ON
-// Coverpoints mapped (SvH_cg): VM_permission_invalid_vs_rw, VM_permission_invalid_g_rw
+// Coverpoints mapped (SvH_cg): VM_permission_invalid_vs_rw, VM_permission_invalid_g_rw,
+//   VM_permission_invalid_vs_x, VM_permission_invalid_g_x
 // What this proves (one line):
 //   Two-stage V=0 at VS or G denies loads and stores with traps.
 
@@ -15,8 +16,10 @@
 //  2. VS valid, G leaf V=0: VS lw → Expected Fault (a4 stays 0)
 //  3. VS leaf V=0, G valid: VS sw → Expected Fault (SPA preload unchanged)
 //  4. VS valid, G leaf V=0: VS sw → Expected Fault (SPA preload unchanged)
+//  5. VS leaf V=0, G valid: VS jalr → Expected Fault (s4 stays 0)
+//  6. VS valid, G leaf V=0: VS jalr → Expected Fault (s5 stays 0)
 //
-// Total Expected Faults :: 4
+// Total Expected Faults :: 6
 // --------------------------------------------------------------------------------------------------------------------------------
 
 ##### START_TEST_CONFIG #####
@@ -25,7 +28,7 @@
 ##### END_TEST_CONFIG #####
 
 #define TEST_FILE "svh_twostage_invalid_VSmode.S"
-#define SIGUPD_COUNT 4
+#define SIGUPD_COUNT 6
 #define TRAP_SIGUPD_COUNT 256
 #define RVTEST_HYPERVISOR
 
@@ -37,6 +40,7 @@ main:                                       // test entry
 //                                   Virtual addresses / GPA definitions
 // --------------------------------------------------------------------------------------------------------------------------------
   .set va_data,                 0x008001000     // GVA VS lw/sw will use (data)
+  .set va_fetch,                0x008003000     // GVA VS jalr target (separate VPN from va_data)
   .set va_code,                 0x90000000      // GVA where VS executes this code (VA≠PA)
   .set gpa_data,                0x00C002000     // GPA behind va_data (G leaf → test_region SPA)
   .set gpa_code,                0x012000000     // GPA behind va_code (4 MiB aligned superpage)
@@ -91,7 +95,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   a3, 0(a5)                                // VS load: VS leaf V=0 → load page-fault (a3 stays 0)
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   test1_vs_v0_lw:                                   // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_vs_v0_lw, test1_vs_v0_lw_str) // SIGUPD
 
@@ -109,7 +113,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   a4, 0(a5)                                // VS load: G leaf V=0 → guest-page fault (a4 stays 0)
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   test2_g_v0_lw:                                    // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a4, test2_g_v0_lw, test2_g_v0_lw_str) // SIGUPD
 
@@ -127,7 +131,7 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   sw   t0, 0(a5)                                // VS store: VS leaf V=0 → store page-fault (write_acc)
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   la t1, test_region                        // t1 = SPA of data page
   lw a6, 0(t1)                              // M-mode SPA readback
   test3_vs_v0_sw:                                   // SIGUPD label
@@ -147,11 +151,48 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   sw   t0, 0(a5)                                // VS store: G leaf V=0 → guest-page fault (write_acc)
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   la t1, test_region                        // t1 = SPA of data page
   lw a7, 0(t1)                              // M-mode SPA readback
   test4_g_v0_sw:                                    // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a7, test4_g_v0_sw, test4_g_v0_sw_str) // SIGUPD
+
+//---------------------------------------------------------------------------------------------------------------------------------
+// Test case 5: VS leaf V=0, G valid — VS jalr | Expected: Expected Fault
+//---------------------------------------------------------------------------------------------------------------------------------
+  VS_PTE_SETUP(sv32, GPA, gpa_rvtest_vlvl0_pg_tbl, (PTE_V), va_fetch, LEVEL1)  // VS non-leaf for fetch GVA
+  VS_PTE_SETUP(sv32, GPA, gpa_data, (PTE_D | PTE_A | PTE_X | PTE_R), va_fetch, LEVEL0)  // VS fetch leaf V=0 X/R A=D=1
+  G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_R | PTE_V), gpa_data, LEVEL0)  // G leaf valid for fetch GPA
+  hfence.vvma                                   // flush VS TLB after PTE rewrite
+  hfence.gvma                                   // flush G TLB after PTE rewrite
+
+  LI(t0, va_fetch)                              // t0 = GVA fetch target (VS leaf V=0)
+  LI(s4, 0)                                     // sentinel — stays 0 if fetch page-faults
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
+  nop                                           // pad so priv_mode_vs samples prev=VS on jalr
+  jalr ra, t0, 0                                // VS fetch: VS leaf V=0 → instruction page-fault
+  nop                                           // trap-skip pad
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
+  test5_vs_v0_j:                                    // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, s4, test5_vs_v0_j, test5_vs_v0_j_str) // SIGUPD
+
+//---------------------------------------------------------------------------------------------------------------------------------
+// Test case 6: VS valid, G leaf V=0 — VS jalr | Expected: Expected Fault
+//---------------------------------------------------------------------------------------------------------------------------------
+  VS_PTE_SETUP(sv32, GPA, gpa_data, (PTE_D | PTE_A | PTE_X | PTE_R | PTE_V), va_fetch, LEVEL0)  // VS fetch leaf valid
+  G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_R), gpa_data, LEVEL0)  // G fetch leaf V=0
+  hfence.vvma                                   // flush VS TLB after PTE rewrite
+  hfence.gvma                                   // flush G TLB after PTE rewrite
+
+  LI(t0, va_fetch)                              // t0 = GVA fetch target (G leaf V=0)
+  LI(s5, 0)                                     // sentinel — stays 0 if fetch guest-page-faults
+  RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
+  nop                                           // pad so priv_mode_vs samples prev=VS on jalr
+  jalr ra, t0, 0                                // VS fetch: G leaf V=0 → guest-page fault
+  nop                                           // trap-skip pad
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
+  test6_g_v0_j:                                     // SIGUPD label
+  RVTEST_SIGUPD(x2, x5, x4, s5, test6_g_v0_j, test6_g_v0_j_str) // SIGUPD
 
 RVTEST_CODE_END                             // framework: end code
 RVTEST_DATA_BEGIN                           // framework: start data
@@ -182,6 +223,8 @@ test1_vs_v0_lw_str: .string "\"Mismatch on two-stage VS V=0 lw in Test Case 1!\"
 test2_g_v0_lw_str:  .string "\"Mismatch on two-stage G V=0 lw in Test Case 2!\""  // mismatch string
 test3_vs_v0_sw_str: .string "\"Mismatch on two-stage VS V=0 sw (SPA) in Test Case 3!\""  // mismatch string
 test4_g_v0_sw_str:  .string "\"Mismatch on two-stage G V=0 sw (SPA) in Test Case 4!\""  // mismatch string
+test5_vs_v0_j_str:  .string "\"Mismatch on two-stage VS V=0 jalr in Test Case 5!\""  // mismatch string
+test6_g_v0_j_str:   .string "\"Mismatch on two-stage G V=0 jalr in Test Case 6!\""  // mismatch string
 RVTEST_DATA_END                             // framework: end data
 RVTEST_SIG_SETUP                            // framework: signature region
 

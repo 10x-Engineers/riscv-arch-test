@@ -67,7 +67,7 @@ main:                                       // test entry
   RVTEST_TSBI_GOTO_VSMODE                      // M→VS (T-SBI)
   ld   a3, 0(a5)                                // VS Bare load of wide GPA → guest-page (a3 stays 0)
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   test1_wide:                                       // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_wide, test1_wide_str) // SIGUPD
 
@@ -78,7 +78,7 @@ main:                                       // test entry
   RVTEST_TSBI_GOTO_VSMODE                      // M→VS (T-SBI)
   ld   a4, 0(a5)                                // VS Bare load: GVA=GPA → SPA; expect 0x257A0E02
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   test2_ok:                                         // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a4, test2_ok, test2_ok_str) // SIGUPD
 
@@ -90,7 +90,7 @@ main:                                       // test entry
   RVTEST_TSBI_GOTO_VSMODE                      // M→VS (T-SBI)
   sd   t0, 0(a5)                                // VS Bare store of wide GPA → guest-page (SPA unchanged)
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   la t1, test_region                            // t1 = SPA
   ld a6, 0(t1)                                  // SPA must still be 0x257A0E02
   test3_wide_sw:                                    // SIGUPD label

@@ -87,12 +87,12 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   sw   s1, 0(a5)                                // VS LE store of 0xA1B2C3D4 into SPA
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   hfence.vvma                                   // re-walk for next VS load (coverpoint sampling)
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   a3, 0(a5)                                // VS LE load; architectural value expect 0xA1B2C3D4
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test1_vsbe0_lw:                                  // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a3, test1_vsbe0_lw, test1_vsbe0_lw_str) // SIGUPD
@@ -123,12 +123,12 @@ main:                                       // test entry
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   sw   s1, 0(a5)                                // VS store under current hstatus.VSBE
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
   hfence.vvma                                   // re-walk for next VS load
   RVTEST_GOTO_LOWER_MODE VSmode                 // M→VS (VA≠PA relocate)
   lw   a4, 0(a5)                                // VS load — same architectural value if BE not implemented
   nop                                           // trap-skip pad
-  RVTEST_TSBI_GOTO_MMODE                       // →M (T-SBI)
+  RVTEST_GOTO_MMODE                       // →M (T-SBI)
 
   test4_vsbe1_lw:                                  // SIGUPD label
   RVTEST_SIGUPD(x2, x5, x4, a4, test4_vsbe1_lw, test4_vsbe1_lw_str) // SIGUPD

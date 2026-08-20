@@ -18,6 +18,8 @@
 #
 # Extra keys beyond ORDER/PC/INSN/MODE (MODE_VIRT, READ/WRITE_ACCESS,
 # VS_PTE_*/G_PTE_*, TRAP) are required for SvH covergroups to hit.
+# TB maps VS_PTE_* → rvvi_mem_access_t.pte and G_PTE_* → .gpte
+# (fetch=1 for *_I, fetch=0 for *_D); coverpoints still sample
 ##################################
 
 import re                                                       # regular expressions to parse Sail log lines

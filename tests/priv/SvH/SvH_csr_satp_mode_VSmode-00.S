@@ -31,7 +31,7 @@ RVTEST_BEGIN
 
 /////////////////////////////////
 // csr_satp_mode_VSmode
-//   SvH coverpoint stimulus (Python emitter)
+//   SvH coverpoint stimulus
 /////////////////////////////////
 
 

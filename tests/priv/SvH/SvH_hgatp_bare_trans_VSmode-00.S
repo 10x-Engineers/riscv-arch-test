@@ -31,7 +31,7 @@ RVTEST_BEGIN
 
 /////////////////////////////////
 // hgatp_bare_trans_VSmode
-//   SvH coverpoint stimulus (Python emitter)
+//   SvH coverpoint stimulus
 /////////////////////////////////
 
 

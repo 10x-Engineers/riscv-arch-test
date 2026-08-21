@@ -31,7 +31,7 @@ RVTEST_BEGIN
 
 /////////////////////////////////
 // two_stage_rw_VSmode
-//   SvH coverpoint stimulus (Python emitter)
+//   SvH coverpoint stimulus
 /////////////////////////////////
 
 

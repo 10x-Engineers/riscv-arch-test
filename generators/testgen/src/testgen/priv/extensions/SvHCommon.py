@@ -1,584 +1,583 @@
 ##################################
 # priv/extensions/SvHCommon.py
 #
-# Shared emit helpers for SvH privileged testgen (hypervisor two-stage).
+# Shared helpers for SvH test generators (hypervisor two-stage paging).
 # SPDX-License-Identifier: Apache-2.0
 ##################################
 
-"""Shared assembly emitters for SvH family modules.
+"""Shared helpers that build RISC-V assembly strings for SvH tests.
 
-Family ``generate_*`` functions compose these helpers. This module only
-returns lists of assembly strings; it does not execute on the DUT.
+Every public function returns a list of assembly lines (or updates counters).
+Family files (SvH_twostage, SvH_csr, …) call these helpers; this file never
+talks to Sail or the DUT.
 
-Typical sequence:
-  ``emit_va_gpa_sets``, ``emit_two_stage_maps``, ``emit_enable_paging``,
-  guest hop (``emit_goto_vs`` / ``emit_goto_vu``), stimulus, ``emit_goto_mmode``,
-  ``twin_data_section``.
+Usual order inside one paging twin (sv32 or sv39):
+  set_va_gpa_symbols → build_two_stage_maps → enable_two_stage
+  → goto_vs / goto_vu → stimulus → goto_mmode → sigupd_* → twin_data
 """
 
-from __future__ import annotations  # allow Path | None style annotations if added later
+from __future__ import annotations  # postpone annotation evaluation
 
-from pathlib import Path  # filesystem path to riscv-arch-test/ and tests/priv/SvH
-from typing import Literal  # Paging / GuestMode string unions
+from pathlib import Path  # filesystem paths for test output dir
+from typing import Literal  # restrict paging twin to sv32/sv39
 
-from testgen.asm.csr import gen_csr_read_sigupd  # CSR-read SIGUPD assembly
-from testgen.asm.helpers import write_sigupd  # GPR SIGUPD assembly
-from testgen.data.state import TestData  # open TestChunk (sigupd_count, num_testcases)
+from testgen.asm.csr import gen_csr_read_sigupd  # CSR read into signature
+from testgen.asm.helpers import write_sigupd  # GPR dump into signature
+from testgen.data.state import TestData  # live testcase / SIGUPD counters
 
-CG = "SvH_cg"  # covergroup name stamped into SIGUPD / testcase strings
-Paging = Literal["sv32", "sv39"]  # one paging twin; RV32 compiles sv32, RV64 compiles sv39
-GuestMode = Literal["VS", "VU", "HS", "M"]  # privilege used for hops
+# Covergroup name written into SIGUPD / testcase metadata (must match coverpoints).
+CG = "SvH_cg"  # covergroup tag for add_testcase / SIGUPD
+
+# One paging twin: RV32 builds keep sv32; RV64 builds keep sv39.
+Paging = Literal["sv32", "sv39"]  # which address-translation twin to emit
 
 # ---------------------------------------------------------------------------
-# Canonical VA/GPA values used by page-table macros and coverpoints.
+# Fixed addresses used by page-table macros and coverpoint bins.
 # va_*  = guest virtual address (VS-stage input)
 # gpa_* = guest physical address (G-stage input)
-# Numeric values must match the directed seeds / coverpoint address bins.
 # ---------------------------------------------------------------------------
 
-VA_CODE = 0x90000000  # guest VA where relocated VS/VU code executes
+VA_CODE = 0x90000000  # guest VA where relocated VS/VU code runs
 VA_DATA_SV32 = 0x008001000  # Sv32 guest VA of the data page
-VA_DATA_SV39 = 0x0000000080010000  # Sv39 guest VA of the data page (same VPN layout, 64-bit)
+VA_DATA_SV39 = 0x0000000080010000  # Sv39 guest VA of the data page
 
-GPA_CODE_SV32 = 0x012000000  # Sv32 GPA of guest code (G-stage maps this to rvtest_code_begin)
+GPA_CODE_SV32 = 0x012000000  # Sv32 GPA of guest code
 GPA_CODE_SV39 = 0x0000000012000000  # Sv39 GPA of guest code
-GPA_DATA_SV32 = 0x00C002000  # Sv32 GPA of guest data (G-stage maps this to test_region)
+GPA_DATA_SV32 = 0x00C002000  # Sv32 GPA of guest data
 GPA_DATA_SV39 = 0x0000000000C002000  # Sv39 GPA of guest data
 
-GPA_VROOT_SV32 = 0x01000A000  # Sv32 GPA of the VS-stage root page table
+GPA_VROOT_SV32 = 0x01000A000  # Sv32 GPA of the VS-stage root table
 GPA_VLVL0_SV32 = 0x01000B000  # Sv32 GPA of the VS-stage L0 table
-GPA_VROOT_SV39 = 0x000000001000A000  # Sv39 GPA of the VS-stage root
+GPA_VROOT_SV39 = 0x000000001000A000  # Sv39 GPA of the VS-stage root table
 GPA_VLVL0_SV39 = 0x000000001000B000  # Sv39 GPA of the VS-stage L0 table
-GPA_VLVL1_SV39 = 0x000000001000C000  # Sv39 GPA of the VS-stage L1 table (third walk level)
+GPA_VLVL1_SV39 = 0x000000001000C000  # Sv39 GPA of the VS-stage L1 table
 
-# Text dropped into G_PTE_SETUP / VS_PTE_SETUP. G-stage leaves need U=1
-# because the hypervisor walks G-stage as user accesses.
-PTE_CODE_G = "(PTE_D | PTE_A | PTE_U | PTE_X | PTE_R | PTE_V)"  # G leaf: execute + read, U=1
-PTE_DATA_G = "(PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V)"  # G leaf: read + write, U=1
-PTE_PT_G = "(PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V)"  # G leaf covering a VS page-table page
-PTE_V_ONLY = "(PTE_V)"  # non-leaf pointer: V=1, no R/W/X (continue the walk)
-PTE_CODE_VS = "(PTE_D | PTE_A | PTE_X | PTE_R | PTE_V)"  # VS code leaf: U=0 (supervisor guest)
-PTE_DATA_VS = "(PTE_D | PTE_A | PTE_W | PTE_R | PTE_V)"  # VS data leaf: read + write, U=0
-PTE_XONLY_VS = "(PTE_D | PTE_A | PTE_X | PTE_V)"  # VS execute-only (MXR tests)
-PTE_RONLY_VS = "(PTE_D | PTE_A | PTE_R | PTE_V)"  # VS read-only
+# Flag text dropped into G_PTE_SETUP / VS_PTE_SETUP.
+# G-stage leaves use U=1 because the hypervisor walks G-stage as user accesses.
+PTE_CODE_G = "(PTE_D | PTE_A | PTE_U | PTE_X | PTE_R | PTE_V)"  # G: execute+read, U=1
+PTE_DATA_G = "(PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V)"  # G: read+write, U=1
+PTE_PT_G = "(PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V)"  # G leaf covering a VS PT page
+PTE_V_ONLY = "(PTE_V)"  # non-leaf pointer: V=1 only (continue the walk)
+PTE_CODE_VS = "(PTE_D | PTE_A | PTE_X | PTE_R | PTE_V)"  # VS code leaf, U=0
+PTE_DATA_VS = "(PTE_D | PTE_A | PTE_W | PTE_R | PTE_V)"  # VS data leaf, U=0
 
 
-def arch_test_root() -> Path:
-    """Walk up from this file to the riscv-arch-test/ directory."""
-    root = Path(__file__).resolve().parents[6]  # .../priv/extensions → riscv-arch-test
-    if not (root / "tests" / "priv").is_dir():  # sanity check we landed on the repo root
-        raise RuntimeError(f"Cannot resolve riscv-arch-test root from {__file__}: got {root}")
-    return root  # used by clean_svh_output_dir
+# ---------------------------------------------------------------------------
+# Output directory cleanup
+# ---------------------------------------------------------------------------
 
 
-def clean_svh_output_dir() -> Path:
-    """Delete old generated .S so a renamed scenario cannot leave a stale file."""
-    out = arch_test_root() / "tests" / "priv" / "SvH"  # writer output directory
-    out.mkdir(parents=True, exist_ok=True)  # create the suite dir if this is a fresh tree
+def delete_old_asm_files() -> Path:  # wipe stale SvH .S before regen
+    """Delete old tests/priv/SvH/*.S so a renamed test cannot leave a leftover file."""
+    # Walk up from this file to the riscv-arch-test/ root.
+    root = Path(__file__).resolve().parents[6]  # riscv-arch-test repo root
+    if not (root / "tests" / "priv").is_dir():  # sanity-check layout
+        raise RuntimeError(f"Cannot find riscv-arch-test root from {__file__}: got {root}")  # bad path
+    out = root / "tests" / "priv" / "SvH"  # writer output directory
+    out.mkdir(parents=True, exist_ok=True)  # create suite dir if missing
     for old in out.glob("*.S"):  # every previously generated assembly file
-        old.unlink()  # remove it so make testgen cannot pick up a renamed leftover
-    return out  # callers may log the path; make_svh ignores the return
+        old.unlink()  # remove so make testgen cannot pick up a stale name
+    return out  # callers write new .S files here
 
 
-def paging_modes(paging: Paging) -> tuple[str, str]:
-    """vsatp MODE name, then hgatp MODE name (G-stage is Sv*x4)."""
-    if paging == "sv32":  # RV32 twin
-        return "sv32", "sv32x4"  # vsatp Sv32, hgatp Sv32x4
-    return "sv39", "sv39x4"  # RV64 twin: vsatp Sv39, hgatp Sv39x4
+# ---------------------------------------------------------------------------
+# Paging mode names and Sv32/Sv39 twin wrapping
+# ---------------------------------------------------------------------------
 
 
-def ifdef_sv32(lines: list[str]) -> list[str]:
-    """RV32 builds keep this block; RV64 preprocessor drops it."""
-    return ["#ifdef SV32_SUPPORTED", *lines, "#endif  // SV32_SUPPORTED"]
+def mode_names(paging: Paging) -> tuple[str, str]:  # vsatp MODE, hgatp MODE
+    """Return (vsatp MODE name, hgatp MODE name). G-stage uses Sv*x4."""
+    if paging == "sv32":  # RV32 two-level twin
+        return "sv32", "sv32x4"  # RV32 twin
+    return "sv39", "sv39x4"  # RV64 twin
 
 
-def ifdef_sv39(lines: list[str]) -> list[str]:
-    """RV64 builds keep this block; RV32 preprocessor drops it."""
-    return ["#ifdef SV39_SUPPORTED", *lines, "#endif  // SV39_SUPPORTED"]
+def _ifdef_sv32(lines: list[str]) -> list[str]:  # wrap for RV32-only builds
+    """Wrap lines so only RV32 (SV32_SUPPORTED) keeps them."""
+    return ["#ifdef SV32_SUPPORTED", *lines, "#endif  // SV32_SUPPORTED"]  # C preprocessor gate
 
 
-def wrap_sv32_sv39(body_sv32: list[str], body_sv39: list[str]) -> list[str]:
-    """One source file, two paging modes. Only one ifdef is live per build."""
-    return [*ifdef_sv32(body_sv32), *ifdef_sv39(body_sv39)]  # concatenate both ifdef wrappers
+def _ifdef_sv39(lines: list[str]) -> list[str]:  # wrap for RV64-only builds
+    """Wrap lines so only RV64 (SV39_SUPPORTED) keeps them."""
+    return ["#ifdef SV39_SUPPORTED", *lines, "#endif  // SV39_SUPPORTED"]  # C preprocessor gate
 
 
-def emit_twin(
-    test_data: TestData,
-    body_fn,
-) -> list[str]:
-    """Call body_fn twice (sv32 then sv39) and wrap with ifdefs.
+def combine_twins(asm_sv32: list[str], asm_sv39: list[str]) -> list[str]:  # one .S, two ifdefs
+    """Put Sv32 and Sv39 bodies in one .S file; only one ifdef is live per build."""
+    return [*_ifdef_sv32(asm_sv32), *_ifdef_sv39(asm_sv39)]  # concatenate gated twins
 
-    body_fn bumps SIGUPD counts. Only one branch compiles, so we keep
-    max(sv32, sv39) — not the sum — for SIGUPD_COUNT in the header.
+
+def build_twins(test_data: TestData, asm_for_paging) -> list[str]:  # build both twins safely
+    """Build Sv32 and Sv39 assembly, then combine them under ifdefs.
+
+    asm_for_paging(test_data, paging) must return assembly lines and may bump
+    SIGUPD counters. Only one twin runs after preprocess, so we keep
+    max(sv32, sv39) — not the sum — for SIGUPD_COUNT.
     """
-    assert test_data.test_chunk is not None  # make_svh always opens a chunk before generate_*
-    start_sig = test_data.test_chunk.sigupd_count  # SIGUPD count before either twin runs
-    start_num = test_data.test_chunk.num_testcases  # testcase count before either twin runs
-    body_sv32 = body_fn(test_data, "sv32")  # emit Sv32 assembly; increments chunk counters
-    sig32 = test_data.test_chunk.sigupd_count  # SIGUPD count after the Sv32 body
-    num32 = test_data.test_chunk.num_testcases  # testcase count after the Sv32 body
-    test_data.test_chunk.sigupd_count = start_sig  # rewind so Sv39 does not add on top of Sv32
-    test_data.test_chunk.num_testcases = start_num  # rewind testcase count the same way
-    body_sv39 = body_fn(test_data, "sv39")  # emit Sv39 assembly from the same starting counts
-    sig39 = test_data.test_chunk.sigupd_count  # SIGUPD count after the Sv39 body
-    num39 = test_data.test_chunk.num_testcases  # testcase count after the Sv39 body
-    test_data.test_chunk.sigupd_count = max(sig32, sig39)  # header SIGUPD_COUNT = larger twin
-    test_data.test_chunk.num_testcases = max(num32, num39)  # header testcase count = larger twin
-    return wrap_sv32_sv39(body_sv32, body_sv39)  # both bodies in one .S, gated by SV32/SV39 ifdefs
+    assert test_data.test_chunk is not None  # make_svh always opens a chunk first
+    start_sig = test_data.test_chunk.sigupd_count  # count before either twin
+    start_num = test_data.test_chunk.num_testcases  # testcase count before either twin
+    asm_sv32 = asm_for_paging(test_data, "sv32")  # build Sv32; may bump counters
+    sig32 = test_data.test_chunk.sigupd_count  # after Sv32
+    num32 = test_data.test_chunk.num_testcases  # testcases after Sv32 twin
+    test_data.test_chunk.sigupd_count = start_sig  # rewind so Sv39 does not add on top
+    test_data.test_chunk.num_testcases = start_num  # rewind testcase counter too
+    asm_sv39 = asm_for_paging(test_data, "sv39")  # build Sv39 from the same start
+    sig39 = test_data.test_chunk.sigupd_count  # after Sv39
+    num39 = test_data.test_chunk.num_testcases  # testcases after Sv39 twin
+    test_data.test_chunk.sigupd_count = max(sig32, sig39)  # header uses the larger twin
+    test_data.test_chunk.num_testcases = max(num32, num39)  # same for testcase count
+    return combine_twins(asm_sv32, asm_sv39)  # emit both under ifdefs
 
 
 # ---------------------------------------------------------------------------
-# .set va_code / gpa_data / …  — symbols the PT macros use later
+# .set va_code / gpa_data / …  (symbols page-table macros use later)
 # ---------------------------------------------------------------------------
 
-def emit_va_gpa_sets_sv32(*, with_data: bool = True, with_vlvl0: bool = True) -> list[str]:
-    """Sv32 names: 2-level walk, so no vlvl1 GPA."""
-    lines = [  # assembler .set symbols consumed by G_PTE_SETUP / VS_PTE_SETUP
-        f"  .set va_code,                 {hex(VA_CODE)}",  # guest VA of relocated test code
-        f"  .set gpa_code,                {hex(GPA_CODE_SV32)}",  # GPA of that code (G-stage input)
-        f"  .set gpa_rvtest_Vroot_pg_tbl, {hex(GPA_VROOT_SV32)}",  # GPA of the VS-stage root table
-    ]
-    if with_vlvl0:  # most tests need the VS L0 table GPA; omit only if the seed never named it
-        lines.append(f"  .set gpa_rvtest_vlvl0_pg_tbl, {hex(GPA_VLVL0_SV32)}")  # GPA of VS L0 table
-    if with_data:  # omit when the test has no data leaf (ifetch-only)
-        lines.extend(
-            [
-                f"  .set va_data,                 {hex(VA_DATA_SV32)}",  # guest VA of the data page
-                f"  .set gpa_data,                {hex(GPA_DATA_SV32)}",  # GPA of the data page
-            ]
-        )
-    return lines  # list of .set lines for the Sv32 twin
+
+def _set_sv32_symbols(*, with_data: bool = True, with_vlvl0: bool = True) -> list[str]:  # Sv32 .set block
+    """Assembler .set lines for the Sv32 twin (2-level walk, no vlvl1)."""
+    lines = [  # start symbol list
+        f"  .set va_code,                 {hex(VA_CODE)}",  # guest VA of relocated code
+        f"  .set gpa_code,                {hex(GPA_CODE_SV32)}",  # GPA of that code
+        f"  .set gpa_rvtest_Vroot_pg_tbl, {hex(GPA_VROOT_SV32)}",  # GPA of VS root table
+    ]  # end core Sv32 symbols
+    if with_vlvl0:  # most tests need VS L0 GPA
+        lines.append(f"  .set gpa_rvtest_vlvl0_pg_tbl, {hex(GPA_VLVL0_SV32)}")  # GPA of VS L0
+    if with_data:  # optional guest data page symbols
+        lines.extend(  # append data VA/GPA pair
+            [  # data VA/GPA .set lines
+                f"  .set va_data,                 {hex(VA_DATA_SV32)}",  # guest VA of data
+                f"  .set gpa_data,                {hex(GPA_DATA_SV32)}",  # GPA of data
+            ]  # end data symbols
+        )  # close extend
+    return lines  # assembler .set lines for Sv32
 
 
-def emit_va_gpa_sets_sv39(*, with_data: bool = True) -> list[str]:
-    """Sv39 names: 3-level walk, so we also name vlvl1."""
-    lines = [  # assembler .set symbols consumed by G_PTE_SETUP / VS_PTE_SETUP
-        f"  .set va_code,                 {hex(VA_CODE)}",  # guest VA of relocated test code
-        f"  .set gpa_code,                {hex(GPA_CODE_SV39)}",  # GPA of that code (G-stage input)
-        f"  .set gpa_rvtest_Vroot_pg_tbl, {hex(GPA_VROOT_SV39)}",  # GPA of the VS-stage root table
-        f"  .set gpa_rvtest_vlvl1_pg_tbl, {hex(GPA_VLVL1_SV39)}",  # GPA of the VS-stage L1 table
-        f"  .set gpa_rvtest_vlvl0_pg_tbl, {hex(GPA_VLVL0_SV39)}",  # GPA of the VS-stage L0 table
-    ]
-    if with_data:  # omit when the test has no data leaf (ifetch-only)
-        lines.extend(
-            [
-                f"  .set va_data,                 {hex(VA_DATA_SV39)}",  # guest VA of the data page
-                f"  .set gpa_data,                {hex(GPA_DATA_SV39)}",  # GPA of the data page
-            ]
-        )
-    return lines  # list of .set lines for the Sv39 twin
+def _set_sv39_symbols(*, with_data: bool = True) -> list[str]:  # Sv39 .set block
+    """Assembler .set lines for the Sv39 twin (3-level walk, includes vlvl1)."""
+    lines = [  # start symbol list
+        f"  .set va_code,                 {hex(VA_CODE)}",  # guest VA of relocated code
+        f"  .set gpa_code,                {hex(GPA_CODE_SV39)}",  # GPA of that code
+        f"  .set gpa_rvtest_Vroot_pg_tbl, {hex(GPA_VROOT_SV39)}",  # GPA of VS root table
+        f"  .set gpa_rvtest_vlvl1_pg_tbl, {hex(GPA_VLVL1_SV39)}",  # extra level vs Sv32
+        f"  .set gpa_rvtest_vlvl0_pg_tbl, {hex(GPA_VLVL0_SV39)}",  # GPA of VS L0 table
+    ]  # end core Sv39 symbols
+    if with_data:  # optional guest data page symbols
+        lines.extend(  # append data VA/GPA pair
+            [  # data VA/GPA .set lines
+                f"  .set va_data,                 {hex(VA_DATA_SV39)}",  # guest VA of data
+                f"  .set gpa_data,                {hex(GPA_DATA_SV39)}",  # GPA of data
+            ]  # end data symbols
+        )  # close extend
+    return lines  # assembler .set lines for Sv39
 
 
-def emit_va_gpa_sets(paging: Paging, *, with_data: bool = True, with_vlvl0: bool = True) -> list[str]:
-    """Dispatch to the Sv32 or Sv39 .set emitter."""
-    if paging == "sv32":  # RV32 twin: two-level names, optional vlvl0
-        return emit_va_gpa_sets_sv32(with_data=with_data, with_vlvl0=with_vlvl0)
-    return emit_va_gpa_sets_sv39(with_data=with_data)  # RV64 twin: always includes vlvl1
+def set_va_gpa_symbols(paging: Paging, *, with_data: bool = True, with_vlvl0: bool = True) -> list[str]:  # dispatch twin
+    """Emit .set va_* / gpa_* for this paging twin."""
+    if paging == "sv32":  # RV32 twin
+        return _set_sv32_symbols(with_data=with_data, with_vlvl0=with_vlvl0)  # two-level symbols
+    return _set_sv39_symbols(with_data=with_data)  # three-level symbols
 
 
-def emit_two_stage_page_tables(
-    *,
-    g_mode: str,
-    vs_mode: str,
-    code_lvl: str,
-    with_data: bool = True,
-    data_g_flags: str = PTE_DATA_G,
-    data_vs_flags: str = PTE_DATA_VS,
-    code_g_flags: str = PTE_CODE_G,
-    code_vs_flags: str = PTE_CODE_VS,
-    g_data_pa_lbl: str = "test_region",
-) -> list[str]:
-    """Write G_PTE_SETUP / VS_PTE_SETUP for a guest that runs at va_code.
+# ---------------------------------------------------------------------------
+# Page-table setup macros (G-stage then VS-stage)
+# ---------------------------------------------------------------------------
+
+
+def _page_table_macros(  # emit G_PTE_SETUP / VS_PTE_SETUP asm lines
+    *,  # keyword-only args below
+    g_mode: str,  # hgatp MODE name (sv32x4 or sv39x4)
+    code_lvl: str,  # leaf level for guest code mapping
+    with_data: bool = True,  # also map va_data / gpa_data
+    data_g_flags: str = PTE_DATA_G,  # G-stage data leaf PTE bits
+    data_vs_flags: str = PTE_DATA_VS,  # VS-stage data leaf PTE bits
+    code_g_flags: str = PTE_CODE_G,  # G-stage code leaf PTE bits
+    code_vs_flags: str = PTE_CODE_VS,  # VS-stage code leaf PTE bits
+    g_data_pa_lbl: str = "test_region",  # SPA label for G data leaf
+) -> list[str]:  # returns assembly macro lines
+    """Emit G_PTE_SETUP / VS_PTE_SETUP for a guest that runs at va_code.
 
     Two walks:
       G-stage: GPA → real SPA (always as U-mode, so G leaves have U=1)
       VS-stage: VA  → GPA
 
-    V_SAVE_AREA_SETUP is required when code VA != code PA, otherwise the
-    trap handler cannot find the save area after we hop into VS.
+    V_SAVE_AREA_SETUP is required when code VA != code PA.
     """
-    lines: list[str] = []  # accumulated G then VS setup macros
-    if g_mode == "sv39x4":  # Sv39 G-stage: three-level walk (LEVEL2 / LEVEL1 / LEVEL0)
-        # G-stage: map guest code superpage + the VS page-table pages themselves
-        lines.append(f"  G_PTE_SETUP(sv39x4, rvtest_hlvl1_pg_tbl, {PTE_V_ONLY}, gpa_code, LEVEL2)")  # G L2 ptr for code GPA
-        lines.append(
-            f"  SUPERPAGE_G_PTE_SETUP(sv39x4, rvtest_code_begin, {code_g_flags}, gpa_code, {code_lvl})"  # G leaf: GPA code → SPA of .text
-        )
-        lines.append(
-            f"  G_PTE_SETUP(sv39x4, rvtest_hlvl0_pg_tbl, {PTE_V_ONLY}, gpa_rvtest_Vroot_pg_tbl, LEVEL1)"  # G L1 ptr for VS root GPA
-        )
-        lines.append(
-            f"  G_PTE_SETUP(sv39x4, rvtest_Vroot_pg_tbl, {PTE_PT_G}, gpa_rvtest_Vroot_pg_tbl, LEVEL0)"  # G leaf: VS root table page
-        )
-        lines.append(
-            f"  G_PTE_SETUP(sv39x4, rvtest_vlvl1_pg_tbl, {PTE_PT_G}, gpa_rvtest_vlvl1_pg_tbl, LEVEL0)"  # G leaf: VS L1 table page
-        )
-        lines.append(
-            f"  G_PTE_SETUP(sv39x4, rvtest_vlvl0_pg_tbl, {PTE_PT_G}, gpa_rvtest_vlvl0_pg_tbl, LEVEL0)"  # G leaf: VS L0 table page
-        )
-        if with_data:  # G-stage walk of the guest data GPA
-            lines.append(f"  G_PTE_SETUP(sv39x4, rvtest_hlvl0_pg_tbl, {PTE_V_ONLY}, gpa_data, LEVEL1)")  # G L1 ptr for data GPA
-            lines.append(f"  G_PTE_SETUP(sv39x4, {g_data_pa_lbl}, {data_g_flags}, gpa_data, LEVEL0)")  # G leaf: data GPA → SPA
-
-        # VS-stage: va_code → gpa_code, then relocate the save area so VS entry is legal
-        lines.append(
-            f"  VS_PTE_SETUP(sv39, GPA, gpa_rvtest_vlvl1_pg_tbl, {PTE_V_ONLY}, va_code, LEVEL2)"  # VS L2 ptr for code VA
-        )
-        lines.append(f"  VS_PTE_SETUP(sv39, GPA, gpa_code, {code_vs_flags}, va_code, LEVEL1)")  # VS superpage: va_code → gpa_code
-        lines.append("  csrr a0, mscratch")  # a0 = M-mode save-area pointer required by V_SAVE_AREA_SETUP
-        lines.append("  V_SAVE_AREA_SETUP(va_code, rvtest_code_begin, code, LEVEL1)")  # copy save area to guest VA
-        if with_data:  # VS-stage walk of va_data → gpa_data
-            lines.append(
-                f"  VS_PTE_SETUP(sv39, GPA, gpa_rvtest_vlvl1_pg_tbl, {PTE_V_ONLY}, va_data, LEVEL2)"  # VS L2 ptr for data VA
-            )
-            lines.append(
-                f"  VS_PTE_SETUP(sv39, GPA, gpa_rvtest_vlvl0_pg_tbl, {PTE_V_ONLY}, va_data, LEVEL1)"  # VS L1 ptr for data VA
-            )
-            lines.append(f"  VS_PTE_SETUP(sv39, GPA, gpa_data, {data_vs_flags}, va_data, LEVEL0)")  # VS leaf: va_data → gpa_data
-    else:
-        # Sv32: two-level walk (no LEVEL2 G/VS tables).
-        lines.append(
-            f"  SUPERPAGE_G_PTE_SETUP(sv32x4, rvtest_code_begin, {code_g_flags}, gpa_code, {code_lvl})"  # G leaf: GPA code → SPA of .text
-        )
-        lines.append(
-            f"  G_PTE_SETUP(sv32x4, rvtest_hlvl0_pg_tbl, {PTE_V_ONLY}, gpa_rvtest_Vroot_pg_tbl, LEVEL1)"  # G L1 ptr for VS root GPA
-        )
-        lines.append(
-            f"  G_PTE_SETUP(sv32x4, rvtest_Vroot_pg_tbl, {PTE_PT_G}, gpa_rvtest_Vroot_pg_tbl, LEVEL0)"  # G leaf: VS root table page
-        )
-        lines.append(
-            f"  G_PTE_SETUP(sv32x4, rvtest_vlvl0_pg_tbl, {PTE_PT_G}, gpa_rvtest_vlvl0_pg_tbl, LEVEL0)"  # G leaf: VS L0 table page
-        )
-        if with_data:  # G-stage walk of the guest data GPA
-            lines.append(f"  G_PTE_SETUP(sv32x4, rvtest_hlvl0_pg_tbl, {PTE_V_ONLY}, gpa_data, LEVEL1)")  # G L1 ptr for data GPA
-            lines.append(f"  G_PTE_SETUP(sv32x4, {g_data_pa_lbl}, {data_g_flags}, gpa_data, LEVEL0)")  # G leaf: data GPA → SPA
-
-        lines.append(f"  VS_PTE_SETUP(sv32, GPA, gpa_code, {code_vs_flags}, va_code, LEVEL1)")  # VS superpage: va_code → gpa_code
-        lines.append("  csrr a0, mscratch")  # a0 = M-mode save-area pointer
-        lines.append("  V_SAVE_AREA_SETUP(va_code, rvtest_code_begin, code, LEVEL1)")  # relocate save area to va_code
-        if with_data:  # VS-stage walk of va_data → gpa_data
-            lines.append(
-                f"  VS_PTE_SETUP(sv32, GPA, gpa_rvtest_vlvl0_pg_tbl, {PTE_V_ONLY}, va_data, LEVEL1)"  # VS L1 ptr for data VA
-            )
-            lines.append(f"  VS_PTE_SETUP(sv32, GPA, gpa_data, {data_vs_flags}, va_data, LEVEL0)")  # VS leaf: va_data → gpa_data
-    return lines  # G then VS setup macros for this paging mode
+    lines: list[str] = []  # accumulate emitted asm lines
+    if g_mode == "sv39x4":  # Sv39 three-level G-stage walk
+        # --- G-stage: code + VS page-table pages + optional data ---
+        lines.append(f"  G_PTE_SETUP(sv39x4, rvtest_hlvl1_pg_tbl, {PTE_V_ONLY}, gpa_code, LEVEL2)")  # G L2→hlvl1 for code
+        lines.append(  # G superpage/leaf for guest code SPA
+            f"  SUPERPAGE_G_PTE_SETUP(sv39x4, rvtest_code_begin, {code_g_flags}, gpa_code, {code_lvl})"  # map gpa_code→code
+        )  # close append
+        lines.append(  # G non-leaf toward VS root GPA
+            f"  G_PTE_SETUP(sv39x4, rvtest_hlvl0_pg_tbl, {PTE_V_ONLY}, gpa_rvtest_Vroot_pg_tbl, LEVEL1)"  # G L1→hlvl0
+        )  # close append
+        lines.append(  # G leaf covering VS root page
+            f"  G_PTE_SETUP(sv39x4, rvtest_Vroot_pg_tbl, {PTE_PT_G}, gpa_rvtest_Vroot_pg_tbl, LEVEL0)"  # VS root SPA
+        )  # close append
+        lines.append(  # G leaf covering VS L1 page
+            f"  G_PTE_SETUP(sv39x4, rvtest_vlvl1_pg_tbl, {PTE_PT_G}, gpa_rvtest_vlvl1_pg_tbl, LEVEL0)"  # VS L1 SPA
+        )  # close append
+        lines.append(  # G leaf covering VS L0 page
+            f"  G_PTE_SETUP(sv39x4, rvtest_vlvl0_pg_tbl, {PTE_PT_G}, gpa_rvtest_vlvl0_pg_tbl, LEVEL0)"  # VS L0 SPA
+        )  # close append
+        if with_data:  # map guest data through G-stage
+            lines.append(f"  G_PTE_SETUP(sv39x4, rvtest_hlvl0_pg_tbl, {PTE_V_ONLY}, gpa_data, LEVEL1)")  # G L1 for data
+            lines.append(f"  G_PTE_SETUP(sv39x4, {g_data_pa_lbl}, {data_g_flags}, gpa_data, LEVEL0)")  # G data leaf
+        # --- VS-stage: va_code → gpa_code, then relocate save area ---
+        lines.append(  # VS L2 non-leaf for code VA
+            f"  VS_PTE_SETUP(sv39, GPA, gpa_rvtest_vlvl1_pg_tbl, {PTE_V_ONLY}, va_code, LEVEL2)"  # → vlvl1
+        )  # close append
+        lines.append(f"  VS_PTE_SETUP(sv39, GPA, gpa_code, {code_vs_flags}, va_code, LEVEL1)")  # VS code leaf→GPA
+        lines.append("  csrr a0, mscratch")  # save-area pointer for V_SAVE_AREA_SETUP
+        lines.append("  V_SAVE_AREA_SETUP(va_code, rvtest_code_begin, code, LEVEL1)")  # relocate trap save area
+        if with_data:  # VS-stage map for guest data VA
+            lines.append(  # VS L2 non-leaf for data VA
+                f"  VS_PTE_SETUP(sv39, GPA, gpa_rvtest_vlvl1_pg_tbl, {PTE_V_ONLY}, va_data, LEVEL2)"  # → vlvl1
+            )  # close append
+            lines.append(  # VS L1 non-leaf for data VA
+                f"  VS_PTE_SETUP(sv39, GPA, gpa_rvtest_vlvl0_pg_tbl, {PTE_V_ONLY}, va_data, LEVEL1)"  # → vlvl0
+            )  # close append
+            lines.append(f"  VS_PTE_SETUP(sv39, GPA, gpa_data, {data_vs_flags}, va_data, LEVEL0)")  # VS data leaf
+    else:  # Sv32 two-level walks
+        # --- Sv32: two-level walk (no LEVEL2) ---
+        lines.append(  # G superpage/leaf for guest code
+            f"  SUPERPAGE_G_PTE_SETUP(sv32x4, rvtest_code_begin, {code_g_flags}, gpa_code, {code_lvl})"  # gpa_code→code
+        )  # close append
+        lines.append(  # G non-leaf toward VS root
+            f"  G_PTE_SETUP(sv32x4, rvtest_hlvl0_pg_tbl, {PTE_V_ONLY}, gpa_rvtest_Vroot_pg_tbl, LEVEL1)"  # G L1→hlvl0
+        )  # close append
+        lines.append(  # G leaf covering VS root page
+            f"  G_PTE_SETUP(sv32x4, rvtest_Vroot_pg_tbl, {PTE_PT_G}, gpa_rvtest_Vroot_pg_tbl, LEVEL0)"  # VS root SPA
+        )  # close append
+        lines.append(  # G leaf covering VS L0 page
+            f"  G_PTE_SETUP(sv32x4, rvtest_vlvl0_pg_tbl, {PTE_PT_G}, gpa_rvtest_vlvl0_pg_tbl, LEVEL0)"  # VS L0 SPA
+        )  # close append
+        if with_data:  # map guest data through G-stage
+            lines.append(f"  G_PTE_SETUP(sv32x4, rvtest_hlvl0_pg_tbl, {PTE_V_ONLY}, gpa_data, LEVEL1)")  # G L1 for data
+            lines.append(f"  G_PTE_SETUP(sv32x4, {g_data_pa_lbl}, {data_g_flags}, gpa_data, LEVEL0)")  # G data leaf
+        lines.append(f"  VS_PTE_SETUP(sv32, GPA, gpa_code, {code_vs_flags}, va_code, LEVEL1)")  # VS code leaf→GPA
+        lines.append("  csrr a0, mscratch")  # save-area pointer for V_SAVE_AREA_SETUP
+        lines.append("  V_SAVE_AREA_SETUP(va_code, rvtest_code_begin, code, LEVEL1)")  # relocate trap save area
+        if with_data:  # VS-stage map for guest data VA
+            lines.append(  # VS L1 non-leaf for data VA
+                f"  VS_PTE_SETUP(sv32, GPA, gpa_rvtest_vlvl0_pg_tbl, {PTE_V_ONLY}, va_data, LEVEL1)"  # → vlvl0
+            )  # close append
+            lines.append(f"  VS_PTE_SETUP(sv32, GPA, gpa_data, {data_vs_flags}, va_data, LEVEL0)")  # VS data leaf
+    return lines  # all G then VS setup macros
 
 
-def emit_two_stage_maps(
-    paging: Paging,
-    *,
-    code_pte: str = PTE_CODE_VS,
-    data_pte: str = PTE_DATA_VS,
-    g_code_pte: str = PTE_CODE_G,
-    g_data_pte: str = PTE_DATA_G,
-    g_data_pa_lbl: str = "test_region",
-    with_data: bool = True,
-    code_lvl: str = "LEVEL1",
-) -> list[str]:
-    """Resolve Sv32/Sv39 mode names and emit two-stage page-table setup."""
-    vs_mode, g_mode = paging_modes(paging)  # ("sv32","sv32x4") or ("sv39","sv39x4")
-    return emit_two_stage_page_tables(  # expand macros with those mode names
-        g_mode=g_mode,  # hgatp MODE string for G_PTE_SETUP
-        vs_mode=vs_mode,  # vsatp MODE string (passed through for callers that need it)
-        code_lvl=code_lvl,  # G-stage superpage level for guest code
-        with_data=with_data,  # False = code maps only (ifetch tests)
-        data_g_flags=g_data_pte,  # G-stage data leaf permission bits
-        data_vs_flags=data_pte,  # VS-stage data leaf permission bits
-        code_g_flags=g_code_pte,  # G-stage code leaf permission bits
-        code_vs_flags=code_pte,  # VS-stage code leaf permission bits
-        g_data_pa_lbl=g_data_pa_lbl,  # SPA symbol of the data page (usually test_region)
-    )
+def build_two_stage_maps(  # public wrapper around _page_table_macros
+    paging: Paging,  # which twin (sv32/sv39)
+    *,  # keyword-only PTE overrides below
+    code_pte: str = PTE_CODE_VS,  # VS-stage code leaf flags
+    data_pte: str = PTE_DATA_VS,  # VS-stage data leaf flags
+    g_code_pte: str = PTE_CODE_G,  # G-stage code leaf flags
+    g_data_pte: str = PTE_DATA_G,  # G-stage data leaf flags
+    g_data_pa_lbl: str = "test_region",  # SPA label under G data leaf
+    with_data: bool = True,  # include data mappings
+    code_lvl: str = "LEVEL1",  # code leaf level in G/VS macros
+) -> list[str]:  # assembly page-table setup lines
+    """Build G-stage + VS-stage page tables for this paging twin."""
+    _, g_mode = mode_names(paging)  # need hgatp MODE (Sv*x4)
+    return _page_table_macros(  # emit G then VS macros
+        g_mode=g_mode,  # sv32x4 or sv39x4
+        code_lvl=code_lvl,  # code leaf level
+        with_data=with_data,  # optional data maps
+        data_g_flags=g_data_pte,  # G data PTE bits
+        data_vs_flags=data_pte,  # VS data PTE bits
+        code_g_flags=g_code_pte,  # G code PTE bits
+        code_vs_flags=code_pte,  # VS code PTE bits
+        g_data_pa_lbl=g_data_pa_lbl,  # physical label for data
+    )  # close call
 
 
-def emit_enable_vs_g(vs_mode: str, g_mode: str) -> list[str]:
-    """Enable vsatp and hgatp, then fence both stages.
-
-    When G-stage is Sv*x4, VSATP_SETUP uses GPA PPNs.
-    """
-    vs_arg = "GPA" if g_mode.endswith("x4") else "PA"  # two-stage: VS leaves store GPAs, not PAs
-    return [
-        f"  VSATP_SETUP({vs_mode}, {vs_arg})",  # write vsatp.MODE + root PPN
-        f"  HGATP_SETUP({g_mode})",  # write hgatp.MODE + root PPN
-        "  hfence.vvma",  # invalidate VS-stage TLB
-        "  hfence.gvma",  # invalidate G-stage TLB
-    ]
+# ---------------------------------------------------------------------------
+# Enable / disable translation and TLB fences
+# ---------------------------------------------------------------------------
 
 
-def emit_enable_and_fence(vs_mode: str, g_mode: str) -> list[str]:
-    """Alias of emit_enable_vs_g (older family drafts used this name)."""
-    return emit_enable_vs_g(vs_mode, g_mode)  # identical enable + both fences
+def enable_vs_and_g(vs_mode: str, g_mode: str) -> list[str]:  # write both satp CSRs + fences
+    """Write vsatp and hgatp, then fence both stages."""
+    # When G-stage is Sv*x4, VS leaves store GPAs (not PAs).
+    vs_ppn_kind = "GPA" if g_mode.endswith("x4") else "PA"  # VS PPN is GPA under two-stage
+    return [  # enable both stages
+        f"  VSATP_SETUP({vs_mode}, {vs_ppn_kind})",  # vsatp.MODE + root PPN
+        f"  HGATP_SETUP({g_mode})",  # hgatp.MODE + root PPN
+        "  hfence.vvma",  # flush VS-stage TLB
+        "  hfence.gvma",  # flush G-stage TLB
+    ]  # end enable sequence
 
 
-def emit_enable_paging(paging: Paging) -> list[str]:
-    """Enable vsatp/hgatp for this paging twin and fence both stages."""
-    vs_mode, g_mode = paging_modes(paging)  # resolve MODE names from "sv32" / "sv39"
-    return emit_enable_and_fence(vs_mode, g_mode)  # VSATP_SETUP + HGATP_SETUP + fences
+def enable_two_stage(paging: Paging) -> list[str]:  # enable for this twin
+    """Enable vsatp + hgatp for this twin and fence both stages."""
+    vs_mode, g_mode = mode_names(paging)  # MODE names for this twin
+    return enable_vs_and_g(vs_mode, g_mode)  # write CSRs and fence
 
 
-def emit_enable_vs_hgatp_bare(vs_mode: str) -> list[str]:
-    """Enable VS-stage translation with hgatp Bare (VS leaf PPNs are PAs)."""
-    return [
-        f"  VSATP_SETUP({vs_mode}, PA)",  # VS leaves store supervisor PAs (no G-stage)
+def enable_vs_only(vs_mode: str) -> list[str]:  # VS paging, G Bare
+    """Enable VS-stage only; hgatp stays Bare (VS leaf PPNs are PAs)."""
+    return [  # single-stage VS setup
+        f"  VSATP_SETUP({vs_mode}, PA)",  # VS leaves store supervisor PAs
         "  csrw hgatp, x0",  # G-stage Bare
-        "  hfence.vvma",  # invalidate VS-stage TLB
-        "  hfence.gvma",  # invalidate G-stage TLB after hgatp clear
-    ]
+        "  hfence.vvma",  # flush VS TLB
+        "  hfence.gvma",  # flush G TLB
+    ]  # end VS-only enable
 
 
-def emit_both_bare() -> list[str]:
-    """Clear vsatp and hgatp. Use T-SBI hops; addresses are identity-mapped."""
-    return [
-        "  csrw vsatp, x0",  # VS-stage Bare
-        "  csrw hgatp, x0",  # G-stage Bare
-        "  hfence.vvma",  # invalidate VS-stage TLB
-        "  hfence.gvma",  # invalidate G-stage TLB
-    ]
+def disable_paging() -> list[str]:  # clear both satps
+    """Clear vsatp and hgatp (identity addresses; use T-SBI hops)."""
+    return [  # Bare both stages
+        "  csrw vsatp, x0",  # clear VS-stage
+        "  csrw hgatp, x0",  # clear G-stage
+        "  hfence.vvma",  # flush VS TLB
+        "  hfence.gvma",  # flush G TLB
+    ]  # end disable
 
 
-def emit_hfence_both() -> list[str]:
+def fence_both_stages() -> list[str]:  # TLB shootdown only
     """Flush VS-stage and G-stage TLBs after a PTE rewrite."""
-    return ["  hfence.vvma", "  hfence.gvma"]  # VVMA then GVMA
+    return ["  hfence.vvma", "  hfence.gvma"]  # VS then G fence
 
 
-def emit_clear_mprv() -> list[str]:
+def clear_mprv() -> list[str]:  # drop MPRV before SIGUPD
     """Clear mstatus.MPRV before SIGUPD when the signature is not guest-mapped."""
-    return [
-        "  LI(t0, MSTATUS_MPRV)",  # t0 = MPRV bit mask
-        "  csrc mstatus, t0",  # MPRV=0 so the SIGUPD store uses M-mode addressing
-    ]
+    return [  # clear MPRV bit
+        "  LI(t0, MSTATUS_MPRV)",  # mask for MPRV
+        "  csrc mstatus, t0",  # clear it in mstatus
+    ]  # end clear
 
 
 # ---------------------------------------------------------------------------
-# Privilege hops. VA≠PA guest must return with GOTO_MMODE, not TSBI a0=1.
+# Privilege hops (VA≠PA guest must return with goto_mmode, not TSBI a0=1)
 # ---------------------------------------------------------------------------
 
 
-def emit_goto_vs() -> list[str]:
-    """Enter VS-mode with VA≠PA relocate (GOTO_LOWER_MODE)."""
-    return ["  RVTEST_GOTO_LOWER_MODE VSmode"]  # not T-SBI; required when va_code != PA
+def goto_vs() -> list[str]:  # drop into VS-mode
+    """Enter VS-mode with VA≠PA relocate."""
+    return ["  RVTEST_GOTO_LOWER_MODE VSmode"]  # hop to VS
 
 
-def emit_goto_vu() -> list[str]:
-    """Enter VU-mode with VA≠PA relocate (GOTO_LOWER_MODE)."""
-    return ["  RVTEST_GOTO_LOWER_MODE VUmode"]
+def goto_vu() -> list[str]:  # drop into VU-mode
+    """Enter VU-mode with VA≠PA relocate."""
+    return ["  RVTEST_GOTO_LOWER_MODE VUmode"]  # hop to VU
 
 
-def emit_goto_hs() -> list[str]:
-    """Enter HS-mode (GOTO_LOWER_MODE)."""
-    return ["  RVTEST_GOTO_LOWER_MODE HSmode"]
+def goto_hs() -> list[str]:  # drop into HS-mode
+    """Enter HS-mode."""
+    return ["  RVTEST_GOTO_LOWER_MODE HSmode"]  # hop to HS
 
 
-def emit_goto_mmode() -> list[str]:
+def goto_mmode() -> list[str]:  # return to M before SIGUPD
     """Return to M-mode before SIGUPD (signature region is not guest-mapped)."""
-    return ["  RVTEST_GOTO_MMODE"]  # a0=0 path: VA→PA when returning from a relocated guest
+    return ["  RVTEST_GOTO_MMODE"]  # hop back to M
 
 
-def emit_goto_vs_vu_hs(mode: GuestMode) -> list[str]:
-    """Dispatch a lower-mode hop, or emit nothing for M-mode."""
-    if mode == "VS":  # virtual supervisor
-        return emit_goto_vs()
-    if mode == "VU":  # virtual user
-        return emit_goto_vu()
-    if mode == "HS":  # hypervisor supervisor (HS)
-        return emit_goto_hs()
-    return []  # M-mode: already at the destination; no hop
+# ---------------------------------------------------------------------------
+# Simple stimulus helpers
+# ---------------------------------------------------------------------------
 
 
-def emit_spa_preload(value: int, *, dest: str = "test_region") -> list[str]:
+def preload_spa(value: int, *, dest: str = "test_region") -> list[str]:  # M-mode store pattern
     """Store a known pattern to the physical page from M-mode."""
-    return [
-        f"  LI(t0, {hex(value)})",  # pattern that later guest loads should observe (if allowed)
+    return [  # write pattern at SPA
+        f"  LI(t0, {hex(value)})",  # pattern guest loads should see if allowed
         f"  la t1, {dest}",  # SPA of the data page
-        "  sw t0, 0(t1)",  # write the pattern through M-mode identity map
-    ]
+        "  sw t0, 0(t1)",  # store word to physical page
+    ]  # end preload
 
 
-def emit_load_va_ptr(reg: str = "a5", symbol: str = "va_data") -> list[str]:
-    """Load the guest data VA into ``reg`` for a subsequent guest load/store."""
-    return [f"  LI({reg}, {symbol})"]  # typical: a5 = va_data before hopping into VS
+def load_guest_va(reg: str = "a5", symbol: str = "va_data") -> list[str]:  # put VA in a reg
+    """Put the guest data VA into a register for a later guest load/store."""
+    return [f"  LI({reg}, {symbol})"]  # load guest VA constant
 
 
-def emit_nop_pad() -> list[str]:
-    """Single nop (pipeline / retire padding used in directed seeds)."""
-    return ["  nop"]
+def pte_bits(  # build PTE flag expression text
+    *,  # keyword-only bit flags
+    x: bool = False,  # execute permission
+    w: bool = False,  # write permission
+    r: bool = False,  # read permission
+    u: bool = False,  # user-accessible (needed on G leaves)
+    v: bool = True,  # valid bit
+    a: bool = True,  # accessed bit
+    d: bool = True,  # dirty bit
+) -> str:  # "(PTE_D | …)" string for macros
+    """Build a ``(PTE_D | PTE_A | …)`` expression from individual bits."""
+    parts: list[str] = []  # collect enabled flag names
+    if d:  # Dirty
+        parts.append("PTE_D")  # include D
+    if a:  # Accessed
+        parts.append("PTE_A")  # include A
+    if u:  # User
+        parts.append("PTE_U")  # include U
+    if x:  # eXecute
+        parts.append("PTE_X")  # include X
+    if w:  # Write
+        parts.append("PTE_W")  # include W
+    if r:  # Read
+        parts.append("PTE_R")  # include R
+    if v:  # Valid
+        parts.append("PTE_V")  # include V
+    if not parts:  # no bits selected
+        return "(0)"  # empty PTE flags
+    return "(" + " | ".join(parts) + ")"  # OR them for the macro
 
 
-def emit_sigupd_gpr(
-    test_data: TestData,
-    check_reg: int,
-    bin_name: str,
-    coverpoint: str,
-    *,
-    covergroup: str = CG,
-) -> list[str]:
-    """Register a coverpoint bin and emit a GPR SIGUPD."""
-    return [
-        test_data.add_testcase(bin_name, coverpoint, covergroup),  # record bin + increment counters
-        write_sigupd(check_reg, test_data),  # RVTEST_SIGUPD of that GPR (x-reg number)
-    ]
+def set_g_data_leaf(paging: Paging, flags: str, *, pa_lbl: str = "test_region") -> list[str]:  # rewrite G data PTE
+    """Overwrite the G-stage data leaf after the initial maps."""
+    _, g_mode = mode_names(paging)  # need G MODE name
+    return [f"  G_PTE_SETUP({g_mode}, {pa_lbl}, {flags}, gpa_data, LEVEL0)"]  # replace G data leaf
 
 
-def emit_sigupd_csr(
-    test_data: TestData,
-    check_reg: int,
-    csr_name: str,
-    bin_name: str,
-    coverpoint: str,
-    *,
-    covergroup: str = CG,
-    mask: int | None = None,
-    mask_reg: int | None = None,
-) -> list[str]:
-    """Register a coverpoint bin and emit a CSR-read SIGUPD."""
-    return [
-        test_data.add_testcase(bin_name, coverpoint, covergroup),  # record bin + increment counters
-        gen_csr_read_sigupd(check_reg, (csr_name, mask), test_data, mask_reg=mask_reg),  # csrr + SIGUPD
-    ]
+def set_vs_data_leaf(  # rewrite VS data PTE
+    paging: Paging,  # twin selects vsatp MODE
+    flags: str,  # new VS leaf PTE bits
+    *,  # keyword-only below
+    ppn_kind: Literal["GPA", "PA"] = "GPA",  # how leaf PPN is interpreted
+    ppn: str | None = None,  # optional override of PPN symbol
+    va: str = "va_data",  # guest VA for this leaf
+) -> list[str]:  # one VS_PTE_SETUP line
+    """Overwrite the VS-stage data leaf. Use PA when hgatp is Bare; GPA for two-stage."""
+    vs_mode, _ = mode_names(paging)  # need vsatp MODE
+    if ppn is None:  # pick default PPN symbol
+        ppn = "gpa_data" if ppn_kind == "GPA" else "test_region"  # GPA vs SPA label
+    return [f"  VS_PTE_SETUP({vs_mode}, {ppn_kind}, {ppn}, {flags}, {va}, LEVEL0)"]  # replace VS data leaf
 
 
-def emit_manual_sigupd(label: str, check_reg: str = "a3") -> list[str]:
-    """Emit ``RVTEST_SIGUPD`` with fixed pointer registers. Caller must ``bump_sigupd``."""
-    return [
-        f"  {label}:",  # local label referenced by the mismatch .string
-        f"  RVTEST_SIGUPD(x2, x5, x4, {check_reg}, {label}, {label}_str)",  # dump check_reg; x2/x5/x4 are SIG pointers
-    ]
+def two_stage_setup(  # symbols + maps + enable in one call
+    paging: Paging,  # which twin
+    *,  # keyword-only PTE overrides
+    data_pte: str = PTE_DATA_VS,  # VS data leaf flags
+    g_data_pte: str = PTE_DATA_G,  # G data leaf flags
+    code_pte: str = PTE_CODE_VS,  # VS code leaf flags
+    with_data: bool = True,  # include data maps
+) -> list[str]:  # full setup asm for one twin
+    """Symbols + two-stage maps + enable vsatp/hgatp + fences (one twin)."""
+    vs_mode, g_mode = mode_names(paging)  # MODE names for enable
+    lines: list[str] = []  # accumulate setup asm
+    lines.extend(set_va_gpa_symbols(paging, with_data=with_data))  # .set va/gpa symbols
+    lines.extend(  # append page-table macros
+        build_two_stage_maps(  # G + VS maps
+            paging,  # twin
+            code_pte=code_pte,  # VS code flags
+            data_pte=data_pte,  # VS data flags
+            g_data_pte=g_data_pte,  # G data flags
+            with_data=with_data,  # optional data
+        )  # close maps call
+    )  # close extend
+    lines.extend(enable_vs_and_g(vs_mode, g_mode))  # write satps + fences
+    return lines  # complete twin setup
 
 
-def emit_mismatch_string(label: str, message: str) -> str:
-    """Emit the ``.string`` referenced by ``RVTEST_SIGUPD`` on mismatch."""
-    return f'{label}_str: .string "\\"{message}\\""'  # writer / assembler expects this name
+# ---------------------------------------------------------------------------
+# SIGUPD / signature helpers
+# ---------------------------------------------------------------------------
 
 
-def emit_data_section(
-    *,
-    need_test_region: bool = True,
-    need_hlvl0: bool = True,
-    need_vlvl0: bool = True,
-    need_hlvl1: bool = False,
-    need_vlvl1: bool = False,
-    extra_regions: list[str] | None = None,
-    mismatch_strings: list[str] | None = None,
-) -> list[str]:
-    """Emit ``.pushsection .data`` storage for ``test_region``, page tables, and mismatch strings."""
-    lines = ["", ".pushsection .data"]  # switch from .text to .data after RVTEST_CODE_END material
-    if need_test_region:  # 4 KiB-aligned guest data page (SPA)
-        lines.extend(
-            [
-                ".p2align 12",  # 4 KiB alignment required for a leaf page
-                "test_region:",  # SPA label used by G_PTE_SETUP / SPA readback
-                "  .word 0",  # first word (preload / store target)
-                "  .word 0",
-                "  .word 0",
-                "  .word 0",
-            ]
-        )
-    if extra_regions:  # additional labeled pages (e.g. second data region)
-        lines.extend(extra_regions)
-    if need_hlvl1:  # G-stage L1 table page (Sv39 only)
-        lines.extend([".p2align 12", "rvtest_hlvl1_pg_tbl:", "  .zero 4096"])
-    if need_hlvl0:  # G-stage L0 table page
-        lines.extend([".p2align 12", "rvtest_hlvl0_pg_tbl:", "  .zero 4096"])
-    if need_vlvl1:  # VS-stage L1 table page (Sv39 only)
-        lines.extend([".p2align 12", "rvtest_vlvl1_pg_tbl:", "  .zero 4096"])
-    if need_vlvl0:  # VS-stage L0 table page
-        lines.extend([".p2align 12", "rvtest_vlvl0_pg_tbl:", "  .zero 4096"])
-    if mismatch_strings:  # .string table for RVTEST_SIGUPD mismatch text
-        lines.extend(mismatch_strings)
-    lines.extend([".popsection", ""])  # return to the previous section
-    return lines
+def count_sigupds(test_data: TestData, n: int) -> None:  # bump both counters
+    """Add n to both sigupd_count and num_testcases on the open chunk."""
+    assert test_data.test_chunk is not None  # chunk must be open
+    test_data.test_chunk.sigupd_count += n  # SIGUPD slots in header
+    test_data.test_chunk.num_testcases += n  # matching testcase count
 
 
-# Back-compat alias used by older family drafts
-emit_pt_data_section = emit_data_section  # same function; keep the old name working
+def add_sigupd_count(test_data: TestData, n: int) -> None:  # bump SIGUPD only
+    """Add n to sigupd_count only (used when cases are counted separately)."""
+    if test_data.test_chunk is not None and n > 0:  # only if chunk open and positive
+        test_data.test_chunk.sigupd_count += n  # grow signature size
 
 
-def bump_sigupd(test_data: TestData, n: int) -> None:
-    """Add ``n`` to the current chunk ``sigupd_count``."""
-    if test_data.test_chunk is not None and n > 0:  # ignore if no chunk, or a no-op increment
-        test_data.test_chunk.sigupd_count += n  # writer uses this for #define SIGUPD_COUNT
+def sigupd_gpr(  # coverpoint + GPR SIGUPD
+    test_data: TestData,  # live counters
+    check_reg: int,  # which xN to dump
+    bin_name: str,  # coverpoint bin label
+    coverpoint: str,  # coverpoint name
+    *,  # keyword-only
+    covergroup: str = CG,  # usually SvH_cg
+) -> list[str]:  # asm lines for one check
+    """Record a coverpoint bin and dump one GPR into the signature."""
+    return [  # testcase then SIGUPD
+        test_data.add_testcase(bin_name, coverpoint, covergroup),  # register bin metadata
+        write_sigupd(check_reg, test_data),  # dump GPR to signature
+    ]  # end sigupd_gpr
 
 
-def mark_scenario(test_data: TestData, n_sig: int = 1) -> None:
-    """Count SIGUPD sites and ensure the chunk reports at least one testcase."""
-    bump_sigupd(test_data, n_sig)  # add n_sig to sigupd_count
-    if test_data.test_chunk is not None:  # make_svh always has a chunk; guard for unit tests
-        test_data.test_chunk.num_testcases = max(test_data.test_chunk.num_testcases, 1)  # writer floor
+def sigupd_csr(  # coverpoint + CSR SIGUPD
+    test_data: TestData,  # live counters
+    check_reg: int,  # temp GPR for CSR value
+    csr_name: str,  # CSR to read
+    bin_name: str,  # coverpoint bin label
+    coverpoint: str,  # coverpoint name
+    *,  # keyword-only
+    covergroup: str = CG,  # usually SvH_cg
+    mask: int | None = None,  # optional CSR field mask
+    mask_reg: int | None = None,  # optional mask GPR
+) -> list[str]:  # asm lines for one check
+    """Record a coverpoint bin and dump one CSR read into the signature."""
+    return [  # testcase then CSR SIGUPD
+        test_data.add_testcase(bin_name, coverpoint, covergroup),  # register bin metadata
+        gen_csr_read_sigupd(check_reg, (csr_name, mask), test_data, mask_reg=mask_reg),  # read CSR→sig
+    ]  # end sigupd_csr
 
 
-def pte_flags(*, x: bool = False, w: bool = False, r: bool = False, u: bool = False, v: bool = True, a: bool = True, d: bool = True) -> str:
-    """Return a ``(PTE_D | PTE_A | …)`` expression from individual PTE bits."""
-    parts: list[str] = []  # assembler identifiers, left-to-right D, A, U, X, W, R, V
-    if d:  # dirty bit (stores require D=1 when Svade / ADUE=0)
-        parts.append("PTE_D")
-    if a:  # accessed bit (implicit A=0 faults when ADUE=0)
-        parts.append("PTE_A")
-    if u:  # user bit (G-stage success leaves need U=1; VU needs U=1 at VS-stage)
-        parts.append("PTE_U")
-    if x:  # execute permission
-        parts.append("PTE_X")
-    if w:  # write permission
-        parts.append("PTE_W")
-    if r:  # read permission
-        parts.append("PTE_R")
-    if v:  # valid bit (V=0 → page / guest-page fault)
-        parts.append("PTE_V")
-    if not parts:  # all bits False: empty OR is illegal; emit a zero PTE
-        return "(0)"
-    return "(" + " | ".join(parts) + ")"  # e.g. (PTE_D | PTE_A | PTE_R | PTE_V)
+def sigupd_labeled(label: str, check_reg: str = "a3") -> list[str]:  # fixed-label SIGUPD
+    """Emit RVTEST_SIGUPD with a fixed label. Caller must count_sigupds."""
+    return [  # label + SIGUPD macro
+        f"  {label}:",  # local label for this check
+        f"  RVTEST_SIGUPD(x2, x5, x4, {check_reg}, {label}, {label}_str)",  # dump with mismatch string
+    ]  # end labeled sigupd
 
 
-def emit_g_data_leaf(paging: Paging, flags: str, *, pa_lbl: str = "test_region") -> list[str]:
-    """Rewrite the G-stage data leaf after the initial maps."""
-    _, g_mode = paging_modes(paging)  # hgatp MODE name (sv32x4 / sv39x4)
-    return [f"  G_PTE_SETUP({g_mode}, {pa_lbl}, {flags}, gpa_data, LEVEL0)"]  # overwrite G data leaf flags
+def mismatch_string(label: str, message: str) -> str:  # .string for SIGUPD fail text
+    """Emit the .string referenced by RVTEST_SIGUPD on mismatch."""
+    return f'{label}_str: .string "\\"{message}\\""'  # assembler string for fail message
 
 
-def emit_vs_data_leaf(
-    paging: Paging,
-    flags: str,
-    *,
-    ppn_kind: Literal["GPA", "PA"] = "GPA",
-    ppn: str | None = None,
-    va: str = "va_data",
-) -> list[str]:
-    """Rewrite the VS-stage data leaf. Use ``PA`` when hgatp is Bare; ``GPA`` for two-stage."""
-    vs_mode, _ = paging_modes(paging)  # vsatp MODE name (sv32 / sv39)
-    if ppn is None:  # default PPN symbol depends on whether G-stage is on
-        ppn = "gpa_data" if ppn_kind == "GPA" else "test_region"  # GPA vs SPA of the data page
-    return [f"  VS_PTE_SETUP({vs_mode}, {ppn_kind}, {ppn}, {flags}, {va}, LEVEL0)"]  # overwrite VS data leaf
+def data_section(  # .data pages, tables, mismatch strings
+    *,  # keyword-only region flags
+    need_test_region: bool = True,  # physical data page
+    need_hlvl0: bool = True,  # G-stage L0 table page
+    need_vlvl0: bool = True,  # VS-stage L0 table page
+    need_hlvl1: bool = False,  # G-stage L1 (Sv39)
+    need_vlvl1: bool = False,  # VS-stage L1 (Sv39)
+    extra_regions: list[str] | None = None,  # caller-supplied .data lines
+    mismatch_strings: list[str] | None = None,  # SIGUPD fail .string lines
+) -> list[str]:  # .pushsection … .popsection block
+    """Emit .pushsection .data storage for pages, tables, and mismatch strings."""
+    lines = ["", ".pushsection .data"]  # open .data section
+    if need_test_region:  # guest/physical data page storage
+        lines.extend(  # allocate test_region
+            [  # physical test_region page
+                ".p2align 12",  # 4 KiB page alignment
+                "test_region:",  # SPA label used by G_PTE_SETUP
+                "  .word 0",  # first word of page
+                "  .word 0",  # pad
+                "  .word 0",  # pad
+                "  .word 0",  # pad
+            ]  # end test_region
+        )  # close extend
+    if extra_regions:  # optional extra .data blobs
+        lines.extend(extra_regions)  # append caller lines
+    if need_hlvl1:  # Sv39 G-stage mid-level table
+        lines.extend([".p2align 12", "rvtest_hlvl1_pg_tbl:", "  .zero 4096"])  # 4 KiB G L1
+    if need_hlvl0:  # G-stage leaf-level table
+        lines.extend([".p2align 12", "rvtest_hlvl0_pg_tbl:", "  .zero 4096"])  # 4 KiB G L0
+    if need_vlvl1:  # Sv39 VS-stage mid-level table
+        lines.extend([".p2align 12", "rvtest_vlvl1_pg_tbl:", "  .zero 4096"])  # 4 KiB VS L1
+    if need_vlvl0:  # VS-stage leaf-level table
+        lines.extend([".p2align 12", "rvtest_vlvl0_pg_tbl:", "  .zero 4096"])  # 4 KiB VS L0
+    if mismatch_strings:  # fail messages for labeled SIGUPD
+        lines.extend(mismatch_strings)  # append .string lines
+    lines.extend([".popsection", ""])  # close .data section
+    return lines  # full data block
 
 
-def emit_standard_prologue(
-    paging: Paging,
-    *,
-    data_pte: str = PTE_DATA_VS,
-    g_data_pte: str = PTE_DATA_G,
-    code_pte: str = PTE_CODE_VS,
-    with_data: bool = True,
-) -> list[str]:
-    """Emit VA/GPA symbols, two-stage maps, vsatp/hgatp enable, and fences."""
-    vs_mode, g_mode = paging_modes(paging)  # MODE names for VSATP_SETUP / HGATP_SETUP
-    lines: list[str] = []  # prologue assembly for one twin
-    lines.extend(emit_va_gpa_sets(paging, with_data=with_data))  # .set va_code / gpa_* symbols
-    lines.extend(
-        emit_two_stage_maps(
-            paging,  # Sv32 or Sv39 map shape
-            code_pte=code_pte,  # VS-stage code leaf flags
-            data_pte=data_pte,  # VS-stage data leaf flags
-            g_data_pte=g_data_pte,  # G-stage data leaf flags
-            with_data=with_data,  # False skips data walks
-        )
-    )
-    lines.extend(emit_enable_and_fence(vs_mode, g_mode))  # vsatp + hgatp + both hences
-    return lines
-
-
-def twin_data_section(paging: Paging, *, mismatch_strings: list[str] | None = None) -> list[str]:
-    """Data section for one paging twin. Sv39 includes LEVEL1 table pages."""
-    need_hlvl1 = paging == "sv39"  # G-stage L1 table exists only for Sv39x4
-    need_vlvl1 = paging == "sv39"  # VS-stage L1 table exists only for Sv39
-    return emit_data_section(
-        need_hlvl1=need_hlvl1,  # allocate rvtest_hlvl1_pg_tbl when Sv39
-        need_vlvl1=need_vlvl1,  # allocate rvtest_vlvl1_pg_tbl when Sv39
-        mismatch_strings=mismatch_strings,  # optional SIGUPD mismatch .string list
-    )
+def twin_data(paging: Paging, *, mismatch_strings: list[str] | None = None) -> list[str]:  # data for one twin
+    """Data section for one paging twin (Sv39 also allocates LEVEL1 tables)."""
+    return data_section(  # default pages + twin-specific L1
+        need_hlvl1=(paging == "sv39"),  # G L1 only for Sv39
+        need_vlvl1=(paging == "sv39"),  # VS L1 only for Sv39
+        mismatch_strings=mismatch_strings,  # optional fail strings
+    )  # close call

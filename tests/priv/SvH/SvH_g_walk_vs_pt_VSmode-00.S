@@ -31,7 +31,7 @@ RVTEST_BEGIN
 
 /////////////////////////////////
 // g_walk_vs_pt_VSmode
-//   SvH coverpoint stimulus (Python emitter)
+//   SvH coverpoint stimulus
 /////////////////////////////////
 
 

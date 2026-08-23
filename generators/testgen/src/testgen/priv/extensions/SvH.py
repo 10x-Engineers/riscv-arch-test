@@ -21,6 +21,21 @@ from testgen.priv.extensions.SvH_csr import (  # CSR field walk generators
     generate_csr_satp_mode_VSmode,  # → SvH_csr_satp_mode_VSmode-00.S (RV64 only)
     generate_csr_vsatp_fields_HSmode,  # → SvH_csr_vsatp_fields_HSmode-00.S
 )
+from testgen.priv.extensions.SvH_perm import (  # permission / MXR / SUM generators
+    generate_g_perm_VSmode,  # G-stage permission matrix from VS
+    generate_g_perm_VUmode,  # G-stage permission matrix from VU
+    generate_g_u_bit_HSmode,  # G U=0 vs U=1; HS HLV/HSV
+    generate_sum_Upages_VSmode,  # SUM 0/1 on U=1 pages
+    generate_vs_perm_VSmode,  # VS permission × SUM
+    generate_vs_perm_VUmode,  # VS permission from VU
+    generate_vsstatus_mxr_sum_VSmode,  # vsstatus MXR×SUM (VS)
+    generate_vsstatus_mxr_sum_VUmode,  # vsstatus MXR×SUM (VU)
+    generate_vu_rwx_two_stage_VUmode,  # VU R/W/X two-stage
+    generate_xonly_mxr0_HSmode,  # X-only VS leaf from HS
+    generate_xonly_mxr0_VSmode,  # X-only VS leaf from VS
+    generate_xonly_mxr0_VUmode,  # X-only VS leaf from VU
+    generate_xonly_mxr0_gstage_HSmode,  # X-only G leaf; HS HLV
+)
 from testgen.priv.extensions.SvH_twostage import (  # paging on/off / ifetch / MXR
     generate_g_walk_vs_pt_VSmode,  # G walk of VS page-table GPAs
     generate_hgatp_bare_trans_VSmode,  # VS on, hgatp Bare
@@ -47,6 +62,20 @@ _SCENARIOS: list[tuple[str, object]] = [
     ("csr_hgatp_fields_HSmode", generate_csr_hgatp_fields_HSmode),  # hgatp MODE/VMID/PPN
     ("csr_satp_mode_VSmode", generate_csr_satp_mode_VSmode),  # satp.MODE walk RV64
     ("csr_vsatp_fields_HSmode", generate_csr_vsatp_fields_HSmode),  # vsatp MODE/ASID/PPN
+    # --- SvH_perm.py: permissions / MXR / SUM ---
+    ("g_perm_VSmode", generate_g_perm_VSmode),  # G perms from VS
+    ("g_perm_VUmode", generate_g_perm_VUmode),  # G perms from VU
+    ("g_u_bit_HSmode", generate_g_u_bit_HSmode),  # G U-bit HS HLV/HSV
+    ("sum_Upages_VSmode", generate_sum_Upages_VSmode),  # SUM on U pages
+    ("vs_perm_VSmode", generate_vs_perm_VSmode),  # VS perms from VS
+    ("vs_perm_VUmode", generate_vs_perm_VUmode),  # VS perms from VU
+    ("vsstatus_mxr_sum_VSmode", generate_vsstatus_mxr_sum_VSmode),  # MXR×SUM VS
+    ("vsstatus_mxr_sum_VUmode", generate_vsstatus_mxr_sum_VUmode),  # MXR×SUM VU
+    ("vu_rwx_two_stage_VUmode", generate_vu_rwx_two_stage_VUmode),  # VU U=1 allow / U=0 deny
+    ("xonly_mxr0_HSmode", generate_xonly_mxr0_HSmode),  # X-only MXR=0 HS
+    ("xonly_mxr0_VSmode", generate_xonly_mxr0_VSmode),  # X-only MXR=0 VS
+    ("xonly_mxr0_VUmode", generate_xonly_mxr0_VUmode),  # X-only MXR=0 VU
+    ("xonly_mxr0_gstage_HSmode", generate_xonly_mxr0_gstage_HSmode),  # X-only G HS HLV
 ]
 
 

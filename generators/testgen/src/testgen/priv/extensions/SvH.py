@@ -5,7 +5,7 @@
 # SPDX-License-Identifier: Apache-2.0
 ##################################
 
-"""SvH privileged test generator.
+"""SvH privileged test generator (same pattern as ExceptionsSm / ZawrsS).
 
 make testgen EXTENSIONS=SvH calls make_svh().
 Shared helpers live in SvHCommon.
@@ -20,6 +20,11 @@ from testgen.priv.extensions.SvH_csr import (  # CSR field walk generators
     generate_csr_hgatp_fields_HSmode,  # → SvH_csr_hgatp_fields_HSmode-00.S
     generate_csr_satp_mode_VSmode,  # → SvH_csr_satp_mode_VSmode-00.S (RV64 only)
     generate_csr_vsatp_fields_HSmode,  # → SvH_csr_vsatp_fields_HSmode-00.S
+)
+from testgen.priv.extensions.SvH_fault import (  # invalid-PTE / fault generators
+    generate_hgatp_fault_VSmode,  # G-stage invalid leaf faults
+    generate_twostage_invalid_VSmode,  # VS or G V=0 × lw/sw/jalr
+    generate_vsatp_fault_VSmode,  # VS-stage invalid / non-leaf faults
 )
 from testgen.priv.extensions.SvH_perm import (  # permission / MXR / SUM generators
     generate_g_perm_VSmode,  # G-stage permission matrix from VS
@@ -76,6 +81,10 @@ _SCENARIOS: list[tuple[str, object]] = [
     ("xonly_mxr0_VSmode", generate_xonly_mxr0_VSmode),  # X-only MXR=0 VS
     ("xonly_mxr0_VUmode", generate_xonly_mxr0_VUmode),  # X-only MXR=0 VU
     ("xonly_mxr0_gstage_HSmode", generate_xonly_mxr0_gstage_HSmode),  # X-only G HS HLV
+    # --- SvH_fault.py: invalid PTE / faults ---
+    ("hgatp_fault_VSmode", generate_hgatp_fault_VSmode),  # G invalid PTE cases
+    ("twostage_invalid_VSmode", generate_twostage_invalid_VSmode),  # VS/G V=0 matrix
+    ("vsatp_fault_VSmode", generate_vsatp_fault_VSmode),  # VS invalid PTE cases
 ]
 
 

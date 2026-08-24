@@ -80,8 +80,9 @@ class riscvTraceData
   logic [(XLEN-1):0]     virt_adr_d;         // Data virtual address
   logic [(PA_BITS-1):0]  phys_adr_i;           // Instruction physical address
   logic [(PA_BITS-1):0]  phys_adr_d;           // Data physical address
-  logic [(XLEN-1):0]     pte_i;         // Instruction page table entry
-  logic [(XLEN-1):0]     pte_d;         // Data page table entry
+  // Snapshot of RVVI mem-access for this insn. SvH samples: mem_i.pte / mem_d.pte   (VS-stage or single-stage leaf) mem_i.gpte / mem_d.gpte (G-stage leaf)
+  rvvi_mem_access_t      mem_i;              // fetch=1 (I-bus)
+  rvvi_mem_access_t      mem_d;              // fetch=0 (D-bus)
   logic [(PPN_BITS-1):0] ppn_i;         // Instruction physical page number
   logic [(PPN_BITS-1):0] ppn_d;         // Data physical page number
   logic [1:0]            page_type_i;    // Instruction page type

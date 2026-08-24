@@ -13,6 +13,8 @@ module testbench;
 
   // Load configuration
   `include "rvtest_config.svh"
+  // RVVI mem-access struct (pte/gpte). Used from offical RVVI/include/host/rvvi/rvviTraceTypes.svh
+  `include "rvviTraceTypes.svh"
 
   // Set up variable lengths
   localparam XLEN = `UDB_MXLEN;
@@ -43,6 +45,7 @@ module testbench;
   logic [(XLEN-1):0] xRegVal;
   logic [(FLEN-1):0] fRegVal;
   logic [(VLEN-1):0] vRegVal;
+  longint unsigned   pte_tmp; // $sscanf scratch for PTE/GPTE hex → mem_i_acc/mem_d_acc
 
   // RVVI Trace interface signals
   // Basic signals
@@ -56,13 +59,14 @@ module testbench;
   logic              mode_virt; // hypervisor bit
   // Interrupts
   logic m_ext_intr, s_ext_intr, m_timer_intr, m_soft_intr;
-  // Virtual Memory
+  // Virtual memory: VA/PA stay on TRACE wires. PTEs do not — RVVI carries them in mem_access.
   logic [(XLEN-1):0]     virt_adr_i, virt_adr_d;
   logic [(PA_BITS-1):0]  phys_adr_i, phys_adr_d;
-  logic [(XLEN-1):0]     pte_i, pte_d;
   logic [(PPN_BITS-1):0] ppn_i, ppn_d;
   logic [1:0]            page_type_i, page_type_d;
   logic read_access, write_access, execute_access;
+  rvvi_mem_access_t      mem_i_acc, mem_d_acc; // I-bus (fetch=1) and D-bus (fetch=0) records
+  bit                    saw_mem_i, saw_mem_d; // this insn had at least one I/D PTE key
   // Registers
   logic [31:0][(XLEN-1):0]   x_wdata;
   logic [31:0]               x_wb;
@@ -145,9 +149,13 @@ module testbench;
     {valid, insn, trap, debug_mode, pc_rdata, mode, mode_virt,
     m_ext_intr, s_ext_intr, m_timer_intr, m_soft_intr,
     virt_adr_i, virt_adr_d, phys_adr_i, phys_adr_d,
-    pte_i, pte_d, ppn_i, ppn_d, page_type_i, page_type_d,
+    ppn_i, ppn_d, page_type_i, page_type_d,
     read_access, write_access, execute_access,
+    saw_mem_i, saw_mem_d,
     x_wb, f_wb, v_wb, csr_wb, x_wdata, f_wdata, v_wdata} = 0;
+    mem_i_acc = '0;
+    mem_d_acc = '0;
+    rvvi.mem_access_clear(0, 0);
 
     // Get next line from trace file
     num = $fgets(line, traceFileHandler);
@@ -174,13 +182,11 @@ module testbench;
           "S_EXT_INTR":     num = $sscanf(val, "%b", s_ext_intr);
           "M_TIMER_INTR":   num = $sscanf(val, "%b", m_timer_intr);
           "M_SOFT_INTR":    num = $sscanf(val, "%b", m_soft_intr);
-          // Virtual Memory
+          // Virtual Memory addresses / meta
           "VIRT_ADR_I":     num = $sscanf(val, "%h", virt_adr_i);
           "VIRT_ADR_D":     num = $sscanf(val, "%h", virt_adr_d);
           "PHYS_ADR_I":     num = $sscanf(val, "%h", phys_adr_i);
           "PHYS_ADR_D":     num = $sscanf(val, "%h", phys_adr_d);
-          "PTE_I":          num = $sscanf(val, "%h", pte_i);
-          "PTE_D":          num = $sscanf(val, "%h", pte_d);
           "PPN_I":          num = $sscanf(val, "%h", ppn_i);
           "PPN_D":          num = $sscanf(val, "%h", ppn_d);
           "PAGE_TYPE_I":    num = $sscanf(val, "%b", page_type_i);
@@ -188,6 +194,29 @@ module testbench;
           "READ_ACCESS":    num = $sscanf(val, "%b", read_access);
           "WRITE_ACCESS":   num = $sscanf(val, "%b", write_access);
           "EXECUTE_ACCESS": num = $sscanf(val, "%b", execute_access);
+          //VS_PTE_* / PTE_* → .pte  (VS-stage leaf when H is on; single-stage leaf otherwise)
+          //G_PTE_*          → .gpte (G-stage leaf)
+          // I vs D is chosen here; fetch is set on push below.
+          "PTE_I", "VS_PTE_I": begin
+            num = $sscanf(val, "%h", pte_tmp);
+            mem_i_acc.pte = pte_tmp;
+            saw_mem_i = 1'b1;
+          end
+          "PTE_D", "VS_PTE_D": begin
+            num = $sscanf(val, "%h", pte_tmp);
+            mem_d_acc.pte = pte_tmp;
+            saw_mem_d = 1'b1;
+          end
+          "G_PTE_I": begin
+            num = $sscanf(val, "%h", pte_tmp);
+            mem_i_acc.gpte = pte_tmp;
+            saw_mem_i = 1'b1;
+          end
+          "G_PTE_D": begin
+            num = $sscanf(val, "%h", pte_tmp);
+            mem_d_acc.gpte = pte_tmp;
+            saw_mem_d = 1'b1;
+          end
           // Registers
           "X": begin
             num = $sscanf(val, "%d", regNum);
@@ -223,6 +252,23 @@ module testbench;
           end
         endcase
       end
+      // Fill remaining RVVI mem-access fields and push before valid=1 (covergroups sample mem_i/mem_d).
+      if (saw_mem_i) begin
+        mem_i_acc.fetch     = 1'b1; // instruction fetch
+        mem_i_acc.size      = (XLEN == 32) ? 4 : 8;
+        mem_i_acc.vaddr     = virt_adr_i;
+        mem_i_acc.paddr     = phys_adr_i;
+        mem_i_acc.page_type = {1'b0, page_type_i};
+        rvvi.mem_access_push(0, mem_i_acc);
+      end
+      if (saw_mem_d) begin
+        mem_d_acc.fetch     = 1'b0; // load/store
+        mem_d_acc.size      = (XLEN == 32) ? 4 : 8;
+        mem_d_acc.vaddr     = virt_adr_d;
+        mem_d_acc.paddr     = phys_adr_d;
+        mem_d_acc.page_type = {1'b0, page_type_d};
+        rvvi.mem_access_push(0, mem_d_acc);
+      end
       valid = 1;
     end
   end
@@ -244,14 +290,11 @@ module testbench;
   assign rvvi.s_ext_intr[0][0] = s_ext_intr;
   assign rvvi.m_timer_intr[0][0] = m_timer_intr;
   assign rvvi.m_soft_intr[0][0] = m_soft_intr;
-
-  // Virtual Memory
+  // VA/PA/access flags stay on TRACE. PTEs were already pushed into rvvi.mem_i / mem_d.
   assign rvvi.virt_adr_i[0][0] = virt_adr_i;
   assign rvvi.virt_adr_d[0][0] = virt_adr_d;
   assign rvvi.phys_adr_i[0][0] = phys_adr_i;
   assign rvvi.phys_adr_d[0][0] = phys_adr_d;
-  assign rvvi.pte_i[0][0] = pte_i;
-  assign rvvi.pte_d[0][0] = pte_d;
   assign rvvi.ppn_i[0][0] = ppn_i;
   assign rvvi.ppn_d[0][0] = ppn_d;
   assign rvvi.page_type_i[0][0] = page_type_i;

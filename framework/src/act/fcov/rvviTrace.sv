@@ -18,6 +18,7 @@
  * limitations under the License.
  *
  */
+ `include "rvviTraceTypes.svh"
 
 `define RVVI_TRACE_VERSION_MAJOR 1
 `define RVVI_TRACE_VERSION_MINOR 6
@@ -123,8 +124,6 @@ interface rvviTrace
   wire [(XLEN-1):0]     virt_adr_d     [(NHART-1):0][(RETIRE-1):0]; // Data virtual address
   wire [(PA_BITS-1):0]  phys_adr_i     [(NHART-1):0][(RETIRE-1):0]; // Instruction physical address
   wire [(PA_BITS-1):0]  phys_adr_d     [(NHART-1):0][(RETIRE-1):0]; // Data physical address
-  wire [(XLEN-1):0]     pte_i          [(NHART-1):0][(RETIRE-1):0]; // Instruction page table entry
-  wire [(XLEN-1):0]     pte_d          [(NHART-1):0][(RETIRE-1):0]; // Data page table entry
   wire [(PPN_BITS-1):0] ppn_i          [(NHART-1):0][(RETIRE-1):0]; // Instruction physical page number
   wire [(PPN_BITS-1):0] ppn_d          [(NHART-1):0][(RETIRE-1):0]; // Data physical page number
   wire [1:0]            page_type_i    [(NHART-1):0][(RETIRE-1):0]; // Instruction page type
@@ -138,6 +137,28 @@ interface rvviTrace
   //
   dm dm();
 
+ // Coverpoints use mem_i.pte / mem_d.gpte.
+  //   mem_i = last I-side record (access.fetch=1)
+  //   mem_d = last D-side record (access.fetch=0)
+  //   .pte  = VS-stage leaf when H is on; .gpte = G-stage leaf
+  rvvi_mem_access_t mem_i       [(NHART-1):0][(RETIRE-1):0];
+  rvvi_mem_access_t mem_d       [(NHART-1):0][(RETIRE-1):0];
+  rvvi_mem_access_t mem_accesses[(NHART-1):0][$];
+
+  function automatic void mem_access_clear(input int hart, input int issue);
+    mem_i[hart][issue] = '0;
+    mem_d[hart][issue] = '0;
+    mem_accesses[hart].delete();
+  endfunction
+
+  // TB must call this before asserting valid. fetch splits I vs D.
+  function automatic void mem_access_push(input int hart, input rvvi_mem_access_t access);
+    mem_accesses[hart].push_front(access);
+    if (access.fetch)
+      mem_i[hart][0] = access;
+    else
+      mem_d[hart][0] = access;
+  endfunction
   //
   // Synchronization of NETs
   //

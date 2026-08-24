@@ -14,143 +14,15 @@ from testgen.data.state import TestData
 from testgen.data.test_chunk import TestChunk
 from testgen.priv.registry import add_priv_test_generator
 
-# ---------------------------------------------------------------------------
-# CSR groups shared across sections
-# ---------------------------------------------------------------------------
-
-# Machine-only H-extension CSRs used to verify that lower privilege modes
-# cannot access these M-only registers.
-M_ONLY_H_CSRS = [("mtval2", None), ("mtinst", None)]
-
-# HS/VS-scope H-extension CSRs.
-# These are accessible from HS and M, but from VS they should fault as
-# virtual-instruction exceptions rather than illegal instructions.
-HS_VS_H_CSRS = [
-    ("hstatus", 0x7003E0),                    # control bits 5–9 and 20–22; ignores the WARL VGEIN and RV64 VSXL fields.
-    ("hedeleg", 0xFFFFFFFF),                  # 32 exception-delegation positions
-    ("hideleg", 0x1444),                      # virtual interrupt bits 2, 6, 10, and 12
-    ("hie", 0x1444),                          # virtual interrupt bits 2, 6, 10, and 12
-    ("hcounteren", 0xFFFFFFFF),               # counter enable bits
-    ("htimedelta", None),                     # value-bearing registers without reserved/WARL field
-    ("htval", None),                          # value-bearing registers without reserved/WARL field
-    ("hip", 0x1444),                          # virtual interrupt bits 2, 6, 10, and 12
-    ("hvip", 0x444),                          # writable virtual interrupt-pending bits 2, 6, and 10
-    ("htinst", None),                         # value-bearing registers without reserved/WARL field
-    ("henvcfg", 0xC0000000000000F1),          # checks FIOM, CBCFE, CBZE, PBMTE, and STCE; omits the WARL CBIE encoding.
-    ("hgatp", 0),                             # since useful fields are implementation-sized or WARL
-    ("hgeie", 0),                             # since useful fields are implementation-sized or WARL
-    ("vsstatus", 0xFFFFFFFFFF7FFFBF),         # matches the existing sstatus masking convention
-    ("vsie", 0x3666),                         # standard supervisor interrupt-bit subset
-    ("vstvec", 0b10),                         # only the legal vector-mode bit; the base address is not reliably comparable.
-    ("vsscratch", None),                      # value-bearing registers without reserved/WARL field
-    ("vsepc", None),                          # value-bearing registers without reserved/WARL field
-    # vscause excluded: WLRL, handled separately by cp_vscause_write.
-    ("vstval", None),                         # value-bearing registers without reserved/WARL field
-    ("vsip", 0x3666),
-    ("vsatp", 0),                                 # since useful fields are implementation-sized or WARL
-]
-HS_VS_H_CSRS_RO = [("hgeip", 0)]          #since the hgeip useful fields are implementation-sized or WARL
-HS_VS_H_CSRS_32H = [("hedelegh", 0xFFFFFFFF), ("htimedeltah", None), ("henvcfgh", 0xC0000000)]
-
-# Representative S-mode CSR set, used for tests that verify VS replica
-# semantics in the H hypervisor environment.
-S_CSRS_WITH_REPLICA = [
-    ("sstatus", "vsstatus", 0xCFFFFFFCF),
-    ("sie", "vsie", 0x3666),
-    ("stvec", "vstvec", None),
-    ("sscratch", "vsscratch", None),
-    ("sepc", "vsepc", None),
-    ("stval", "vstval", None),
-    ("sip", "vsip", 0x3666),
-    ("satp", "vsatp", None),
-]
-
-# senvcfg/scounteren are S-mode CSRs with NO VS-mode replica. These are
-# used to confirm that VS accesses to non-replicated S CSRs behave normally.
-S_CSRS_NO_REPLICA = ["scounteren", "senvcfg"]
-
-# ---------------------------------------------------------------------------
-# H_mcsr_cg: Tests executed in M-mode
-# ---------------------------------------------------------------------------
-
-
-def _generate_hcsr_tests(test_data: TestData) -> list[str]:
-    """Generate tests for H-extension CSRs in M-mode.
-
-    PRECONDITION: caller must be in M-mode. This is the boot-default mode
-    for a fresh test chunk, so no switch is emitted here.
-    """
-    covergroup = "H_mcsr_cg"
-    # Include both Machine-only and HS/VS-scope H CSRs in the M-mode access test.
-    csrs = M_ONLY_H_CSRS + HS_VS_H_CSRS
-
-    ######################################
-    coverpoint = "cp_hcsr_access"
-    ######################################
-    lines = [
-        comment_banner(
-            coverpoint,
-            "Read, write all 1s, write all 0s, set all 1s, set all 0s, restore all Machine/HS/VS H-extension CSRs",
-        ),
-    ]
-    for csr in csrs:
-        lines.extend(csr_access_test(test_data, csr, covergroup, coverpoint))
-
-    lines.append("\n// Read-Only CSRs")
-    for csr in HS_VS_H_CSRS_RO:
-        lines.extend(csr_access_test(test_data, csr, covergroup, coverpoint))
-
-    lines.extend(["", "// RV32-only h CSRs", "#if __riscv_xlen == 32"])
-    for csr in HS_VS_H_CSRS_32H:
-        lines.extend(csr_access_test(test_data, csr, covergroup, coverpoint))
-    lines.append("#endif")
-
-    ######################################
-    coverpoint = "cp_hcsrwalk"
-    ######################################
-    lines.append(
-        comment_banner(
-            coverpoint,
-            "Set and clear each bit individually in all writable Machine/HS/VS H-extension CSRs",
-        ),
-    )
-    for csr in csrs:
-        lines.extend(csr_walk_test(test_data, csr, covergroup, coverpoint))
-
-    lines.extend(["// RV32-only h CSRs", "#if __riscv_xlen == 32"])
-    for csr in HS_VS_H_CSRS_32H:
-        lines.extend(csr_walk_test(test_data, csr, covergroup, coverpoint))
-    lines.append("#endif")
-
-    return lines
-
-
-def _generate_mtvala_test(test_data: TestData) -> list[str]:
-    """cp_mtvala validates mtval readback semantics. It writes a known bit
-    pattern, reads it back, and signals the result to the signature.
-
-    PRECONDITION: caller must be in M-mode (mtval is M-only).
-    """
-    covergroup = "H_mcsr_cg"
-
-    ######################################
-    coverpoint = "cp_mtvala"
-    ######################################
-    save_reg, check_reg = test_data.int_regs.get_registers(2)
-    lines = [
-        comment_banner(coverpoint, "mtval must not be read-only zero"),
-        f"csrr x{save_reg}, mtval   # save mtval",
-        f"LI(x{check_reg}, -1)      # all 1s",
-        test_data.add_testcase("nonzero", coverpoint, covergroup),
-        f"csrw mtval, x{check_reg}  # write all 1s to mtval",
-        f"csrr x{check_reg}, mtval  # read back",
-        f"snez x{check_reg}, x{check_reg}   # 1 if nonzero",
-        write_sigupd(check_reg, test_data),
-        f"csrw mtval, x{save_reg}   # restore mtval",
-    ]
-    test_data.int_regs.return_registers([save_reg, check_reg])
-    return lines
-
+from testgen.priv.extensions.Common_H import (
+    M_ONLY_H_CSRS,
+    HS_VS_H_CSRS,
+    HS_VS_H_CSRS_RO,
+    HS_VS_H_CSRS_32H,
+    S_CSRS_WITH_REPLICA,
+    S_CSRS_NO_REPLICA,
+    CSR_HENCVCFG,
+)
 
 def _generate_vscause_tests(test_data: TestData, covergroup: str) -> list[str]:
     """cp_vscause_write validates that vscause and scause behave the same for
@@ -244,11 +116,16 @@ def _generate_hs_hcsr_tests(test_data: TestData) -> list[str]:
     ######################################
     coverpoint = "cp_hcsr_access"
     ######################################
-    lines = [comment_banner(coverpoint, "Same read/write/set/clear sweep as H_mcsr_cg, executed from HS-mode")]
+    lines = [comment_banner(coverpoint, "read/write/set/clear sweep executed from HS-mode")]
     for csr in HS_VS_H_CSRS:
         lines.extend(csr_access_test(test_data, csr, covergroup, coverpoint))
     for csr in HS_VS_H_CSRS_RO:
         lines.extend(csr_access_test(test_data, csr, covergroup, coverpoint))
+
+    lines.extend(["", "#ifndef S1P11P0_SUPPORTED"])
+    lines.extend(csr_access_test(test_data, CSR_HENCVCFG, covergroup, coverpoint))
+    lines.extend(["", "#endif"])
+
     lines.extend(["", "#if __riscv_xlen == 32"])
     for csr in HS_VS_H_CSRS_32H:
         lines.extend(csr_access_test(test_data, csr, covergroup, coverpoint))
@@ -260,6 +137,11 @@ def _generate_hs_hcsr_tests(test_data: TestData) -> list[str]:
     lines.append(comment_banner(coverpoint, "Set/clear each bit of each HS/VS H-extension CSR, executed from HS-mode"))
     for csr in HS_VS_H_CSRS:
         lines.extend(csr_walk_test(test_data, csr, covergroup, coverpoint))
+    
+    lines.extend(["", "#ifndef S1P11P0_SUPPORTED"])
+    lines.extend(csr_walk_test(test_data, CSR_HENCVCFG, covergroup, coverpoint))
+    lines.extend(["", "#endif"])
+    
     lines.extend(["// RV32-only h CSRs", "#if __riscv_xlen == 32"])
     for csr in HS_VS_H_CSRS_32H:
         lines.extend(csr_walk_test(test_data, csr, covergroup, coverpoint))
@@ -706,19 +588,13 @@ def _generate_vu_scsr_test(test_data: TestData) -> list[str]:
         )
     return lines
 
-@add_priv_test_generator("H", required_extensions=["H"])
+@add_priv_test_generator("H", required_extensions=["H"], extra_defines=["#define RVTEST_HYPERVISOR"],)
 def make_h(test_data: TestData) -> list[TestChunk]:
     """Generate tests for the H hypervisor-extension testsuite.
     """
     
     test_chunks: list[TestChunk] = []
- 
-    # ---- H_mcsr_cg: M-mode (boot default, no switch needed) ----
-    tc = test_data.begin_test_chunk("hcsr_m")
-    tc.code.extend(_generate_hcsr_tests(test_data))
-    tc.code.extend(_generate_mtvala_test(test_data))
-    test_chunks.append(test_data.end_test_chunk())
- 
+
     # ---- H_hscsr_cg: HS-mode ----
     tc = test_data.begin_test_chunk("hcsr_hs")
     tc.code.append("RVTEST_TSBI_GOTO_SMODE      # -> HS-mode (V=0)")

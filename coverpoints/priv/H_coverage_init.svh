@@ -8,7 +8,6 @@
 //
 ////////////////////////////////////////////////////////////////////////////////////////////////
     
-    H_mcsr_cg  = new(); H_mcsr_cg.set_inst_name("obj_H_mcsr");
     H_hscsr_cg = new(); H_hscsr_cg.set_inst_name("obj_H_hscsr");
     H_vscsr_cg = new(); H_vscsr_cg.set_inst_name("obj_H_vscsr");
     H_ucsr_cg  = new(); H_ucsr_cg.set_inst_name("obj_H_ucsr");

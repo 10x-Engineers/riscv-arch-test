@@ -40,7 +40,6 @@ HS_VS_H_CSRS = [
     ("hip", 0x1444),                          # virtual interrupt bits 2, 6, 10, and 12
     ("hvip", 0x444),                          # writable virtual interrupt-pending bits 2, 6, and 10
     ("htinst", None),                         # value-bearing registers without reserved/WARL field
-    ("henvcfg", 0xC0000000000000F1),          # checks FIOM, CBCFE, CBZE, PBMTE, and STCE; omits the WARL CBIE encoding.
     ("hgatp", 0),                             # since useful fields are implementation-sized or WARL
     ("hgeie", 0),                             # since useful fields are implementation-sized or WARL
     ("vsstatus", 0xFFFFFFFFFF7FFFBF),         # matches the existing sstatus masking convention
@@ -55,6 +54,7 @@ HS_VS_H_CSRS = [
 ]
 HS_VS_H_CSRS_RO = [("hgeip", 0)]              # since hgeip's useful fields are implementation-sized or WARL
 HS_VS_H_CSRS_32H = [("hedelegh", 0xFFFFFFFF), ("htimedeltah", None), ("henvcfgh", 0xC0000000)]
+CSR_HENCVCFG = ("henvcfg", 0xC0000000)  # CSR with WARL fields, but not a CSR that is replicated to VS-mode.
 
 # Representative S-mode CSR set, used for tests that verify VS replica
 # semantics in the H hypervisor environment.

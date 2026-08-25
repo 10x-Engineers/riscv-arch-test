@@ -5,7 +5,7 @@
 # SPDX-License-Identifier: Apache-2.0
 ##################################
 
-"""SvH privileged test generator (same pattern as ExceptionsSm / ZawrsS).
+"""SvH privileged test generator 
 
 make testgen EXTENSIONS=SvH calls make_svh().
 Shared helpers live in SvHCommon.
@@ -25,6 +25,21 @@ from testgen.priv.extensions.SvH_fault import (  # invalid-PTE / fault generator
     generate_hgatp_fault_VSmode,  # G-stage invalid leaf faults
     generate_twostage_invalid_VSmode,  # VS or G V=0 × lw/sw/jalr
     generate_vsatp_fault_VSmode,  # VS-stage invalid / non-leaf faults
+)
+from testgen.priv.extensions.SvH_misc import (  # HFENCE / MPRV / TVM / attr generators
+    generate_g_adbit_VSmode,  # G/VS A=D=0 faults
+    generate_g_pte_attr_VSmode,  # G-stage RSW / reserved / PBMT
+    generate_g_struct_HSmode,  # misaligned G superpage
+    generate_gpa_width_VSmode,  # GPA width (RV64 only)
+    generate_hfence_gvma_mode_HSmode,  # Bare↔paged + HFENCE.GVMA
+    generate_hfence_gvma_ops_HSmode,  # HFENCE.GVMA operand forms
+    generate_hfence_vvma_HSmode,  # HFENCE.VVMA
+    generate_mprv_hgatp_Mmode,  # MPRV × hgatp
+    generate_mprv_sum_two_stage_Mmode,  # MPRV × SUM two-stage
+    generate_mprv_vsatp_Mmode,  # MPRV × vsatp
+    generate_tvm_hgatp_HSmode,  # TVM blocks HS hgatp writes
+    generate_vs_pte_attr_VSmode,  # VS RSW / reserved / PBMT
+    generate_vsbe_endian_VSmode,  # hstatus.VSBE endian
 )
 from testgen.priv.extensions.SvH_perm import (  # permission / MXR / SUM generators
     generate_g_perm_VSmode,  # G-stage permission matrix from VS
@@ -85,6 +100,20 @@ _SCENARIOS: list[tuple[str, object]] = [
     ("hgatp_fault_VSmode", generate_hgatp_fault_VSmode),  # G invalid PTE cases
     ("twostage_invalid_VSmode", generate_twostage_invalid_VSmode),  # VS/G V=0 matrix
     ("vsatp_fault_VSmode", generate_vsatp_fault_VSmode),  # VS invalid PTE cases
+    # --- SvH_misc.py: HFENCE / MPRV / TVM / attrs ---
+    ("g_adbit_VSmode", generate_g_adbit_VSmode),  # A/D bit faults
+    ("g_pte_attr_VSmode", generate_g_pte_attr_VSmode),  # G PTE attributes
+    ("g_struct_HSmode", generate_g_struct_HSmode),  # G structure / superpage
+    ("gpa_width_VSmode", generate_gpa_width_VSmode),  # GPA width
+    ("hfence_gvma_mode_HSmode", generate_hfence_gvma_mode_HSmode),  # HFENCE.GVMA modes
+    ("hfence_gvma_ops_HSmode", generate_hfence_gvma_ops_HSmode),  # HFENCE.GVMA ops
+    ("hfence_vvma_HSmode", generate_hfence_vvma_HSmode),  # HFENCE.VVMA
+    ("mprv_hgatp_Mmode", generate_mprv_hgatp_Mmode),  # MPRV + hgatp
+    ("mprv_sum_two_stage_Mmode", generate_mprv_sum_two_stage_Mmode),  # MPRV + SUM
+    ("mprv_vsatp_Mmode", generate_mprv_vsatp_Mmode),  # MPRV + vsatp
+    ("tvm_hgatp_HSmode", generate_tvm_hgatp_HSmode),  # TVM + hgatp
+    ("vs_pte_attr_VSmode", generate_vs_pte_attr_VSmode),  # VS PTE attributes
+    ("vsbe_endian_VSmode", generate_vsbe_endian_VSmode),  # VSBE endian
 ]
 
 

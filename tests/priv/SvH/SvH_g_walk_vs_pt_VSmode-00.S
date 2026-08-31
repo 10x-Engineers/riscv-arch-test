@@ -62,16 +62,17 @@ RVTEST_BEGIN
   HGATP_SETUP(sv32x4)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0041)
+  LI(a5, 0x257a0041)
   la t1, test_region
-  sw t0, 0(t1)
+  sw a5, 0(t1)
   LI(a5, va_data)
   RVTEST_GOTO_LOWER_MODE VSmode
   lw   a3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test1_allow:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_allow, test1_allow_str)
+SvH_cg_cp_h_vm_gstagetrans_test1_allow:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_h_vm_gstagetrans_test1_allow, SvH_cg_cp_h_vm_gstagetrans_test1_allow_str)
   G_PTE_SETUP(sv32x4, rvtest_vlvl0_pg_tbl, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R), gpa_rvtest_vlvl0_pg_tbl, LEVEL0)
   hfence.vvma
   hfence.gvma
@@ -80,8 +81,9 @@ RVTEST_BEGIN
   lw   a4, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test2_deny:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test2_deny, test2_deny_str)
+SvH_cg_VM_permission_invalid_g_rw_test2_deny:
+  # Check if x14 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x14, SvH_cg_VM_permission_invalid_g_rw_test2_deny, SvH_cg_VM_permission_invalid_g_rw_test2_deny_str)
 
   .pushsection .data
   .p2align 12
@@ -96,8 +98,6 @@ rvtest_hlvl0_pg_tbl:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_allow_str: .string "\"Mismatch on VS lw with G allowing VS-PT walk\""
-test2_deny_str: .string "\"Mismatch on VS lw with G denying VS-PT walk\""
   .popsection
 
 #endif  // SV32_SUPPORTED
@@ -128,16 +128,17 @@ test2_deny_str: .string "\"Mismatch on VS lw with G denying VS-PT walk\""
   HGATP_SETUP(sv39x4)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0041)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(s0, 0x257a0041)
+  la s1, test_region
+  sw s0, 0(s1)
   LI(a5, va_data)
   RVTEST_GOTO_LOWER_MODE VSmode
   lw   a3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test1_allow:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_allow, test1_allow_str)
+SvH_cg_cp_h_vm_gstagetrans_test1_allow:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_h_vm_gstagetrans_test1_allow, SvH_cg_cp_h_vm_gstagetrans_test1_allow_str)
   G_PTE_SETUP(sv39x4, rvtest_vlvl0_pg_tbl, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R), gpa_rvtest_vlvl0_pg_tbl, LEVEL0)
   hfence.vvma
   hfence.gvma
@@ -146,8 +147,9 @@ test2_deny_str: .string "\"Mismatch on VS lw with G denying VS-PT walk\""
   lw   a4, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test2_deny:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test2_deny, test2_deny_str)
+SvH_cg_VM_permission_invalid_g_rw_test2_deny:
+  # Check if x14 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x14, SvH_cg_VM_permission_invalid_g_rw_test2_deny, SvH_cg_VM_permission_invalid_g_rw_test2_deny_str)
 
   .pushsection .data
   .p2align 12
@@ -168,8 +170,6 @@ rvtest_vlvl1_pg_tbl:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_allow_str: .string "\"Mismatch on VS lw with G allowing VS-PT walk\""
-test2_deny_str: .string "\"Mismatch on VS lw with G denying VS-PT walk\""
   .popsection
 
 #endif  // SV39_SUPPORTED
@@ -184,7 +184,14 @@ RVTEST_DATA_BEGIN
 
 
 // Testcase strings
-
+#ifdef SV32_SUPPORTED
+SvH_cg_cp_h_vm_gstagetrans_test1_allow_str: .string "\"test: 1; cg: SvH_cg; cp: cp_h_vm_gstagetrans; bin: test1_allow\""
+SvH_cg_VM_permission_invalid_g_rw_test2_deny_str: .string "\"test: 2; cg: SvH_cg; cp: VM_permission_invalid_g_rw; bin: test2_deny\""
+#endif  // SV32_SUPPORTED
+#ifdef SV39_SUPPORTED
+SvH_cg_cp_h_vm_gstagetrans_test1_allow_str: .string "\"test: 3; cg: SvH_cg; cp: cp_h_vm_gstagetrans; bin: test1_allow\""
+SvH_cg_VM_permission_invalid_g_rw_test2_deny_str: .string "\"test: 4; cg: SvH_cg; cp: VM_permission_invalid_g_rw; bin: test2_deny\""
+#endif  // SV39_SUPPORTED
 
 // End of test data section and model specific data
 RVTEST_DATA_END

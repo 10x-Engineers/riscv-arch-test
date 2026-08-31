@@ -66,9 +66,9 @@ RVTEST_BEGIN
   hfence.vvma
   hfence.gvma
   sfence.vma
-  LI(t0, 0x257a0251)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(s0, 0x257a0251)
+  la a3, test_region
+  sw s0, 0(a3)
 
 // --------------------------------------------------------------------------------------------------------------------------------
 // Test Cases Start from here
@@ -83,8 +83,9 @@ RVTEST_BEGIN
   lw a3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test1_impl_g_lw:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_impl_g_lw, test1_impl_g_lw_str)
+SvH_cg_cp_hgatp_adbit_behavior_test1_impl_g_lw:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_hgatp_adbit_behavior_test1_impl_g_lw, SvH_cg_cp_hgatp_adbit_behavior_test1_impl_g_lw_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: implicit G A=D=0 on VS-PT map - VS sw | Expected: Expected Fault
@@ -100,15 +101,13 @@ RVTEST_BEGIN
   RVTEST_GOTO_MMODE
   la t3, test_region
   lw s3, 0(t3)
-  test2_impl_g_sw:
-  RVTEST_SIGUPD(x2, x5, x4, s3, test2_impl_g_sw, test2_impl_g_sw_str)
+SvH_cg_cp_hgatp_adbit_behavior_test2_impl_g_sw:
+  # Check if x19 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x19, SvH_cg_cp_hgatp_adbit_behavior_test2_impl_g_sw, SvH_cg_cp_hgatp_adbit_behavior_test2_impl_g_sw_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 3: implicit G A=D=0 on VS-PT map - VS jalr | Expected: Expected Fault
 //--------------------------------------------------------------------------------------------------------------------------------
-  hfence.vvma
-  hfence.gvma
-  sfence.vma
   LI(a5, va_data)
   LI(s4, 0)
   RVTEST_GOTO_LOWER_MODE VSmode
@@ -116,8 +115,9 @@ RVTEST_BEGIN
   jalr ra, a5, 0
   nop
   RVTEST_GOTO_MMODE
-  test3_impl_g_jalr:
-  RVTEST_SIGUPD(x2, x5, x4, s4, test3_impl_g_jalr, test3_impl_g_jalr_str)
+SvH_cg_cp_hgatp_adbit_behavior_x_test3_impl_g_jalr:
+  # Check if x20 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x20, SvH_cg_cp_hgatp_adbit_behavior_x_test3_impl_g_jalr, SvH_cg_cp_hgatp_adbit_behavior_x_test3_impl_g_jalr_str)
   G_PTE_SETUP(sv32x4, rvtest_vlvl0_pg_tbl, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V), gpa_rvtest_vlvl0_pg_tbl, LEVEL0)
   VS_PTE_SETUP(sv32, GPA, gpa_data, (PTE_X | PTE_W | PTE_R | PTE_V), va_data, LEVEL0)
   hfence.vvma
@@ -133,8 +133,9 @@ RVTEST_BEGIN
   lw a4, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test4_vs_ad00_lw:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test4_vs_ad00_lw, test4_vs_ad00_lw_str)
+SvH_cg_cp_hgatp_adbit_vs_ad_rw_test4_vs_ad00_lw:
+  # Check if x14 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x14, SvH_cg_cp_hgatp_adbit_vs_ad_rw_test4_vs_ad00_lw, SvH_cg_cp_hgatp_adbit_vs_ad_rw_test4_vs_ad00_lw_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 5: VS leaf A=D=00 - VS sw | Expected: Expected Fault
@@ -150,15 +151,13 @@ RVTEST_BEGIN
   RVTEST_GOTO_MMODE
   la t3, test_region
   lw s3, 0(t3)
-  test5_vs_ad00_sw:
-  RVTEST_SIGUPD(x2, x5, x4, s3, test5_vs_ad00_sw, test5_vs_ad00_sw_str)
+SvH_cg_cp_hgatp_adbit_vs_ad_rw_test5_vs_ad00_sw:
+  # Check if x19 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x19, SvH_cg_cp_hgatp_adbit_vs_ad_rw_test5_vs_ad00_sw, SvH_cg_cp_hgatp_adbit_vs_ad_rw_test5_vs_ad00_sw_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 6: VS leaf A=D=00 - VS jalr | Expected: Expected Fault
 //--------------------------------------------------------------------------------------------------------------------------------
-  hfence.vvma
-  hfence.gvma
-  sfence.vma
   LI(a5, va_data)
   LI(s5, 0)
   RVTEST_GOTO_LOWER_MODE VSmode
@@ -166,8 +165,9 @@ RVTEST_BEGIN
   jalr ra, a5, 0
   nop
   RVTEST_GOTO_MMODE
-  test6_vs_ad00_jalr:
-  RVTEST_SIGUPD(x2, x5, x4, s5, test6_vs_ad00_jalr, test6_vs_ad00_jalr_str)
+SvH_cg_cp_hgatp_adbit_vs_ad_x_test6_vs_ad00_jalr:
+  # Check if x21 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x21, SvH_cg_cp_hgatp_adbit_vs_ad_x_test6_vs_ad00_jalr, SvH_cg_cp_hgatp_adbit_vs_ad_x_test6_vs_ad00_jalr_str)
 
   .pushsection .data
   .p2align 12
@@ -182,12 +182,6 @@ rvtest_hlvl0_pg_tbl:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_impl_g_lw_str: .string "\"Mismatch on implicit G A=D=0 on VS-PT map - VS lw\""
-test2_impl_g_sw_str: .string "\"Mismatch on implicit G A=D=0 on VS-PT map - VS sw\""
-test3_impl_g_jalr_str: .string "\"Mismatch on implicit G A=D=0 on VS-PT map - VS jalr\""
-test4_vs_ad00_lw_str: .string "\"Mismatch on VS leaf A=D=00 - VS lw\""
-test5_vs_ad00_sw_str: .string "\"Mismatch on VS leaf A=D=00 - VS sw\""
-test6_vs_ad00_jalr_str: .string "\"Mismatch on VS leaf A=D=00 - VS jalr\""
   .popsection
 
 #endif  // SV32_SUPPORTED
@@ -222,9 +216,9 @@ test6_vs_ad00_jalr_str: .string "\"Mismatch on VS leaf A=D=00 - VS jalr\""
   hfence.vvma
   hfence.gvma
   sfence.vma
-  LI(t0, 0x257a0251)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a4, 0x257a0251)
+  la a5, test_region
+  sw a4, 0(a5)
 
 // --------------------------------------------------------------------------------------------------------------------------------
 // Test Cases Start from here
@@ -239,8 +233,9 @@ test6_vs_ad00_jalr_str: .string "\"Mismatch on VS leaf A=D=00 - VS jalr\""
   lw a3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test1_impl_g_lw:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_impl_g_lw, test1_impl_g_lw_str)
+SvH_cg_cp_hgatp_adbit_behavior_test1_impl_g_lw:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_hgatp_adbit_behavior_test1_impl_g_lw, SvH_cg_cp_hgatp_adbit_behavior_test1_impl_g_lw_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: implicit G A=D=0 on VS-PT map - VS sw | Expected: Expected Fault
@@ -256,15 +251,13 @@ test6_vs_ad00_jalr_str: .string "\"Mismatch on VS leaf A=D=00 - VS jalr\""
   RVTEST_GOTO_MMODE
   la t3, test_region
   lw s3, 0(t3)
-  test2_impl_g_sw:
-  RVTEST_SIGUPD(x2, x5, x4, s3, test2_impl_g_sw, test2_impl_g_sw_str)
+SvH_cg_cp_hgatp_adbit_behavior_test2_impl_g_sw:
+  # Check if x19 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x19, SvH_cg_cp_hgatp_adbit_behavior_test2_impl_g_sw, SvH_cg_cp_hgatp_adbit_behavior_test2_impl_g_sw_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 3: implicit G A=D=0 on VS-PT map - VS jalr | Expected: Expected Fault
 //--------------------------------------------------------------------------------------------------------------------------------
-  hfence.vvma
-  hfence.gvma
-  sfence.vma
   LI(a5, va_data)
   LI(s4, 0)
   RVTEST_GOTO_LOWER_MODE VSmode
@@ -272,8 +265,9 @@ test6_vs_ad00_jalr_str: .string "\"Mismatch on VS leaf A=D=00 - VS jalr\""
   jalr ra, a5, 0
   nop
   RVTEST_GOTO_MMODE
-  test3_impl_g_jalr:
-  RVTEST_SIGUPD(x2, x5, x4, s4, test3_impl_g_jalr, test3_impl_g_jalr_str)
+SvH_cg_cp_hgatp_adbit_behavior_x_test3_impl_g_jalr:
+  # Check if x20 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x20, SvH_cg_cp_hgatp_adbit_behavior_x_test3_impl_g_jalr, SvH_cg_cp_hgatp_adbit_behavior_x_test3_impl_g_jalr_str)
   G_PTE_SETUP(sv39x4, rvtest_vlvl0_pg_tbl, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V), gpa_rvtest_vlvl0_pg_tbl, LEVEL0)
   VS_PTE_SETUP(sv39, GPA, gpa_data, (PTE_X | PTE_W | PTE_R | PTE_V), va_data, LEVEL0)
   hfence.vvma
@@ -289,8 +283,9 @@ test6_vs_ad00_jalr_str: .string "\"Mismatch on VS leaf A=D=00 - VS jalr\""
   lw a4, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test4_vs_ad00_lw:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test4_vs_ad00_lw, test4_vs_ad00_lw_str)
+SvH_cg_cp_hgatp_adbit_vs_ad_rw_test4_vs_ad00_lw:
+  # Check if x14 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x14, SvH_cg_cp_hgatp_adbit_vs_ad_rw_test4_vs_ad00_lw, SvH_cg_cp_hgatp_adbit_vs_ad_rw_test4_vs_ad00_lw_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 5: VS leaf A=D=00 - VS sw | Expected: Expected Fault
@@ -306,15 +301,13 @@ test6_vs_ad00_jalr_str: .string "\"Mismatch on VS leaf A=D=00 - VS jalr\""
   RVTEST_GOTO_MMODE
   la t3, test_region
   lw s3, 0(t3)
-  test5_vs_ad00_sw:
-  RVTEST_SIGUPD(x2, x5, x4, s3, test5_vs_ad00_sw, test5_vs_ad00_sw_str)
+SvH_cg_cp_hgatp_adbit_vs_ad_rw_test5_vs_ad00_sw:
+  # Check if x19 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x19, SvH_cg_cp_hgatp_adbit_vs_ad_rw_test5_vs_ad00_sw, SvH_cg_cp_hgatp_adbit_vs_ad_rw_test5_vs_ad00_sw_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 6: VS leaf A=D=00 - VS jalr | Expected: Expected Fault
 //--------------------------------------------------------------------------------------------------------------------------------
-  hfence.vvma
-  hfence.gvma
-  sfence.vma
   LI(a5, va_data)
   LI(s5, 0)
   RVTEST_GOTO_LOWER_MODE VSmode
@@ -322,8 +315,9 @@ test6_vs_ad00_jalr_str: .string "\"Mismatch on VS leaf A=D=00 - VS jalr\""
   jalr ra, a5, 0
   nop
   RVTEST_GOTO_MMODE
-  test6_vs_ad00_jalr:
-  RVTEST_SIGUPD(x2, x5, x4, s5, test6_vs_ad00_jalr, test6_vs_ad00_jalr_str)
+SvH_cg_cp_hgatp_adbit_vs_ad_x_test6_vs_ad00_jalr:
+  # Check if x21 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x21, SvH_cg_cp_hgatp_adbit_vs_ad_x_test6_vs_ad00_jalr, SvH_cg_cp_hgatp_adbit_vs_ad_x_test6_vs_ad00_jalr_str)
 
   .pushsection .data
   .p2align 12
@@ -344,12 +338,6 @@ rvtest_vlvl1_pg_tbl:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_impl_g_lw_str: .string "\"Mismatch on implicit G A=D=0 on VS-PT map - VS lw\""
-test2_impl_g_sw_str: .string "\"Mismatch on implicit G A=D=0 on VS-PT map - VS sw\""
-test3_impl_g_jalr_str: .string "\"Mismatch on implicit G A=D=0 on VS-PT map - VS jalr\""
-test4_vs_ad00_lw_str: .string "\"Mismatch on VS leaf A=D=00 - VS lw\""
-test5_vs_ad00_sw_str: .string "\"Mismatch on VS leaf A=D=00 - VS sw\""
-test6_vs_ad00_jalr_str: .string "\"Mismatch on VS leaf A=D=00 - VS jalr\""
   .popsection
 
 #endif  // SV39_SUPPORTED
@@ -364,7 +352,22 @@ RVTEST_DATA_BEGIN
 
 
 // Testcase strings
-
+#ifdef SV32_SUPPORTED
+SvH_cg_cp_hgatp_adbit_behavior_test1_impl_g_lw_str: .string "\"test: 602; cg: SvH_cg; cp: cp_hgatp_adbit_behavior; bin: test1_impl_g_lw\""
+SvH_cg_cp_hgatp_adbit_behavior_test2_impl_g_sw_str: .string "\"test: 603; cg: SvH_cg; cp: cp_hgatp_adbit_behavior; bin: test2_impl_g_sw\""
+SvH_cg_cp_hgatp_adbit_behavior_x_test3_impl_g_jalr_str: .string "\"test: 604; cg: SvH_cg; cp: cp_hgatp_adbit_behavior_x; bin: test3_impl_g_jalr\""
+SvH_cg_cp_hgatp_adbit_vs_ad_rw_test4_vs_ad00_lw_str: .string "\"test: 605; cg: SvH_cg; cp: cp_hgatp_adbit_vs_ad_rw; bin: test4_vs_ad00_lw\""
+SvH_cg_cp_hgatp_adbit_vs_ad_rw_test5_vs_ad00_sw_str: .string "\"test: 606; cg: SvH_cg; cp: cp_hgatp_adbit_vs_ad_rw; bin: test5_vs_ad00_sw\""
+SvH_cg_cp_hgatp_adbit_vs_ad_x_test6_vs_ad00_jalr_str: .string "\"test: 607; cg: SvH_cg; cp: cp_hgatp_adbit_vs_ad_x; bin: test6_vs_ad00_jalr\""
+#endif  // SV32_SUPPORTED
+#ifdef SV39_SUPPORTED
+SvH_cg_cp_hgatp_adbit_behavior_test1_impl_g_lw_str: .string "\"test: 608; cg: SvH_cg; cp: cp_hgatp_adbit_behavior; bin: test1_impl_g_lw\""
+SvH_cg_cp_hgatp_adbit_behavior_test2_impl_g_sw_str: .string "\"test: 609; cg: SvH_cg; cp: cp_hgatp_adbit_behavior; bin: test2_impl_g_sw\""
+SvH_cg_cp_hgatp_adbit_behavior_x_test3_impl_g_jalr_str: .string "\"test: 610; cg: SvH_cg; cp: cp_hgatp_adbit_behavior_x; bin: test3_impl_g_jalr\""
+SvH_cg_cp_hgatp_adbit_vs_ad_rw_test4_vs_ad00_lw_str: .string "\"test: 611; cg: SvH_cg; cp: cp_hgatp_adbit_vs_ad_rw; bin: test4_vs_ad00_lw\""
+SvH_cg_cp_hgatp_adbit_vs_ad_rw_test5_vs_ad00_sw_str: .string "\"test: 612; cg: SvH_cg; cp: cp_hgatp_adbit_vs_ad_rw; bin: test5_vs_ad00_sw\""
+SvH_cg_cp_hgatp_adbit_vs_ad_x_test6_vs_ad00_jalr_str: .string "\"test: 613; cg: SvH_cg; cp: cp_hgatp_adbit_vs_ad_x; bin: test6_vs_ad00_jalr\""
+#endif  // SV39_SUPPORTED
 
 // End of test data section and model specific data
 RVTEST_DATA_END

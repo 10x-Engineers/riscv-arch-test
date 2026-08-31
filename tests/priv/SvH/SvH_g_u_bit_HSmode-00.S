@@ -50,9 +50,9 @@ RVTEST_BEGIN
   HGATP_SETUP(sv32x4)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0231)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(t1, 0x257a0231)
+  la a3, test_region
+  sw t1, 0(a3)
   LI(t1, gpa_data)
   RVTEST_TSBI_GOTO_SMODE
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -63,8 +63,9 @@ RVTEST_BEGIN
   LI(a3, 0)
   hlv.w a3, (t1)
   nop
-  test1_u1_hlv:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_u1_hlv, test1_u1_hlv_str)
+SvH_cg_cp_hgatp_u_mode_access_rw_test1_u1_hlv:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_hgatp_u_mode_access_rw_test1_u1_hlv, SvH_cg_cp_hgatp_u_mode_access_rw_test1_u1_hlv_str)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: G leaf U=1 XWR=111 HS HSV+HLV | Expected: Successful
 // Coverpoints: cp_hgatp_u_mode_access_rw
@@ -77,8 +78,9 @@ RVTEST_BEGIN
   LI(a6, 0)
   hlv.w a6, (t1)
   nop
-  test2_u1_hsv:
-  RVTEST_SIGUPD(x2, x5, x4, a6, test2_u1_hsv, test2_u1_hsv_str)
+SvH_cg_cp_hgatp_u_mode_access_rw_test2_u1_hsv:
+  # Check if x16 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x16, SvH_cg_cp_hgatp_u_mode_access_rw_test2_u1_hsv, SvH_cg_cp_hgatp_u_mode_access_rw_test2_u1_hsv_str)
   RVTEST_GOTO_MMODE
   G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V), gpa_data, LEVEL0)
   hfence.gvma
@@ -91,8 +93,9 @@ RVTEST_BEGIN
   LI(t1, gpa_data)
   hlv.w a4, (t1)
   nop
-  test3_u0_hlv:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test3_u0_hlv, test3_u0_hlv_str)
+SvH_cg_cp_hgatp_u_mode_access_rw_test3_u0_hlv:
+  # Check if x14 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x14, SvH_cg_cp_hgatp_u_mode_access_rw_test3_u0_hlv, SvH_cg_cp_hgatp_u_mode_access_rw_test3_u0_hlv_str)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 4: G leaf U=0 XWR=111 HS HSV | Expected: Expected Fault
 // Coverpoints: cp_hgatp_u_mode_access_rw
@@ -102,8 +105,9 @@ RVTEST_BEGIN
   LI(t0, 0xDEADBEEF)
   hsv.w t0, (t1)
   nop
-  test4_u0_hsv:
-  RVTEST_SIGUPD(x2, x5, x4, s3, test4_u0_hsv, test4_u0_hsv_str)
+SvH_cg_cp_hgatp_u_mode_access_rw_test4_u0_hsv:
+  # Check if x19 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x19, SvH_cg_cp_hgatp_u_mode_access_rw_test4_u0_hsv, SvH_cg_cp_hgatp_u_mode_access_rw_test4_u0_hsv_str)
   RVTEST_GOTO_MMODE
   G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R | PTE_V), gpa_data, LEVEL0)
   hfence.gvma
@@ -116,8 +120,9 @@ RVTEST_BEGIN
   LI(t1, gpa_data)
   hlv.w a7, (t1)
   nop
-  test5_restore:
-  RVTEST_SIGUPD(x2, x5, x4, a7, test5_restore, test5_restore_str)
+SvH_cg_cp_hgatp_u_mode_access_rw_test5_restore:
+  # Check if x17 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x17, SvH_cg_cp_hgatp_u_mode_access_rw_test5_restore, SvH_cg_cp_hgatp_u_mode_access_rw_test5_restore_str)
   RVTEST_GOTO_MMODE
 
   .pushsection .data
@@ -133,11 +138,6 @@ rvtest_hlvl0_pg_tbl:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_u1_hlv_str: .string "\"Mismatch on HS HLV with G U=1!\""
-test2_u1_hsv_str: .string "\"Mismatch on HS HSV/HLV with G U=1!\""
-test3_u0_hlv_str: .string "\"Mismatch on HS HLV with G U=0!\""
-test4_u0_hsv_str: .string "\"Mismatch on HS HSV with G U=0!\""
-test5_restore_str: .string "\"Mismatch after G U-bit restore!\""
   .popsection
 
 #endif  // SV32_SUPPORTED
@@ -153,9 +153,9 @@ test5_restore_str: .string "\"Mismatch after G U-bit restore!\""
   HGATP_SETUP(sv39x4)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0231)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(t1, 0x257a0231)
+  la a5, test_region
+  sw t1, 0(a5)
   LI(t1, gpa_data)
   RVTEST_TSBI_GOTO_SMODE
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -166,8 +166,9 @@ test5_restore_str: .string "\"Mismatch after G U-bit restore!\""
   LI(a3, 0)
   hlv.w a3, (t1)
   nop
-  test1_u1_hlv:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_u1_hlv, test1_u1_hlv_str)
+SvH_cg_cp_hgatp_u_mode_access_rw_test1_u1_hlv:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_hgatp_u_mode_access_rw_test1_u1_hlv, SvH_cg_cp_hgatp_u_mode_access_rw_test1_u1_hlv_str)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: G leaf U=1 XWR=111 HS HSV+HLV | Expected: Successful
 // Coverpoints: cp_hgatp_u_mode_access_rw
@@ -180,8 +181,9 @@ test5_restore_str: .string "\"Mismatch after G U-bit restore!\""
   LI(a6, 0)
   hlv.w a6, (t1)
   nop
-  test2_u1_hsv:
-  RVTEST_SIGUPD(x2, x5, x4, a6, test2_u1_hsv, test2_u1_hsv_str)
+SvH_cg_cp_hgatp_u_mode_access_rw_test2_u1_hsv:
+  # Check if x16 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x16, SvH_cg_cp_hgatp_u_mode_access_rw_test2_u1_hsv, SvH_cg_cp_hgatp_u_mode_access_rw_test2_u1_hsv_str)
   RVTEST_GOTO_MMODE
   G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V), gpa_data, LEVEL0)
   hfence.gvma
@@ -194,8 +196,9 @@ test5_restore_str: .string "\"Mismatch after G U-bit restore!\""
   LI(t1, gpa_data)
   hlv.w a4, (t1)
   nop
-  test3_u0_hlv:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test3_u0_hlv, test3_u0_hlv_str)
+SvH_cg_cp_hgatp_u_mode_access_rw_test3_u0_hlv:
+  # Check if x14 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x14, SvH_cg_cp_hgatp_u_mode_access_rw_test3_u0_hlv, SvH_cg_cp_hgatp_u_mode_access_rw_test3_u0_hlv_str)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 4: G leaf U=0 XWR=111 HS HSV | Expected: Expected Fault
 // Coverpoints: cp_hgatp_u_mode_access_rw
@@ -205,8 +208,9 @@ test5_restore_str: .string "\"Mismatch after G U-bit restore!\""
   LI(t0, 0xDEADBEEF)
   hsv.w t0, (t1)
   nop
-  test4_u0_hsv:
-  RVTEST_SIGUPD(x2, x5, x4, s3, test4_u0_hsv, test4_u0_hsv_str)
+SvH_cg_cp_hgatp_u_mode_access_rw_test4_u0_hsv:
+  # Check if x19 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x19, SvH_cg_cp_hgatp_u_mode_access_rw_test4_u0_hsv, SvH_cg_cp_hgatp_u_mode_access_rw_test4_u0_hsv_str)
   RVTEST_GOTO_MMODE
   G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R | PTE_V), gpa_data, LEVEL0)
   hfence.gvma
@@ -219,8 +223,9 @@ test5_restore_str: .string "\"Mismatch after G U-bit restore!\""
   LI(t1, gpa_data)
   hlv.w a7, (t1)
   nop
-  test5_restore:
-  RVTEST_SIGUPD(x2, x5, x4, a7, test5_restore, test5_restore_str)
+SvH_cg_cp_hgatp_u_mode_access_rw_test5_restore:
+  # Check if x17 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x17, SvH_cg_cp_hgatp_u_mode_access_rw_test5_restore, SvH_cg_cp_hgatp_u_mode_access_rw_test5_restore_str)
   RVTEST_GOTO_MMODE
 
   .pushsection .data
@@ -242,11 +247,6 @@ rvtest_vlvl1_pg_tbl:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_u1_hlv_str: .string "\"Mismatch on HS HLV with G U=1!\""
-test2_u1_hsv_str: .string "\"Mismatch on HS HSV/HLV with G U=1!\""
-test3_u0_hlv_str: .string "\"Mismatch on HS HLV with G U=0!\""
-test4_u0_hsv_str: .string "\"Mismatch on HS HSV with G U=0!\""
-test5_restore_str: .string "\"Mismatch after G U-bit restore!\""
   .popsection
 
 #endif  // SV39_SUPPORTED
@@ -261,7 +261,20 @@ RVTEST_DATA_BEGIN
 
 
 // Testcase strings
-
+#ifdef SV32_SUPPORTED
+SvH_cg_cp_hgatp_u_mode_access_rw_test1_u1_hlv_str: .string "\"test: 311; cg: SvH_cg; cp: cp_hgatp_u_mode_access_rw; bin: test1_u1_hlv\""
+SvH_cg_cp_hgatp_u_mode_access_rw_test2_u1_hsv_str: .string "\"test: 312; cg: SvH_cg; cp: cp_hgatp_u_mode_access_rw; bin: test2_u1_hsv\""
+SvH_cg_cp_hgatp_u_mode_access_rw_test3_u0_hlv_str: .string "\"test: 313; cg: SvH_cg; cp: cp_hgatp_u_mode_access_rw; bin: test3_u0_hlv\""
+SvH_cg_cp_hgatp_u_mode_access_rw_test4_u0_hsv_str: .string "\"test: 314; cg: SvH_cg; cp: cp_hgatp_u_mode_access_rw; bin: test4_u0_hsv\""
+SvH_cg_cp_hgatp_u_mode_access_rw_test5_restore_str: .string "\"test: 315; cg: SvH_cg; cp: cp_hgatp_u_mode_access_rw; bin: test5_restore\""
+#endif  // SV32_SUPPORTED
+#ifdef SV39_SUPPORTED
+SvH_cg_cp_hgatp_u_mode_access_rw_test1_u1_hlv_str: .string "\"test: 316; cg: SvH_cg; cp: cp_hgatp_u_mode_access_rw; bin: test1_u1_hlv\""
+SvH_cg_cp_hgatp_u_mode_access_rw_test2_u1_hsv_str: .string "\"test: 317; cg: SvH_cg; cp: cp_hgatp_u_mode_access_rw; bin: test2_u1_hsv\""
+SvH_cg_cp_hgatp_u_mode_access_rw_test3_u0_hlv_str: .string "\"test: 318; cg: SvH_cg; cp: cp_hgatp_u_mode_access_rw; bin: test3_u0_hlv\""
+SvH_cg_cp_hgatp_u_mode_access_rw_test4_u0_hsv_str: .string "\"test: 319; cg: SvH_cg; cp: cp_hgatp_u_mode_access_rw; bin: test4_u0_hsv\""
+SvH_cg_cp_hgatp_u_mode_access_rw_test5_restore_str: .string "\"test: 320; cg: SvH_cg; cp: cp_hgatp_u_mode_access_rw; bin: test5_restore\""
+#endif  // SV39_SUPPORTED
 
 // End of test data section and model specific data
 RVTEST_DATA_END

@@ -75,57 +75,476 @@ SvH_cg_cp_satp_mode_field_vsatp_alias_sv39:
 // Walk satp.MODE 0..15 starting Bare | Expected: Successful
 // Coverpoints: cp_satp_mode_field
 //--------------------------------------------------------------------------------------------------------------------------------
-  RVTEST_GOTO_LOWER_MODE VSmode
+  RVTEST_GOTO_LOWER_MODE VSmode                 // enter VS — cross samples priv_mode_vs
   csrw satp, x0
-  LI(t3, 0)
-bare_mode_walk:
-  csrw satp, x0
-  sll  t0, t3, 60
+  LI(t0, (0 << 60))
   csrw satp, t0
   csrr a5, satp
-  csrw satp, x0                                 // restore Bare before M hop
+  csrw satp, x0
   RVTEST_GOTO_MMODE
-SvH_cg_cp_satp_mode_field_bare_mode_walk:
+SvH_cg_cp_satp_mode_field_bare_mode_walk_00:
   # Check if x15 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
-  RVTEST_SIGUPD(x2, x5, x4, x15, SvH_cg_cp_satp_mode_field_bare_mode_walk, SvH_cg_cp_satp_mode_field_bare_mode_walk_str)
-  RVTEST_GOTO_LOWER_MODE VSmode
-  addi t3, t3, 1
-  LI(t4, 16)
-  blt  t3, t4, bare_mode_walk
+  RVTEST_SIGUPD(x2, x5, x4, x15, SvH_cg_cp_satp_mode_field_bare_mode_walk_00, SvH_cg_cp_satp_mode_field_bare_mode_walk_00_str)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // enter VS — cross samples priv_mode_vs
+  csrw satp, x0
+  LI(t0, (1 << 60))
+  csrw satp, t0
+  csrr a5, satp
+  csrw satp, x0
   RVTEST_GOTO_MMODE
+SvH_cg_cp_satp_mode_field_bare_mode_walk_01:
+  # Check if x15 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x15, SvH_cg_cp_satp_mode_field_bare_mode_walk_01, SvH_cg_cp_satp_mode_field_bare_mode_walk_01_str)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // enter VS — cross samples priv_mode_vs
+  csrw satp, x0
+  LI(t0, (2 << 60))
+  csrw satp, t0
+  csrr a5, satp
+  csrw satp, x0
+  RVTEST_GOTO_MMODE
+SvH_cg_cp_satp_mode_field_bare_mode_walk_02:
+  # Check if x15 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x15, SvH_cg_cp_satp_mode_field_bare_mode_walk_02, SvH_cg_cp_satp_mode_field_bare_mode_walk_02_str)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // enter VS — cross samples priv_mode_vs
+  csrw satp, x0
+  LI(t0, (3 << 60))
+  csrw satp, t0
+  csrr a5, satp
+  csrw satp, x0
+  RVTEST_GOTO_MMODE
+SvH_cg_cp_satp_mode_field_bare_mode_walk_03:
+  # Check if x15 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x15, SvH_cg_cp_satp_mode_field_bare_mode_walk_03, SvH_cg_cp_satp_mode_field_bare_mode_walk_03_str)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // enter VS — cross samples priv_mode_vs
+  csrw satp, x0
+  LI(t0, (4 << 60))
+  csrw satp, t0
+  csrr a5, satp
+  csrw satp, x0
+  RVTEST_GOTO_MMODE
+SvH_cg_cp_satp_mode_field_bare_mode_walk_04:
+  # Check if x15 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x15, SvH_cg_cp_satp_mode_field_bare_mode_walk_04, SvH_cg_cp_satp_mode_field_bare_mode_walk_04_str)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // enter VS — cross samples priv_mode_vs
+  csrw satp, x0
+  LI(t0, (5 << 60))
+  csrw satp, t0
+  csrr a5, satp
+  csrw satp, x0
+  RVTEST_GOTO_MMODE
+SvH_cg_cp_satp_mode_field_bare_mode_walk_05:
+  # Check if x15 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x15, SvH_cg_cp_satp_mode_field_bare_mode_walk_05, SvH_cg_cp_satp_mode_field_bare_mode_walk_05_str)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // enter VS — cross samples priv_mode_vs
+  csrw satp, x0
+  LI(t0, (6 << 60))
+  csrw satp, t0
+  csrr a5, satp
+  csrw satp, x0
+  RVTEST_GOTO_MMODE
+SvH_cg_cp_satp_mode_field_bare_mode_walk_06:
+  # Check if x15 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x15, SvH_cg_cp_satp_mode_field_bare_mode_walk_06, SvH_cg_cp_satp_mode_field_bare_mode_walk_06_str)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // enter VS — cross samples priv_mode_vs
+  csrw satp, x0
+  LI(t0, (7 << 60))
+  csrw satp, t0
+  csrr a5, satp
+  csrw satp, x0
+  RVTEST_GOTO_MMODE
+SvH_cg_cp_satp_mode_field_bare_mode_walk_07:
+  # Check if x15 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x15, SvH_cg_cp_satp_mode_field_bare_mode_walk_07, SvH_cg_cp_satp_mode_field_bare_mode_walk_07_str)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // enter VS — cross samples priv_mode_vs
+  csrw satp, x0
+  LI(t0, (8 << 60))
+  csrw satp, t0
+  csrr a5, satp
+  csrw satp, x0
+  RVTEST_GOTO_MMODE
+SvH_cg_cp_satp_mode_field_bare_mode_walk_08:
+  # Check if x15 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x15, SvH_cg_cp_satp_mode_field_bare_mode_walk_08, SvH_cg_cp_satp_mode_field_bare_mode_walk_08_str)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // enter VS — cross samples priv_mode_vs
+  csrw satp, x0
+  LI(t0, (9 << 60))
+  csrw satp, t0
+  csrr a5, satp
+  csrw satp, x0
+  RVTEST_GOTO_MMODE
+SvH_cg_cp_satp_mode_field_bare_mode_walk_09:
+  # Check if x15 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x15, SvH_cg_cp_satp_mode_field_bare_mode_walk_09, SvH_cg_cp_satp_mode_field_bare_mode_walk_09_str)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // enter VS — cross samples priv_mode_vs
+  csrw satp, x0
+  LI(t0, (10 << 60))
+  csrw satp, t0
+  csrr a5, satp
+  csrw satp, x0
+  RVTEST_GOTO_MMODE
+SvH_cg_cp_satp_mode_field_bare_mode_walk_0a:
+  # Check if x15 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x15, SvH_cg_cp_satp_mode_field_bare_mode_walk_0a, SvH_cg_cp_satp_mode_field_bare_mode_walk_0a_str)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // enter VS — cross samples priv_mode_vs
+  csrw satp, x0
+  LI(t0, (11 << 60))
+  csrw satp, t0
+  csrr a5, satp
+  csrw satp, x0
+  RVTEST_GOTO_MMODE
+SvH_cg_cp_satp_mode_field_bare_mode_walk_0b:
+  # Check if x15 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x15, SvH_cg_cp_satp_mode_field_bare_mode_walk_0b, SvH_cg_cp_satp_mode_field_bare_mode_walk_0b_str)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // enter VS — cross samples priv_mode_vs
+  csrw satp, x0
+  LI(t0, (12 << 60))
+  csrw satp, t0
+  csrr a5, satp
+  csrw satp, x0
+  RVTEST_GOTO_MMODE
+SvH_cg_cp_satp_mode_field_bare_mode_walk_0c:
+  # Check if x15 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x15, SvH_cg_cp_satp_mode_field_bare_mode_walk_0c, SvH_cg_cp_satp_mode_field_bare_mode_walk_0c_str)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // enter VS — cross samples priv_mode_vs
+  csrw satp, x0
+  LI(t0, (13 << 60))
+  csrw satp, t0
+  csrr a5, satp
+  csrw satp, x0
+  RVTEST_GOTO_MMODE
+SvH_cg_cp_satp_mode_field_bare_mode_walk_0d:
+  # Check if x15 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x15, SvH_cg_cp_satp_mode_field_bare_mode_walk_0d, SvH_cg_cp_satp_mode_field_bare_mode_walk_0d_str)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // enter VS — cross samples priv_mode_vs
+  csrw satp, x0
+  LI(t0, (14 << 60))
+  csrw satp, t0
+  csrr a5, satp
+  csrw satp, x0
+  RVTEST_GOTO_MMODE
+SvH_cg_cp_satp_mode_field_bare_mode_walk_0e:
+  # Check if x15 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x15, SvH_cg_cp_satp_mode_field_bare_mode_walk_0e, SvH_cg_cp_satp_mode_field_bare_mode_walk_0e_str)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // enter VS — cross samples priv_mode_vs
+  csrw satp, x0
+  LI(t0, (15 << 60))
+  csrw satp, t0
+  csrr a5, satp
+  csrw satp, x0
+  RVTEST_GOTO_MMODE
+SvH_cg_cp_satp_mode_field_bare_mode_walk_0f:
+  # Check if x15 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x15, SvH_cg_cp_satp_mode_field_bare_mode_walk_0f, SvH_cg_cp_satp_mode_field_bare_mode_walk_0f_str)
+  VSATP_SETUP(sv39, PA)                         // re-arm vsatp = Sv39 | goodPPN (M)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Walk satp.MODE 0..15 starting Sv39 | Expected: Successful
 // Coverpoints: cp_satp_mode_field
 //--------------------------------------------------------------------------------------------------------------------------------
-  RVTEST_GOTO_LOWER_MODE VSmode
+  RVTEST_GOTO_LOWER_MODE VSmode                 // enter VS — must stay fetchable
   csrr t2, satp
-  li   t0, ~((0xF) << 60)
-  and  t2, t2, t0
-  li   t0, (SATP_MODE_SV39 << 60)
-  or   t1, t2, t0
+  srli t0, t2, 60
+  slli t0, t0, 60
+  xor t2, t2, t0
+  LI(t0, (SATP_MODE_SV39 << 60))
+  or t1, t2, t0
   csrw satp, t1
-  LI(t3, 0)
-sv39_mode_walk:
-  sll  t0, t3, 60
-  or   t1, t2, t0
+  LI(t0, (0 << 60))
+  or t1, t2, t0
   csrw satp, t1
   csrr a5, satp
-  li   t0, (SATP_MODE_SV39 << 60)
-  or   t1, t2, t0
-  csrw satp, t1                                 // restore Sv39 before M hop
-  RVTEST_GOTO_MMODE
-SvH_cg_cp_satp_mode_field_sv39_mode_walk:
-  # Check if x15 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
-  RVTEST_SIGUPD(x2, x5, x4, x15, SvH_cg_cp_satp_mode_field_sv39_mode_walk, SvH_cg_cp_satp_mode_field_sv39_mode_walk_str)
-  RVTEST_GOTO_LOWER_MODE VSmode
-  li   t0, (SATP_MODE_SV39 << 60)
-  or   t1, t2, t0
+  LI(t0, (SATP_MODE_SV39 << 60))
+  or t1, t2, t0
   csrw satp, t1
-  addi t3, t3, 1
-  LI(t4, 16)
-  blt  t3, t4, sv39_mode_walk
   RVTEST_GOTO_MMODE
+SvH_cg_cp_satp_mode_field_sv39_mode_walk_00:
+  # Check if x15 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x15, SvH_cg_cp_satp_mode_field_sv39_mode_walk_00, SvH_cg_cp_satp_mode_field_sv39_mode_walk_00_str)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // enter VS — must stay fetchable
+  csrr t2, satp
+  srli t0, t2, 60
+  slli t0, t0, 60
+  xor t2, t2, t0
+  LI(t0, (SATP_MODE_SV39 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  LI(t0, (1 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  csrr a5, satp
+  LI(t0, (SATP_MODE_SV39 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  RVTEST_GOTO_MMODE
+SvH_cg_cp_satp_mode_field_sv39_mode_walk_01:
+  # Check if x15 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x15, SvH_cg_cp_satp_mode_field_sv39_mode_walk_01, SvH_cg_cp_satp_mode_field_sv39_mode_walk_01_str)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // enter VS — must stay fetchable
+  csrr t2, satp
+  srli t0, t2, 60
+  slli t0, t0, 60
+  xor t2, t2, t0
+  LI(t0, (SATP_MODE_SV39 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  LI(t0, (2 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  csrr a5, satp
+  LI(t0, (SATP_MODE_SV39 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  RVTEST_GOTO_MMODE
+SvH_cg_cp_satp_mode_field_sv39_mode_walk_02:
+  # Check if x15 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x15, SvH_cg_cp_satp_mode_field_sv39_mode_walk_02, SvH_cg_cp_satp_mode_field_sv39_mode_walk_02_str)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // enter VS — must stay fetchable
+  csrr t2, satp
+  srli t0, t2, 60
+  slli t0, t0, 60
+  xor t2, t2, t0
+  LI(t0, (SATP_MODE_SV39 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  LI(t0, (3 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  csrr a5, satp
+  LI(t0, (SATP_MODE_SV39 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  RVTEST_GOTO_MMODE
+SvH_cg_cp_satp_mode_field_sv39_mode_walk_03:
+  # Check if x15 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x15, SvH_cg_cp_satp_mode_field_sv39_mode_walk_03, SvH_cg_cp_satp_mode_field_sv39_mode_walk_03_str)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // enter VS — must stay fetchable
+  csrr t2, satp
+  srli t0, t2, 60
+  slli t0, t0, 60
+  xor t2, t2, t0
+  LI(t0, (SATP_MODE_SV39 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  LI(t0, (4 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  csrr a5, satp
+  LI(t0, (SATP_MODE_SV39 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  RVTEST_GOTO_MMODE
+SvH_cg_cp_satp_mode_field_sv39_mode_walk_04:
+  # Check if x15 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x15, SvH_cg_cp_satp_mode_field_sv39_mode_walk_04, SvH_cg_cp_satp_mode_field_sv39_mode_walk_04_str)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // enter VS — must stay fetchable
+  csrr t2, satp
+  srli t0, t2, 60
+  slli t0, t0, 60
+  xor t2, t2, t0
+  LI(t0, (SATP_MODE_SV39 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  LI(t0, (5 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  csrr a5, satp
+  LI(t0, (SATP_MODE_SV39 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  RVTEST_GOTO_MMODE
+SvH_cg_cp_satp_mode_field_sv39_mode_walk_05:
+  # Check if x15 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x15, SvH_cg_cp_satp_mode_field_sv39_mode_walk_05, SvH_cg_cp_satp_mode_field_sv39_mode_walk_05_str)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // enter VS — must stay fetchable
+  csrr t2, satp
+  srli t0, t2, 60
+  slli t0, t0, 60
+  xor t2, t2, t0
+  LI(t0, (SATP_MODE_SV39 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  LI(t0, (6 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  csrr a5, satp
+  LI(t0, (SATP_MODE_SV39 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  RVTEST_GOTO_MMODE
+SvH_cg_cp_satp_mode_field_sv39_mode_walk_06:
+  # Check if x15 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x15, SvH_cg_cp_satp_mode_field_sv39_mode_walk_06, SvH_cg_cp_satp_mode_field_sv39_mode_walk_06_str)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // enter VS — must stay fetchable
+  csrr t2, satp
+  srli t0, t2, 60
+  slli t0, t0, 60
+  xor t2, t2, t0
+  LI(t0, (SATP_MODE_SV39 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  LI(t0, (7 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  csrr a5, satp
+  LI(t0, (SATP_MODE_SV39 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  RVTEST_GOTO_MMODE
+SvH_cg_cp_satp_mode_field_sv39_mode_walk_07:
+  # Check if x15 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x15, SvH_cg_cp_satp_mode_field_sv39_mode_walk_07, SvH_cg_cp_satp_mode_field_sv39_mode_walk_07_str)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // enter VS — must stay fetchable
+  csrr t2, satp
+  srli t0, t2, 60
+  slli t0, t0, 60
+  xor t2, t2, t0
+  LI(t0, (SATP_MODE_SV39 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  LI(t0, (8 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  csrr a5, satp
+  LI(t0, (SATP_MODE_SV39 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  RVTEST_GOTO_MMODE
+SvH_cg_cp_satp_mode_field_sv39_mode_walk_08:
+  # Check if x15 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x15, SvH_cg_cp_satp_mode_field_sv39_mode_walk_08, SvH_cg_cp_satp_mode_field_sv39_mode_walk_08_str)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // enter VS — must stay fetchable
+  csrr t2, satp
+  srli t0, t2, 60
+  slli t0, t0, 60
+  xor t2, t2, t0
+  LI(t0, (SATP_MODE_SV39 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  LI(t0, (9 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  csrr a5, satp
+  LI(t0, (SATP_MODE_SV39 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  RVTEST_GOTO_MMODE
+SvH_cg_cp_satp_mode_field_sv39_mode_walk_09:
+  # Check if x15 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x15, SvH_cg_cp_satp_mode_field_sv39_mode_walk_09, SvH_cg_cp_satp_mode_field_sv39_mode_walk_09_str)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // enter VS — must stay fetchable
+  csrr t2, satp
+  srli t0, t2, 60
+  slli t0, t0, 60
+  xor t2, t2, t0
+  LI(t0, (SATP_MODE_SV39 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  LI(t0, (10 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  csrr a5, satp
+  LI(t0, (SATP_MODE_SV39 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  RVTEST_GOTO_MMODE
+SvH_cg_cp_satp_mode_field_sv39_mode_walk_0a:
+  # Check if x15 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x15, SvH_cg_cp_satp_mode_field_sv39_mode_walk_0a, SvH_cg_cp_satp_mode_field_sv39_mode_walk_0a_str)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // enter VS — must stay fetchable
+  csrr t2, satp
+  srli t0, t2, 60
+  slli t0, t0, 60
+  xor t2, t2, t0
+  LI(t0, (SATP_MODE_SV39 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  LI(t0, (11 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  csrr a5, satp
+  LI(t0, (SATP_MODE_SV39 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  RVTEST_GOTO_MMODE
+SvH_cg_cp_satp_mode_field_sv39_mode_walk_0b:
+  # Check if x15 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x15, SvH_cg_cp_satp_mode_field_sv39_mode_walk_0b, SvH_cg_cp_satp_mode_field_sv39_mode_walk_0b_str)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // enter VS — must stay fetchable
+  csrr t2, satp
+  srli t0, t2, 60
+  slli t0, t0, 60
+  xor t2, t2, t0
+  LI(t0, (SATP_MODE_SV39 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  LI(t0, (12 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  csrr a5, satp
+  LI(t0, (SATP_MODE_SV39 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  RVTEST_GOTO_MMODE
+SvH_cg_cp_satp_mode_field_sv39_mode_walk_0c:
+  # Check if x15 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x15, SvH_cg_cp_satp_mode_field_sv39_mode_walk_0c, SvH_cg_cp_satp_mode_field_sv39_mode_walk_0c_str)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // enter VS — must stay fetchable
+  csrr t2, satp
+  srli t0, t2, 60
+  slli t0, t0, 60
+  xor t2, t2, t0
+  LI(t0, (SATP_MODE_SV39 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  LI(t0, (13 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  csrr a5, satp
+  LI(t0, (SATP_MODE_SV39 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  RVTEST_GOTO_MMODE
+SvH_cg_cp_satp_mode_field_sv39_mode_walk_0d:
+  # Check if x15 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x15, SvH_cg_cp_satp_mode_field_sv39_mode_walk_0d, SvH_cg_cp_satp_mode_field_sv39_mode_walk_0d_str)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // enter VS — must stay fetchable
+  csrr t2, satp
+  srli t0, t2, 60
+  slli t0, t0, 60
+  xor t2, t2, t0
+  LI(t0, (SATP_MODE_SV39 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  LI(t0, (14 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  csrr a5, satp
+  LI(t0, (SATP_MODE_SV39 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  RVTEST_GOTO_MMODE
+SvH_cg_cp_satp_mode_field_sv39_mode_walk_0e:
+  # Check if x15 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x15, SvH_cg_cp_satp_mode_field_sv39_mode_walk_0e, SvH_cg_cp_satp_mode_field_sv39_mode_walk_0e_str)
+  RVTEST_GOTO_LOWER_MODE VSmode                 // enter VS — must stay fetchable
+  csrr t2, satp
+  srli t0, t2, 60
+  slli t0, t0, 60
+  xor t2, t2, t0
+  LI(t0, (SATP_MODE_SV39 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  LI(t0, (15 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  csrr a5, satp
+  LI(t0, (SATP_MODE_SV39 << 60))
+  or t1, t2, t0
+  csrw satp, t1
+  RVTEST_GOTO_MMODE
+SvH_cg_cp_satp_mode_field_sv39_mode_walk_0f:
+  # Check if x15 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x15, SvH_cg_cp_satp_mode_field_sv39_mode_walk_0f, SvH_cg_cp_satp_mode_field_sv39_mode_walk_0f_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Final satp read after MODE walks | Expected: Successful
@@ -149,11 +568,41 @@ RVTEST_DATA_BEGIN
 
 
 // Testcase strings
-SvH_cg_cp_satp_mode_field_satp_alias_sv39_str: .string "\"test: 105; cg: SvH_cg; cp: cp_satp_mode_field; bin: satp_alias_sv39\""
-SvH_cg_cp_satp_mode_field_vsatp_alias_sv39_str: .string "\"test: 106; cg: SvH_cg; cp: cp_satp_mode_field; bin: vsatp_alias_sv39\""
-SvH_cg_cp_satp_mode_field_bare_mode_walk_str: .string "\"test: 107; cg: SvH_cg; cp: cp_satp_mode_field; bin: bare_mode_walk\""
-SvH_cg_cp_satp_mode_field_sv39_mode_walk_str: .string "\"test: 108; cg: SvH_cg; cp: cp_satp_mode_field; bin: sv39_mode_walk\""
-SvH_cg_cp_satp_mode_field_final_satp_sv39_str: .string "\"test: 109; cg: SvH_cg; cp: cp_satp_mode_field; bin: final_satp_sv39\""
+SvH_cg_cp_satp_mode_field_satp_alias_sv39_str: .string "\"test: 133; cg: SvH_cg; cp: cp_satp_mode_field; bin: satp_alias_sv39\""
+SvH_cg_cp_satp_mode_field_vsatp_alias_sv39_str: .string "\"test: 134; cg: SvH_cg; cp: cp_satp_mode_field; bin: vsatp_alias_sv39\""
+SvH_cg_cp_satp_mode_field_bare_mode_walk_00_str: .string "\"test: 135; cg: SvH_cg; cp: cp_satp_mode_field; bin: bare_mode_walk_00\""
+SvH_cg_cp_satp_mode_field_bare_mode_walk_01_str: .string "\"test: 136; cg: SvH_cg; cp: cp_satp_mode_field; bin: bare_mode_walk_01\""
+SvH_cg_cp_satp_mode_field_bare_mode_walk_02_str: .string "\"test: 137; cg: SvH_cg; cp: cp_satp_mode_field; bin: bare_mode_walk_02\""
+SvH_cg_cp_satp_mode_field_bare_mode_walk_03_str: .string "\"test: 138; cg: SvH_cg; cp: cp_satp_mode_field; bin: bare_mode_walk_03\""
+SvH_cg_cp_satp_mode_field_bare_mode_walk_04_str: .string "\"test: 139; cg: SvH_cg; cp: cp_satp_mode_field; bin: bare_mode_walk_04\""
+SvH_cg_cp_satp_mode_field_bare_mode_walk_05_str: .string "\"test: 140; cg: SvH_cg; cp: cp_satp_mode_field; bin: bare_mode_walk_05\""
+SvH_cg_cp_satp_mode_field_bare_mode_walk_06_str: .string "\"test: 141; cg: SvH_cg; cp: cp_satp_mode_field; bin: bare_mode_walk_06\""
+SvH_cg_cp_satp_mode_field_bare_mode_walk_07_str: .string "\"test: 142; cg: SvH_cg; cp: cp_satp_mode_field; bin: bare_mode_walk_07\""
+SvH_cg_cp_satp_mode_field_bare_mode_walk_08_str: .string "\"test: 143; cg: SvH_cg; cp: cp_satp_mode_field; bin: bare_mode_walk_08\""
+SvH_cg_cp_satp_mode_field_bare_mode_walk_09_str: .string "\"test: 144; cg: SvH_cg; cp: cp_satp_mode_field; bin: bare_mode_walk_09\""
+SvH_cg_cp_satp_mode_field_bare_mode_walk_0a_str: .string "\"test: 145; cg: SvH_cg; cp: cp_satp_mode_field; bin: bare_mode_walk_0a\""
+SvH_cg_cp_satp_mode_field_bare_mode_walk_0b_str: .string "\"test: 146; cg: SvH_cg; cp: cp_satp_mode_field; bin: bare_mode_walk_0b\""
+SvH_cg_cp_satp_mode_field_bare_mode_walk_0c_str: .string "\"test: 147; cg: SvH_cg; cp: cp_satp_mode_field; bin: bare_mode_walk_0c\""
+SvH_cg_cp_satp_mode_field_bare_mode_walk_0d_str: .string "\"test: 148; cg: SvH_cg; cp: cp_satp_mode_field; bin: bare_mode_walk_0d\""
+SvH_cg_cp_satp_mode_field_bare_mode_walk_0e_str: .string "\"test: 149; cg: SvH_cg; cp: cp_satp_mode_field; bin: bare_mode_walk_0e\""
+SvH_cg_cp_satp_mode_field_bare_mode_walk_0f_str: .string "\"test: 150; cg: SvH_cg; cp: cp_satp_mode_field; bin: bare_mode_walk_0f\""
+SvH_cg_cp_satp_mode_field_sv39_mode_walk_00_str: .string "\"test: 151; cg: SvH_cg; cp: cp_satp_mode_field; bin: sv39_mode_walk_00\""
+SvH_cg_cp_satp_mode_field_sv39_mode_walk_01_str: .string "\"test: 152; cg: SvH_cg; cp: cp_satp_mode_field; bin: sv39_mode_walk_01\""
+SvH_cg_cp_satp_mode_field_sv39_mode_walk_02_str: .string "\"test: 153; cg: SvH_cg; cp: cp_satp_mode_field; bin: sv39_mode_walk_02\""
+SvH_cg_cp_satp_mode_field_sv39_mode_walk_03_str: .string "\"test: 154; cg: SvH_cg; cp: cp_satp_mode_field; bin: sv39_mode_walk_03\""
+SvH_cg_cp_satp_mode_field_sv39_mode_walk_04_str: .string "\"test: 155; cg: SvH_cg; cp: cp_satp_mode_field; bin: sv39_mode_walk_04\""
+SvH_cg_cp_satp_mode_field_sv39_mode_walk_05_str: .string "\"test: 156; cg: SvH_cg; cp: cp_satp_mode_field; bin: sv39_mode_walk_05\""
+SvH_cg_cp_satp_mode_field_sv39_mode_walk_06_str: .string "\"test: 157; cg: SvH_cg; cp: cp_satp_mode_field; bin: sv39_mode_walk_06\""
+SvH_cg_cp_satp_mode_field_sv39_mode_walk_07_str: .string "\"test: 158; cg: SvH_cg; cp: cp_satp_mode_field; bin: sv39_mode_walk_07\""
+SvH_cg_cp_satp_mode_field_sv39_mode_walk_08_str: .string "\"test: 159; cg: SvH_cg; cp: cp_satp_mode_field; bin: sv39_mode_walk_08\""
+SvH_cg_cp_satp_mode_field_sv39_mode_walk_09_str: .string "\"test: 160; cg: SvH_cg; cp: cp_satp_mode_field; bin: sv39_mode_walk_09\""
+SvH_cg_cp_satp_mode_field_sv39_mode_walk_0a_str: .string "\"test: 161; cg: SvH_cg; cp: cp_satp_mode_field; bin: sv39_mode_walk_0a\""
+SvH_cg_cp_satp_mode_field_sv39_mode_walk_0b_str: .string "\"test: 162; cg: SvH_cg; cp: cp_satp_mode_field; bin: sv39_mode_walk_0b\""
+SvH_cg_cp_satp_mode_field_sv39_mode_walk_0c_str: .string "\"test: 163; cg: SvH_cg; cp: cp_satp_mode_field; bin: sv39_mode_walk_0c\""
+SvH_cg_cp_satp_mode_field_sv39_mode_walk_0d_str: .string "\"test: 164; cg: SvH_cg; cp: cp_satp_mode_field; bin: sv39_mode_walk_0d\""
+SvH_cg_cp_satp_mode_field_sv39_mode_walk_0e_str: .string "\"test: 165; cg: SvH_cg; cp: cp_satp_mode_field; bin: sv39_mode_walk_0e\""
+SvH_cg_cp_satp_mode_field_sv39_mode_walk_0f_str: .string "\"test: 166; cg: SvH_cg; cp: cp_satp_mode_field; bin: sv39_mode_walk_0f\""
+SvH_cg_cp_satp_mode_field_final_satp_sv39_str: .string "\"test: 167; cg: SvH_cg; cp: cp_satp_mode_field; bin: final_satp_sv39\""
 
 // End of test data section and model specific data
 RVTEST_DATA_END

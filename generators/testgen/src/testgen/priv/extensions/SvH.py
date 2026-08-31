@@ -5,142 +5,151 @@
 # SPDX-License-Identifier: Apache-2.0
 ##################################
 
-"""SvH privileged test generator 
+"""SvH privileged test generator (same pattern as ExceptionsSm / ZawrsS).
 
 make testgen EXTENSIONS=SvH calls make_svh().
 Shared helpers live in SvHCommon.
 Each generate_* below becomes one tests/priv/SvH/SvH_<name>-00.S file.
 """
 
-from testgen.asm.helpers import comment_banner  # builds // banner text at top of each .S
-from testgen.data.state import TestData  # mutable generator state (open chunk, counters)
-from testgen.data.test_chunk import TestChunk  # one output .S file worth of assembly
-from testgen.priv.extensions.SvHCommon import delete_old_asm_files  # unlink old tests/priv/SvH/*.S
-from testgen.priv.extensions.SvH_csr import (  # CSR field walk generators
-    generate_csr_hgatp_fields_HSmode,  # → SvH_csr_hgatp_fields_HSmode-00.S
-    generate_csr_satp_mode_VSmode,  # → SvH_csr_satp_mode_VSmode-00.S (RV64 only)
-    generate_csr_vsatp_fields_HSmode,  # → SvH_csr_vsatp_fields_HSmode-00.S
-)
-from testgen.priv.extensions.SvH_fault import (  # invalid-PTE / fault generators
-    generate_hgatp_fault_VSmode,  # G-stage invalid leaf faults
-    generate_twostage_invalid_VSmode,  # VS or G V=0 × lw/sw/jalr
-    generate_vsatp_fault_VSmode,  # VS-stage invalid / non-leaf faults
-)
-from testgen.priv.extensions.SvH_misc import (  # HFENCE / MPRV / TVM / attr generators
-    generate_g_adbit_VSmode,  # G/VS A=D=0 faults
-    generate_g_pte_attr_VSmode,  # G-stage RSW / reserved / PBMT
-    generate_g_struct_HSmode,  # misaligned G superpage
-    generate_gpa_width_VSmode,  # GPA width (RV64 only)
-    generate_hfence_gvma_mode_HSmode,  # Bare↔paged + HFENCE.GVMA
-    generate_hfence_gvma_ops_HSmode,  # HFENCE.GVMA operand forms
-    generate_hfence_vvma_HSmode,  # HFENCE.VVMA
-    generate_mprv_hgatp_Mmode,  # MPRV × hgatp
-    generate_mprv_sum_two_stage_Mmode,  # MPRV × SUM two-stage
-    generate_mprv_vsatp_Mmode,  # MPRV × vsatp
-    generate_tvm_hgatp_HSmode,  # TVM blocks HS hgatp writes
-    generate_vs_pte_attr_VSmode,  # VS RSW / reserved / PBMT
-    generate_vsbe_endian_VSmode,  # hstatus.VSBE endian
-)
-from testgen.priv.extensions.SvH_perm import (  # permission / MXR / SUM generators
-    generate_g_perm_VSmode,  # G-stage permission matrix from VS
-    generate_g_perm_VUmode,  # G-stage permission matrix from VU
-    generate_g_u_bit_HSmode,  # G U=0 vs U=1; HS HLV/HSV
-    generate_sum_Upages_VSmode,  # SUM 0/1 on U=1 pages
-    generate_vs_perm_VSmode,  # VS permission × SUM
-    generate_vs_perm_VUmode,  # VS permission from VU
-    generate_vsstatus_mxr_sum_VSmode,  # vsstatus MXR×SUM (VS)
-    generate_vsstatus_mxr_sum_VUmode,  # vsstatus MXR×SUM (VU)
-    generate_vu_rwx_two_stage_VUmode,  # VU R/W/X two-stage
-    generate_xonly_mxr0_HSmode,  # X-only VS leaf from HS
-    generate_xonly_mxr0_VSmode,  # X-only VS leaf from VS
-    generate_xonly_mxr0_VUmode,  # X-only VS leaf from VU
-    generate_xonly_mxr0_gstage_HSmode,  # X-only G leaf; HS HLV
-)
-from testgen.priv.extensions.SvH_twostage import (  # paging on/off / ifetch / MXR
-    generate_g_walk_vs_pt_VSmode,  # G walk of VS page-table GPAs
-    generate_hgatp_bare_trans_VSmode,  # VS on, hgatp Bare
-    generate_stage_both_bare_VSmode,  # vsatp and hgatp Bare
-    generate_two_stage_ifetch_VSmode,  # VS ifetch both stages
-    generate_two_stage_mxr_VSmode,  # MXR on X-only pages (VS)
-    generate_two_stage_mxr_VUmode,  # MXR on X-only pages (VU)
-    generate_two_stage_rw_VSmode,  # VS sw/lw both stages
-)
-from testgen.priv.registry import add_priv_test_generator  # registers make_svh with testgen
+# testgen core: assembly banners, mutable generator state, and per-.S output chunks
+from testgen.asm.helpers import comment_banner
+from testgen.data.state import TestData
+from testgen.data.test_chunk import TestChunk
 
-# Each tuple is (file stem without SvH_ prefix, Python function that emits asm).
-# Order here is the order .S files appear on disk after make testgen.
-_SCENARIOS: list[tuple[str, object]] = [
-    # --- SvH_twostage.py: paging on/off ---
-    ("g_walk_vs_pt_VSmode", generate_g_walk_vs_pt_VSmode),  # G allows/denies VS PT walk
-    ("hgatp_bare_trans_VSmode", generate_hgatp_bare_trans_VSmode),  # VS paging, G Bare
-    ("stage_both_bare_VSmode", generate_stage_both_bare_VSmode),  # both Bare identity
-    ("two_stage_ifetch_VSmode", generate_two_stage_ifetch_VSmode),  # ifetch both stages
-    ("two_stage_mxr_VSmode", generate_two_stage_mxr_VSmode),  # MXR VS
-    ("two_stage_mxr_VUmode", generate_two_stage_mxr_VUmode),  # MXR VU
-    ("two_stage_rw_VSmode", generate_two_stage_rw_VSmode),  # sw/lw both stages
-    # --- SvH_csr.py: hypervisor CSRs ---
-    ("csr_hgatp_fields_HSmode", generate_csr_hgatp_fields_HSmode),  # hgatp MODE/VMID/PPN
-    ("csr_satp_mode_VSmode", generate_csr_satp_mode_VSmode),  # satp.MODE walk RV64
-    ("csr_vsatp_fields_HSmode", generate_csr_vsatp_fields_HSmode),  # vsatp MODE/ASID/PPN
-    # --- SvH_perm.py: permissions / MXR / SUM ---
-    ("g_perm_VSmode", generate_g_perm_VSmode),  # G perms from VS
-    ("g_perm_VUmode", generate_g_perm_VUmode),  # G perms from VU
-    ("g_u_bit_HSmode", generate_g_u_bit_HSmode),  # G U-bit HS HLV/HSV
-    ("sum_Upages_VSmode", generate_sum_Upages_VSmode),  # SUM on U pages
-    ("vs_perm_VSmode", generate_vs_perm_VSmode),  # VS perms from VS
-    ("vs_perm_VUmode", generate_vs_perm_VUmode),  # VS perms from VU
-    ("vsstatus_mxr_sum_VSmode", generate_vsstatus_mxr_sum_VSmode),  # MXR×SUM VS
-    ("vsstatus_mxr_sum_VUmode", generate_vsstatus_mxr_sum_VUmode),  # MXR×SUM VU
-    ("vu_rwx_two_stage_VUmode", generate_vu_rwx_two_stage_VUmode),  # VU U=1 allow / U=0 deny
-    ("xonly_mxr0_HSmode", generate_xonly_mxr0_HSmode),  # X-only MXR=0 HS
-    ("xonly_mxr0_VSmode", generate_xonly_mxr0_VSmode),  # X-only MXR=0 VS
-    ("xonly_mxr0_VUmode", generate_xonly_mxr0_VUmode),  # X-only MXR=0 VU
-    ("xonly_mxr0_gstage_HSmode", generate_xonly_mxr0_gstage_HSmode),  # X-only G HS HLV
-    # --- SvH_fault.py: invalid PTE / faults ---
-    ("hgatp_fault_VSmode", generate_hgatp_fault_VSmode),  # G invalid PTE cases
-    ("twostage_invalid_VSmode", generate_twostage_invalid_VSmode),  # VS/G V=0 matrix
-    ("vsatp_fault_VSmode", generate_vsatp_fault_VSmode),  # VS invalid PTE cases
-    # --- SvH_misc.py: HFENCE / MPRV / TVM / attrs ---
-    ("g_adbit_VSmode", generate_g_adbit_VSmode),  # A/D bit faults
-    ("g_pte_attr_VSmode", generate_g_pte_attr_VSmode),  # G PTE attributes
-    ("g_struct_HSmode", generate_g_struct_HSmode),  # G structure / superpage
-    ("gpa_width_VSmode", generate_gpa_width_VSmode),  # GPA width
-    ("hfence_gvma_mode_HSmode", generate_hfence_gvma_mode_HSmode),  # HFENCE.GVMA modes
-    ("hfence_gvma_ops_HSmode", generate_hfence_gvma_ops_HSmode),  # HFENCE.GVMA ops
-    ("hfence_vvma_HSmode", generate_hfence_vvma_HSmode),  # HFENCE.VVMA
-    ("mprv_hgatp_Mmode", generate_mprv_hgatp_Mmode),  # MPRV + hgatp
-    ("mprv_sum_two_stage_Mmode", generate_mprv_sum_two_stage_Mmode),  # MPRV + SUM
-    ("mprv_vsatp_Mmode", generate_mprv_vsatp_Mmode),  # MPRV + vsatp
-    ("tvm_hgatp_HSmode", generate_tvm_hgatp_HSmode),  # TVM + hgatp
-    ("vs_pte_attr_VSmode", generate_vs_pte_attr_VSmode),  # VS PTE attributes
-    ("vsbe_endian_VSmode", generate_vsbe_endian_VSmode),  # VSBE endian
-]
+# SvH_csr: hgatp / vsatp / satp CSR field walks and WARL behavior
+from testgen.priv.extensions.SvH_csr import (
+    generate_csr_hgatp_fields_HSmode,
+    generate_csr_satp_mode_VSmode,
+    generate_csr_vsatp_fields_HSmode,
+)
+
+# SvH_fault: invalid PTE and guest-page fault matrices under two-stage paging
+from testgen.priv.extensions.SvH_fault import (
+    generate_hgatp_fault_VSmode,
+    generate_twostage_invalid_VSmode,
+    generate_vsatp_fault_VSmode,
+)
+
+# SvH_misc: HFENCE, MPRV, TVM, PTE attributes, endianness, GPA width
+from testgen.priv.extensions.SvH_misc import (
+    generate_g_adbit_VSmode,
+    generate_g_pte_attr_VSmode,
+    generate_g_struct_HSmode,
+    generate_gpa_width_VSmode,
+    generate_hfence_gvma_mode_HSmode,
+    generate_hfence_gvma_ops_HSmode,
+    generate_hfence_vvma_HSmode,
+    generate_mprv_hgatp_Mmode,
+    generate_mprv_sum_two_stage_Mmode,
+    generate_mprv_vsatp_Mmode,
+    generate_tvm_hgatp_HSmode,
+    generate_vs_pte_attr_VSmode,
+    generate_vsbe_endian_VSmode,
+)
+
+# SvH_perm: page permissions, MXR, SUM, U-bit, and execute-only leaf behavior
+from testgen.priv.extensions.SvH_perm import (
+    generate_g_perm_VSmode,
+    generate_g_perm_VUmode,
+    generate_g_u_bit_HSmode,
+    generate_sum_Upages_VSmode,
+    generate_vs_perm_VSmode,
+    generate_vs_perm_VUmode,
+    generate_vsstatus_mxr_sum_VSmode,
+    generate_vsstatus_mxr_sum_VUmode,
+    generate_vu_rwx_two_stage_VUmode,
+    generate_xonly_mxr0_gstage_HSmode,
+    generate_xonly_mxr0_HSmode,
+    generate_xonly_mxr0_VSmode,
+    generate_xonly_mxr0_VUmode,
+)
+
+# SvH_twostage: paging on/off, ifetch, MXR, and basic two-stage read/write
+from testgen.priv.extensions.SvH_twostage import (
+    generate_g_walk_vs_pt_VSmode,
+    generate_hgatp_bare_trans_VSmode,
+    generate_stage_both_bare_VSmode,
+    generate_two_stage_ifetch_VSmode,
+    generate_two_stage_mxr_VSmode,
+    generate_two_stage_mxr_VUmode,
+    generate_two_stage_rw_VSmode,
+)
+
+# priv registry hook: registers make_svh under EXTENSIONS=SvH
+from testgen.priv.registry import add_priv_test_generator
+
+
+def _emit(test_data: TestData, file_stem: str, generate_fn) -> TestChunk:
+    """Open one output chunk, run a scenario generator, return the finished chunk."""
+    chunk = test_data.begin_test_chunk(file_stem)  # open SvH_<file_stem>-00.S chunk
+    chunk.section_header = comment_banner(file_stem, "SvH coverpoint stimulus")  # banner at top of .S
+    chunk.sigupd_count = 0  # SIGUPD slots start at zero for this file
+    chunk.num_testcases = 0  # testcase counter starts at zero for this file
+    chunk.code.extend(generate_fn(test_data))  # append scenario assembly from generator fn
+    if chunk.num_testcases < 1:
+        chunk.num_testcases = 1  # header must declare at least one testcase slot
+    return test_data.end_test_chunk()  # finalize chunk and return it to caller
 
 
 @add_priv_test_generator(
-    "SvH",  # suite directory name: tests/priv/SvH/
-    required_extensions=["I", "H"],  # skip generation unless I and H are enabled
-    march_extensions=["I", "H"],  # -march string passed to GCC for this suite
+    "SvH",
+    required_extensions=["I", "H"],
+    march_extensions=["I", "H"],
     extra_defines=[
-        "#define RVTEST_HYPERVISOR",  # turn on hypervisor trap / hop macros in env headers
-        "#define TRAP_SIGUPD_COUNT 4096",  # trap-handler SIGUPD budget for guest-page faults
+        "#define RVTEST_HYPERVISOR",
+        "#define TRAP_SIGUPD_COUNT 4096",
     ],
 )
-def make_svh(test_data: TestData) -> list[TestChunk]:  # define make_svh
-    """Main entry: one TestChunk (one .S file) per scenario."""
-    delete_old_asm_files()  # drop stale .S so a renamed test cannot linger on disk
+def make_svh(test_data: TestData) -> list[TestChunk]:
+    """Emit all 39 SvH scenarios — one TestChunk (.S file) each."""
+    test_chunks: list[TestChunk] = [
+        # SvH_twostage.py — paging on/off, ifetch, MXR
+        _emit(test_data, "g_walk_vs_pt_VSmode", generate_g_walk_vs_pt_VSmode),  # G-stage walk via VS page tables
+        _emit(test_data, "hgatp_bare_trans_VSmode", generate_hgatp_bare_trans_VSmode),  # hgatp Bare with VS paging on
+        _emit(test_data, "stage_both_bare_VSmode", generate_stage_both_bare_VSmode),  # both stages Bare (identity map)
+        _emit(test_data, "two_stage_ifetch_VSmode", generate_two_stage_ifetch_VSmode),  # instruction fetch through two stages
+        _emit(test_data, "two_stage_mxr_VSmode", generate_two_stage_mxr_VSmode),  # MXR on two-stage loads in VS
+        _emit(test_data, "two_stage_mxr_VUmode", generate_two_stage_mxr_VUmode),  # MXR on two-stage loads in VU
+        _emit(test_data, "two_stage_rw_VSmode", generate_two_stage_rw_VSmode),  # basic two-stage load/store in VS
+        # SvH_csr.py — hgatp / vsatp / satp field walks
+        _emit(test_data, "csr_hgatp_fields_HSmode", generate_csr_hgatp_fields_HSmode),  # hgatp MODE/PPN/VMID WARL in HS
+        _emit(test_data, "csr_satp_mode_VSmode", generate_csr_satp_mode_VSmode),  # satp.MODE unsupported/ignored in VS
+        _emit(test_data, "csr_vsatp_fields_HSmode", generate_csr_vsatp_fields_HSmode),  # vsatp fields read/written from HS
+        # SvH_perm.py — permissions, MXR, SUM
+        _emit(test_data, "g_perm_VSmode", generate_g_perm_VSmode),  # G-stage leaf permissions from VS
+        _emit(test_data, "g_perm_VUmode", generate_g_perm_VUmode),  # G-stage leaf permissions from VU
+        _emit(test_data, "g_u_bit_HSmode", generate_g_u_bit_HSmode),  # G-stage U-bit effect from HS (HLV/HSV)
+        _emit(test_data, "sum_Upages_VSmode", generate_sum_Upages_VSmode),  # SUM allows VS to access U=1 pages
+        _emit(test_data, "vs_perm_VSmode", generate_vs_perm_VSmode),  # VS-stage leaf R/W/X matrix in VS
+        _emit(test_data, "vs_perm_VUmode", generate_vs_perm_VUmode),  # VS-stage leaf R/W/X matrix in VU
+        _emit(test_data, "vsstatus_mxr_sum_VSmode", generate_vsstatus_mxr_sum_VSmode),  # vsstatus MXR+SUM in VS
+        _emit(test_data, "vsstatus_mxr_sum_VUmode", generate_vsstatus_mxr_sum_VUmode),  # vsstatus MXR+SUM in VU
+        _emit(test_data, "vu_rwx_two_stage_VUmode", generate_vu_rwx_two_stage_VUmode),  # VU rwx leaf under two-stage
+        _emit(test_data, "xonly_mxr0_HSmode", generate_xonly_mxr0_HSmode),  # execute-only leaf, MXR=0, from HS
+        _emit(test_data, "xonly_mxr0_VSmode", generate_xonly_mxr0_VSmode),  # execute-only leaf, MXR=0, from VS
+        _emit(test_data, "xonly_mxr0_VUmode", generate_xonly_mxr0_VUmode),  # execute-only leaf, MXR=0, from VU
+        _emit(test_data, "xonly_mxr0_gstage_HSmode", generate_xonly_mxr0_gstage_HSmode),  # x-only G-stage leaf, MXR=0, HS
+        # SvH_fault.py — invalid PTE / fault matrix
+        _emit(test_data, "hgatp_fault_VSmode", generate_hgatp_fault_VSmode),  # G-stage invalid PTE guest-page faults
+        _emit(test_data, "twostage_invalid_VSmode", generate_twostage_invalid_VSmode),  # invalid VS+G PTE fault combinations
+        _emit(test_data, "vsatp_fault_VSmode", generate_vsatp_fault_VSmode),  # VS-stage invalid PTE page faults
+        # SvH_misc.py — HFENCE, MPRV, TVM, PTE attrs, VSBE
+        _emit(test_data, "g_adbit_VSmode", generate_g_adbit_VSmode),  # G-stage A/D bit behavior on access
+        _emit(test_data, "g_pte_attr_VSmode", generate_g_pte_attr_VSmode),  # G-stage PTE attribute bits (non-perm)
+        _emit(test_data, "g_struct_HSmode", generate_g_struct_HSmode),  # G-stage page-table structure from HS
+        _emit(test_data, "gpa_width_VSmode", generate_gpa_width_VSmode),  # GPA width / high-bit behavior
+        _emit(test_data, "hfence_gvma_mode_HSmode", generate_hfence_gvma_mode_HSmode),  # HFENCE.GVMA legal modes in HS
+        _emit(test_data, "hfence_gvma_ops_HSmode", generate_hfence_gvma_ops_HSmode),  # HFENCE.GVMA operand variants
+        _emit(test_data, "hfence_vvma_HSmode", generate_hfence_vvma_HSmode),  # HFENCE.VVMA from HS with TVM checks
+        _emit(test_data, "mprv_hgatp_Mmode", generate_mprv_hgatp_Mmode),  # MPRV load/store with hgatp from M
+        _emit(test_data, "mprv_sum_two_stage_Mmode", generate_mprv_sum_two_stage_Mmode),  # MPRV+SUM under two-stage from M
+        _emit(test_data, "mprv_vsatp_Mmode", generate_mprv_vsatp_Mmode),  # MPRV load/store with vsatp from M
+        _emit(test_data, "tvm_hgatp_HSmode", generate_tvm_hgatp_HSmode),  # TVM blocks hgatp writes from VS
+        _emit(test_data, "vs_pte_attr_VSmode", generate_vs_pte_attr_VSmode),  # VS-stage PTE attribute bits (non-perm)
+        _emit(test_data, "vsbe_endian_VSmode", generate_vsbe_endian_VSmode),  # hstatus.VSBE guest endian behavior
+    ]
 
-    test_chunks: list[TestChunk] = []  # list of finished chunks returned to the writer
-    for file_stem, generate_fn in _SCENARIOS:  # walk every scenario in order
-        chunk = test_data.begin_test_chunk(file_stem)  # open chunk → SvH_<file_stem>-00.S
-        chunk.section_header = comment_banner(file_stem, "SvH coverpoint stimulus")  # // banner
-        chunk.sigupd_count = 0  # reset; becomes #define SIGUPD_COUNT in the header
-        chunk.num_testcases = 0  # reset; becomes testcase-string table length
-        chunk.code.extend(generate_fn(test_data))  # append all assembly lines from the family fn
-        if chunk.num_testcases < 1:  # writer rejects a zero testcase count
-            chunk.num_testcases = 1  # floor at 1 when the body never called add_testcase
-        test_chunks.append(test_data.end_test_chunk())  # freeze this chunk; next loop opens a new one
-
-    if not test_chunks:  # empty _SCENARIOS would be a wiring bug
-        raise RuntimeError("SvH generator produced zero chunks")
-    return test_chunks  # framework writes each chunk to tests/priv/SvH/
+    if not test_chunks:
+        raise RuntimeError("SvH generator produced zero chunks")  # registry wiring must always emit files
+    return test_chunks

@@ -51,9 +51,9 @@ RVTEST_BEGIN
   csrw vsatp, x0
   HGATP_SETUP(sv39x4)
   hfence.gvma
-  LI(t0, 0x257a0e02)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a3, 0x257a0e02)
+  la s1, test_region
+  sw a3, 0(s1)
 
 // --------------------------------------------------------------------------------------------------------------------------------
 // Test Cases Start from here
@@ -68,8 +68,9 @@ RVTEST_BEGIN
   ld a3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test1_wide:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_wide, test1_wide_str)
+SvH_cg_cp_hgatp_gpa_width_checks_test1_wide:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_hgatp_gpa_width_checks_test1_wide, SvH_cg_cp_hgatp_gpa_width_checks_test1_wide_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: canonical GPA ld | Expected: Successful
@@ -79,8 +80,9 @@ RVTEST_BEGIN
   ld a4, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test2_ok:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test2_ok, test2_ok_str)
+SvH_cg_cp_hgatp_gpa_width_checks_test2_ok:
+  # Check if x14 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x14, SvH_cg_cp_hgatp_gpa_width_checks_test2_ok, SvH_cg_cp_hgatp_gpa_width_checks_test2_ok_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 3: non-canonical GPA sd | Expected: Expected Fault
@@ -93,8 +95,9 @@ RVTEST_BEGIN
   RVTEST_GOTO_MMODE
   la t1, test_region
   ld a6, 0(t1)
-  test3_wide_sw:
-  RVTEST_SIGUPD(x2, x5, x4, a6, test3_wide_sw, test3_wide_sw_str)
+SvH_cg_cp_hgatp_gpa_width_checks_test3_wide_sw:
+  # Check if x16 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x16, SvH_cg_cp_hgatp_gpa_width_checks_test3_wide_sw, SvH_cg_cp_hgatp_gpa_width_checks_test3_wide_sw_str)
 
   .pushsection .data
   .p2align 12
@@ -109,9 +112,6 @@ rvtest_hlvl1_pg_tbl:
   .p2align 12
 rvtest_hlvl0_pg_tbl:
   .zero 4096
-test1_wide_str: .string "\"Mismatch on non-canonical GPA ld\""
-test2_ok_str: .string "\"Mismatch on canonical GPA ld\""
-test3_wide_sw_str: .string "\"Mismatch on non-canonical GPA sd\""
   .popsection
 
 #endif  // SV39_SUPPORTED
@@ -126,7 +126,9 @@ RVTEST_DATA_BEGIN
 
 
 // Testcase strings
-
+SvH_cg_cp_hgatp_gpa_width_checks_test1_wide_str: .string "\"test: 641; cg: SvH_cg; cp: cp_hgatp_gpa_width_checks; bin: test1_wide\""
+SvH_cg_cp_hgatp_gpa_width_checks_test2_ok_str: .string "\"test: 642; cg: SvH_cg; cp: cp_hgatp_gpa_width_checks; bin: test2_ok\""
+SvH_cg_cp_hgatp_gpa_width_checks_test3_wide_sw_str: .string "\"test: 643; cg: SvH_cg; cp: cp_hgatp_gpa_width_checks; bin: test3_wide_sw\""
 
 // End of test data section and model specific data
 RVTEST_DATA_END

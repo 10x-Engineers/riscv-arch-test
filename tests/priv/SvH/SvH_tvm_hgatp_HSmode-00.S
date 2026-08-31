@@ -58,8 +58,9 @@ RVTEST_BEGIN
   RVTEST_GOTO_LOWER_MODE HSmode
   LI(t0, (HGATP_MODE_SV32X4 << 31))
   csrw hgatp, t0
-  test1_hgatp:
-  RVTEST_SIGUPD_CSR_READ(hgatp, a4, test1_hgatp, test1_hgatp_str)
+SvH_cg_cp_hgatp_tvm_effects_test1_hgatp:
+  # Read hgatp into x14 and check against expected.
+  RVTEST_SIGUPD_CSR_READ(hgatp, x14, SvH_cg_cp_hgatp_tvm_effects_test1_hgatp, SvH_cg_cp_hgatp_tvm_effects_test1_hgatp_str)
   RVTEST_GOTO_MMODE
 
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -75,12 +76,11 @@ RVTEST_BEGIN
   RVTEST_GOTO_MMODE
   LI(t0, MSTATUS_TVM)
   csrc mstatus, t0
-  test2_marker:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test2_marker, test2_marker_str)
+SvH_cg_cp_hgatp_tvm_effects_test2_marker:
+  # Check if x14 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x14, SvH_cg_cp_hgatp_tvm_effects_test2_marker, SvH_cg_cp_hgatp_tvm_effects_test2_marker_str)
 
   .pushsection .data
-test1_hgatp_str: .string "\"Mismatch on hgatp write with TVM=0\""
-test2_marker_str: .string "\"Mismatch on TVM=1 illegal hgatp write marker\""
   .popsection
 
 #endif  // SV32_SUPPORTED
@@ -102,8 +102,9 @@ test2_marker_str: .string "\"Mismatch on TVM=1 illegal hgatp write marker\""
   RVTEST_GOTO_LOWER_MODE HSmode
   LI(t0, (HGATP_MODE_SV39X4 << 60))
   csrw hgatp, t0
-  test1_hgatp:
-  RVTEST_SIGUPD_CSR_READ(hgatp, a4, test1_hgatp, test1_hgatp_str)
+SvH_cg_cp_hgatp_tvm_effects_test1_hgatp:
+  # Read hgatp into x14 and check against expected.
+  RVTEST_SIGUPD_CSR_READ(hgatp, x14, SvH_cg_cp_hgatp_tvm_effects_test1_hgatp, SvH_cg_cp_hgatp_tvm_effects_test1_hgatp_str)
   RVTEST_GOTO_MMODE
 
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -119,12 +120,11 @@ test2_marker_str: .string "\"Mismatch on TVM=1 illegal hgatp write marker\""
   RVTEST_GOTO_MMODE
   LI(t0, MSTATUS_TVM)
   csrc mstatus, t0
-  test2_marker:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test2_marker, test2_marker_str)
+SvH_cg_cp_hgatp_tvm_effects_test2_marker:
+  # Check if x14 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x14, SvH_cg_cp_hgatp_tvm_effects_test2_marker, SvH_cg_cp_hgatp_tvm_effects_test2_marker_str)
 
   .pushsection .data
-test1_hgatp_str: .string "\"Mismatch on hgatp write with TVM=0\""
-test2_marker_str: .string "\"Mismatch on TVM=1 illegal hgatp write marker\""
   .popsection
 
 #endif  // SV39_SUPPORTED
@@ -139,7 +139,14 @@ RVTEST_DATA_BEGIN
 
 
 // Testcase strings
-
+#ifdef SV32_SUPPORTED
+SvH_cg_cp_hgatp_tvm_effects_test1_hgatp_str: .string "\"test: 686; cg: SvH_cg; cp: cp_hgatp_tvm_effects; bin: test1_hgatp\""
+SvH_cg_cp_hgatp_tvm_effects_test2_marker_str: .string "\"test: 687; cg: SvH_cg; cp: cp_hgatp_tvm_effects; bin: test2_marker\""
+#endif  // SV32_SUPPORTED
+#ifdef SV39_SUPPORTED
+SvH_cg_cp_hgatp_tvm_effects_test1_hgatp_str: .string "\"test: 688; cg: SvH_cg; cp: cp_hgatp_tvm_effects; bin: test1_hgatp\""
+SvH_cg_cp_hgatp_tvm_effects_test2_marker_str: .string "\"test: 689; cg: SvH_cg; cp: cp_hgatp_tvm_effects; bin: test2_marker\""
+#endif  // SV39_SUPPORTED
 
 // End of test data section and model specific data
 RVTEST_DATA_END

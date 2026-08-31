@@ -53,9 +53,9 @@ RVTEST_BEGIN
   slli t1, t1, 22
   or t0, t0, t1
   csrw hgatp, t0
-  LI(t0, 0x257a0921)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(s0, 0x257a0921)
+  la s1, test_region
+  sw s0, 0(s1)
   LI(a5, gpa_data)
   LI(a6, 1)
 
@@ -71,15 +71,16 @@ RVTEST_BEGIN
   hlv.w a3, (a5)
   nop
   RVTEST_GOTO_MMODE
-  test1_gpa:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_gpa, test1_gpa_str)
+SvH_cg_cp_hfence_gvma_operand_test1_gpa:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_hfence_gvma_operand_test1_gpa, SvH_cg_cp_hfence_gvma_operand_test1_gpa_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: hfence.gvma x0, a6 then HLV | Expected: Successful
 //--------------------------------------------------------------------------------------------------------------------------------
-  LI(t0, 0x257a0922)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(t1, 0x257a0922)
+  la s1, test_region
+  sw t1, 0(s1)
   LI(a5, gpa_data)
   LI(a6, 1)
   RVTEST_GOTO_LOWER_MODE HSmode
@@ -87,15 +88,16 @@ RVTEST_BEGIN
   hlv.w a3, (a5)
   nop
   RVTEST_GOTO_MMODE
-  test2_vmid:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test2_vmid, test2_vmid_str)
+SvH_cg_cp_hfence_gvma_operand_test2_vmid:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_hfence_gvma_operand_test2_vmid, SvH_cg_cp_hfence_gvma_operand_test2_vmid_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 3: hfence.gvma a5, a6 then HLV | Expected: Successful
 //--------------------------------------------------------------------------------------------------------------------------------
-  LI(t0, 0x257a0923)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(t1, 0x257a0923)
+  la a4, test_region
+  sw t1, 0(a4)
   LI(a5, gpa_data)
   LI(a6, 1)
   RVTEST_GOTO_LOWER_MODE HSmode
@@ -103,8 +105,9 @@ RVTEST_BEGIN
   hlv.w a3, (a5)
   nop
   RVTEST_GOTO_MMODE
-  test3_both:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test3_both, test3_both_str)
+SvH_cg_cp_hfence_gvma_operand_test3_both:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_hfence_gvma_operand_test3_both, SvH_cg_cp_hfence_gvma_operand_test3_both_str)
 
   .pushsection .data
   .p2align 12
@@ -119,9 +122,6 @@ rvtest_hlvl0_pg_tbl:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_gpa_str: .string "\"Mismatch on hfence.gvma a5, x0 HLV\""
-test2_vmid_str: .string "\"Mismatch on hfence.gvma x0, a6 HLV\""
-test3_both_str: .string "\"Mismatch on hfence.gvma a5, a6 HLV\""
   .popsection
 
 #endif  // SV32_SUPPORTED
@@ -139,9 +139,9 @@ test3_both_str: .string "\"Mismatch on hfence.gvma a5, a6 HLV\""
   slli t1, t1, 44
   or t0, t0, t1
   csrw hgatp, t0
-  LI(t0, 0x257a0921)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(s1, 0x257a0921)
+  la a3, test_region
+  sw s1, 0(a3)
   LI(a5, gpa_data)
   LI(a6, 1)
 
@@ -157,15 +157,16 @@ test3_both_str: .string "\"Mismatch on hfence.gvma a5, a6 HLV\""
   hlv.w a3, (a5)
   nop
   RVTEST_GOTO_MMODE
-  test1_gpa:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_gpa, test1_gpa_str)
+SvH_cg_cp_hfence_gvma_operand_test1_gpa:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_hfence_gvma_operand_test1_gpa, SvH_cg_cp_hfence_gvma_operand_test1_gpa_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: hfence.gvma x0, a6 then HLV | Expected: Successful
 //--------------------------------------------------------------------------------------------------------------------------------
-  LI(t0, 0x257a0922)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a3, 0x257a0922)
+  la a4, test_region
+  sw a3, 0(a4)
   LI(a5, gpa_data)
   LI(a6, 1)
   RVTEST_GOTO_LOWER_MODE HSmode
@@ -173,15 +174,16 @@ test3_both_str: .string "\"Mismatch on hfence.gvma a5, a6 HLV\""
   hlv.w a3, (a5)
   nop
   RVTEST_GOTO_MMODE
-  test2_vmid:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test2_vmid, test2_vmid_str)
+SvH_cg_cp_hfence_gvma_operand_test2_vmid:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_hfence_gvma_operand_test2_vmid, SvH_cg_cp_hfence_gvma_operand_test2_vmid_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 3: hfence.gvma a5, a6 then HLV | Expected: Successful
 //--------------------------------------------------------------------------------------------------------------------------------
-  LI(t0, 0x257a0923)
+  LI(a5, 0x257a0923)
   la t1, test_region
-  sw t0, 0(t1)
+  sw a5, 0(t1)
   LI(a5, gpa_data)
   LI(a6, 1)
   RVTEST_GOTO_LOWER_MODE HSmode
@@ -189,8 +191,9 @@ test3_both_str: .string "\"Mismatch on hfence.gvma a5, a6 HLV\""
   hlv.w a3, (a5)
   nop
   RVTEST_GOTO_MMODE
-  test3_both:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test3_both, test3_both_str)
+SvH_cg_cp_hfence_gvma_operand_test3_both:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_hfence_gvma_operand_test3_both, SvH_cg_cp_hfence_gvma_operand_test3_both_str)
 
   .pushsection .data
   .p2align 12
@@ -211,9 +214,6 @@ rvtest_vlvl1_pg_tbl:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_gpa_str: .string "\"Mismatch on hfence.gvma a5, x0 HLV\""
-test2_vmid_str: .string "\"Mismatch on hfence.gvma x0, a6 HLV\""
-test3_both_str: .string "\"Mismatch on hfence.gvma a5, a6 HLV\""
   .popsection
 
 #endif  // SV39_SUPPORTED
@@ -228,7 +228,16 @@ RVTEST_DATA_BEGIN
 
 
 // Testcase strings
-
+#ifdef SV32_SUPPORTED
+SvH_cg_cp_hfence_gvma_operand_test1_gpa_str: .string "\"test: 648; cg: SvH_cg; cp: cp_hfence_gvma_operand; bin: test1_gpa\""
+SvH_cg_cp_hfence_gvma_operand_test2_vmid_str: .string "\"test: 649; cg: SvH_cg; cp: cp_hfence_gvma_operand; bin: test2_vmid\""
+SvH_cg_cp_hfence_gvma_operand_test3_both_str: .string "\"test: 650; cg: SvH_cg; cp: cp_hfence_gvma_operand; bin: test3_both\""
+#endif  // SV32_SUPPORTED
+#ifdef SV39_SUPPORTED
+SvH_cg_cp_hfence_gvma_operand_test1_gpa_str: .string "\"test: 651; cg: SvH_cg; cp: cp_hfence_gvma_operand; bin: test1_gpa\""
+SvH_cg_cp_hfence_gvma_operand_test2_vmid_str: .string "\"test: 652; cg: SvH_cg; cp: cp_hfence_gvma_operand; bin: test2_vmid\""
+SvH_cg_cp_hfence_gvma_operand_test3_both_str: .string "\"test: 653; cg: SvH_cg; cp: cp_hfence_gvma_operand; bin: test3_both\""
+#endif  // SV39_SUPPORTED
 
 // End of test data section and model specific data
 RVTEST_DATA_END

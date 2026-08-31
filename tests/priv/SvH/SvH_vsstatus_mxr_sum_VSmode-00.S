@@ -64,12 +64,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_X | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0501)
+  LI(a4, 0x257a0501)
   la t1, test_region
-  sw t0, 0(t1)
+  sw a4, 0(t1)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 1: MXR=0 SUM=0 S-page X-only VS lw | Expected: Expected Fault
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(a3, 0)
@@ -77,8 +77,9 @@ RVTEST_BEGIN
   lw a3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test1_mxr0_xs:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_mxr0_xs, test1_mxr0_xs_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test1_mxr0_xs:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_vsstatus_mxr_sum_rw_test1_mxr0_xs, SvH_cg_cp_vsstatus_mxr_sum_rw_test1_mxr0_xs_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -90,12 +91,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_X | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0502)
+  LI(a3, 0x257a0502)
   la t1, test_region
-  sw t0, 0(t1)
+  sw a3, 0(t1)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: MXR=1 SUM=0 S-page X-only VS lw | Expected: Successful
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(a4, 0)
@@ -103,8 +104,9 @@ RVTEST_BEGIN
   lw a4, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test2_mxr1_xs_lw:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test2_mxr1_xs_lw, test2_mxr1_xs_lw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test2_mxr1_xs_lw:
+  # Check if x14 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x14, SvH_cg_cp_vsstatus_mxr_sum_rw_test2_mxr1_xs_lw, SvH_cg_cp_vsstatus_mxr_sum_rw_test2_mxr1_xs_lw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -116,12 +118,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_X | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0503)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(s0, 0x257a0503)
+  la a4, test_region
+  sw s0, 0(a4)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 3: MXR=1 SUM=0 S-page X-only VS sw | Expected: Expected Fault
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(t0, 0xbad00fad)
@@ -131,8 +133,9 @@ RVTEST_BEGIN
   RVTEST_GOTO_MMODE
   la t1, test_region
   lw a3, 0(t1)
-  test3_mxr1_xs_sw:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test3_mxr1_xs_sw, test3_mxr1_xs_sw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test3_mxr1_xs_sw:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_vsstatus_mxr_sum_rw_test3_mxr1_xs_sw, SvH_cg_cp_vsstatus_mxr_sum_rw_test3_mxr1_xs_sw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -141,12 +144,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0504)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(s1, 0x257a0504)
+  la a4, test_region
+  sw s1, 0(a4)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 4: MXR=0 SUM=0 U-page X-only VS lw | Expected: Expected Fault
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(a6, 0)
@@ -154,8 +157,9 @@ RVTEST_BEGIN
   lw a6, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test4_mxr0_xu:
-  RVTEST_SIGUPD(x2, x5, x4, a6, test4_mxr0_xu, test4_mxr0_xu_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test4_mxr0_xu:
+  # Check if x16 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x16, SvH_cg_cp_vsstatus_mxr_sum_rw_test4_mxr0_xu, SvH_cg_cp_vsstatus_mxr_sum_rw_test4_mxr0_xu_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -167,12 +171,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0505)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a3, 0x257a0505)
+  la s1, test_region
+  sw a3, 0(s1)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 5: MXR=1 SUM=0 U-page X-only VS lw | Expected: Expected Fault
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(a7, 0)
@@ -180,8 +184,9 @@ RVTEST_BEGIN
   lw a7, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test5_mxr1_xu:
-  RVTEST_SIGUPD(x2, x5, x4, a7, test5_mxr1_xu, test5_mxr1_xu_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test5_mxr1_xu:
+  # Check if x17 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x17, SvH_cg_cp_vsstatus_mxr_sum_rw_test5_mxr1_xu, SvH_cg_cp_vsstatus_mxr_sum_rw_test5_mxr1_xu_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrs sstatus, t0
@@ -190,12 +195,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0506)
+  LI(a3, 0x257a0506)
   la t1, test_region
-  sw t0, 0(t1)
+  sw a3, 0(t1)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 6: MXR=1 SUM=1 U-page X-only VS lw | Expected: Successful
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(a3, 0)
@@ -203,8 +208,9 @@ RVTEST_BEGIN
   lw a3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test6_mxr1_sum1_xu:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test6_mxr1_sum1_xu, test6_mxr1_sum1_xu_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test6_mxr1_sum1_xu:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_vsstatus_mxr_sum_rw_test6_mxr1_sum1_xu, SvH_cg_cp_vsstatus_mxr_sum_rw_test6_mxr1_sum1_xu_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -216,12 +222,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0507)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a5, 0x257a0507)
+  la s1, test_region
+  sw a5, 0(s1)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 7: MXR=0 SUM=1 U-page XWR=111 VS lw | Expected: Successful
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(a4, 0)
@@ -229,8 +235,9 @@ RVTEST_BEGIN
   lw a4, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test7_sum1_urw_lw:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test7_sum1_urw_lw, test7_sum1_urw_lw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test7_sum1_urw_lw:
+  # Check if x14 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x14, SvH_cg_cp_vsstatus_mxr_sum_rw_test7_sum1_urw_lw, SvH_cg_cp_vsstatus_mxr_sum_rw_test7_sum1_urw_lw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrs sstatus, t0
@@ -239,12 +246,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0508)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a3, 0x257a0508)
+  la a5, test_region
+  sw a3, 0(a5)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 8: MXR=1 SUM=1 U-page XWR=111 VS sw+lw | Expected: Successful
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(t0, 0x257a0508)
@@ -254,8 +261,9 @@ RVTEST_BEGIN
   lw a6, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test8_sum1_urw_swlw:
-  RVTEST_SIGUPD(x2, x5, x4, a6, test8_sum1_urw_swlw, test8_sum1_urw_swlw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test8_sum1_urw_swlw:
+  # Check if x16 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x16, SvH_cg_cp_vsstatus_mxr_sum_rw_test8_sum1_urw_swlw, SvH_cg_cp_vsstatus_mxr_sum_rw_test8_sum1_urw_swlw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -264,12 +272,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0509)
+  LI(a3, 0x257a0509)
   la t1, test_region
-  sw t0, 0(t1)
+  sw a3, 0(t1)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 9: MXR=0 SUM=0 U-page XWR=111 VS sw | Expected: Expected Fault
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(t0, 0xbad00fad)
@@ -279,8 +287,9 @@ RVTEST_BEGIN
   RVTEST_GOTO_MMODE
   la t1, test_region
   lw s2, 0(t1)
-  test9_sum0_urw_sw:
-  RVTEST_SIGUPD(x2, x5, x4, s2, test9_sum0_urw_sw, test9_sum0_urw_sw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test9_sum0_urw_sw:
+  # Check if x18 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x18, SvH_cg_cp_vsstatus_mxr_sum_rw_test9_sum0_urw_sw, SvH_cg_cp_vsstatus_mxr_sum_rw_test9_sum0_urw_sw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -289,12 +298,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region_s_rw, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V), va_s_rw, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a050a)
-  la t1, test_region_s_rw
-  sw t0, 0(t1)
+  LI(a4, 0x257a050a)
+  la s1, test_region_s_rw
+  sw a4, 0(s1)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 10: MXR=0 SUM=0 S-page XWR=111 VS sw+lw | Expected: Successful
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_s_rw)
   LI(t0, 0x257a050a)
@@ -304,8 +313,9 @@ RVTEST_BEGIN
   lw a7, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test10_srw_swlw:
-  RVTEST_SIGUPD(x2, x5, x4, a7, test10_srw_swlw, test10_srw_swlw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test10_srw_swlw:
+  # Check if x17 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x17, SvH_cg_cp_vsstatus_mxr_sum_rw_test10_srw_swlw, SvH_cg_cp_vsstatus_mxr_sum_rw_test10_srw_swlw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -317,12 +327,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_X | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a050b)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(s0, 0x257a050b)
+  la a5, test_region
+  sw s0, 0(a5)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 11: MXR=0 SUM=1 S-page X-only VS lw | Expected: Expected Fault
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(s3, 0)
@@ -330,8 +340,9 @@ RVTEST_BEGIN
   lw s3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test11_sum1_mxr0_xs:
-  RVTEST_SIGUPD(x2, x5, x4, s3, test11_sum1_mxr0_xs, test11_sum1_mxr0_xs_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test11_sum1_mxr0_xs:
+  # Check if x19 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x19, SvH_cg_cp_vsstatus_mxr_sum_rw_test11_sum1_mxr0_xs, SvH_cg_cp_vsstatus_mxr_sum_rw_test11_sum1_mxr0_xs_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrs sstatus, t0
@@ -340,12 +351,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region_s_rw, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V), va_s_rw, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a050c)
-  la t1, test_region_s_rw
-  sw t0, 0(t1)
+  LI(t1, 0x257a050c)
+  la a4, test_region_s_rw
+  sw t1, 0(a4)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 12: MXR=1 SUM=1 S-page XWR=111 VS lw | Expected: Successful
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_s_rw)
   LI(s2, 0)
@@ -353,8 +364,9 @@ RVTEST_BEGIN
   lw s2, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test12_mxr1_sum1_srw:
-  RVTEST_SIGUPD(x2, x5, x4, s2, test12_mxr1_sum1_srw, test12_mxr1_sum1_srw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test12_mxr1_sum1_srw:
+  # Check if x18 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x18, SvH_cg_cp_vsstatus_mxr_sum_rw_test12_mxr1_sum1_srw, SvH_cg_cp_vsstatus_mxr_sum_rw_test12_mxr1_sum1_srw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -366,12 +378,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a050d)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a5, 0x257a050d)
+  la s0, test_region
+  sw a5, 0(s0)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 13: MXR=0 SUM=1 U-page X-only VS lw | Expected: Expected Fault
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(s4, 0)
@@ -379,8 +391,9 @@ RVTEST_BEGIN
   lw s4, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test13_sum1_mxr0_xu:
-  RVTEST_SIGUPD(x2, x5, x4, s4, test13_sum1_mxr0_xu, test13_sum1_mxr0_xu_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test13_sum1_mxr0_xu:
+  # Check if x20 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x20, SvH_cg_cp_vsstatus_mxr_sum_rw_test13_sum1_mxr0_xu, SvH_cg_cp_vsstatus_mxr_sum_rw_test13_sum1_mxr0_xu_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrs sstatus, t0
@@ -389,12 +402,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a050e)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(s1, 0x257a050e)
+  la a4, test_region
+  sw s1, 0(a4)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 14: MXR=1 SUM=1 U-page X-only VS sw | Expected: Expected Fault
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(t0, 0xbad00fad)
@@ -404,8 +417,9 @@ RVTEST_BEGIN
   RVTEST_GOTO_MMODE
   la t1, test_region
   lw s5, 0(t1)
-  test14_mxr1_sum1_xu_sw:
-  RVTEST_SIGUPD(x2, x5, x4, s5, test14_mxr1_sum1_xu_sw, test14_mxr1_sum1_xu_sw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test14_mxr1_sum1_xu_sw:
+  # Check if x21 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x21, SvH_cg_cp_vsstatus_mxr_sum_rw_test14_mxr1_sum1_xu_sw, SvH_cg_cp_vsstatus_mxr_sum_rw_test14_mxr1_sum1_xu_sw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -417,12 +431,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a050f)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(s1, 0x257a050f)
+  la s0, test_region
+  sw s1, 0(s0)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 15: MXR=1 SUM=0 U-page XWR=111 VS lw | Expected: Expected Fault
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(s6, 0)
@@ -430,8 +444,9 @@ RVTEST_BEGIN
   lw s6, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test15_mxr1_sum0_urw:
-  RVTEST_SIGUPD(x2, x5, x4, s6, test15_mxr1_sum0_urw, test15_mxr1_sum0_urw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test15_mxr1_sum0_urw:
+  # Check if x22 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x22, SvH_cg_cp_vsstatus_mxr_sum_rw_test15_mxr1_sum0_urw, SvH_cg_cp_vsstatus_mxr_sum_rw_test15_mxr1_sum0_urw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrs sstatus, t0
@@ -440,12 +455,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_X | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0510)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(t1, 0x257a0510)
+  la a3, test_region
+  sw t1, 0(a3)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 16: MXR=1 SUM=1 S-page X-only VS sw | Expected: Expected Fault
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(t0, 0xbad00fad)
@@ -455,8 +470,9 @@ RVTEST_BEGIN
   RVTEST_GOTO_MMODE
   la t1, test_region
   lw s7, 0(t1)
-  test16_mxr1_sum1_xs_sw:
-  RVTEST_SIGUPD(x2, x5, x4, s7, test16_mxr1_sum1_xs_sw, test16_mxr1_sum1_xs_sw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test16_mxr1_sum1_xs_sw:
+  # Check if x23 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x23, SvH_cg_cp_vsstatus_mxr_sum_rw_test16_mxr1_sum1_xs_sw, SvH_cg_cp_vsstatus_mxr_sum_rw_test16_mxr1_sum1_xs_sw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -468,12 +484,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region_s_rw, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V), va_s_rw, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0511)
-  la t1, test_region_s_rw
-  sw t0, 0(t1)
+  LI(a3, 0x257a0511)
+  la a5, test_region_s_rw
+  sw a3, 0(a5)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 17: MXR=0 SUM=1 S-page XWR=111 VS lw | Expected: Successful
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_s_rw)
   LI(s2, 0)
@@ -481,8 +497,9 @@ RVTEST_BEGIN
   lw s2, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test17_sum1_mxr0_srw:
-  RVTEST_SIGUPD(x2, x5, x4, s2, test17_sum1_mxr0_srw, test17_sum1_mxr0_srw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test17_sum1_mxr0_srw:
+  # Check if x18 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x18, SvH_cg_cp_vsstatus_mxr_sum_rw_test17_sum1_mxr0_srw, SvH_cg_cp_vsstatus_mxr_sum_rw_test17_sum1_mxr0_srw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -494,12 +511,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region_s_rw, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V), va_s_rw, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0512)
-  la t1, test_region_s_rw
-  sw t0, 0(t1)
+  LI(t1, 0x257a0512)
+  la a4, test_region_s_rw
+  sw t1, 0(a4)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 18: MXR=1 SUM=0 S-page XWR=111 VS sw+lw | Expected: Successful
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_s_rw)
   LI(t0, 0x257a0512)
@@ -509,8 +526,9 @@ RVTEST_BEGIN
   lw s3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test18_mxr1_sum0_srw_sw:
-  RVTEST_SIGUPD(x2, x5, x4, s3, test18_mxr1_sum0_srw_sw, test18_mxr1_sum0_srw_sw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test18_mxr1_sum0_srw_sw:
+  # Check if x19 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x19, SvH_cg_cp_vsstatus_mxr_sum_rw_test18_mxr1_sum0_srw_sw, SvH_cg_cp_vsstatus_mxr_sum_rw_test18_mxr1_sum0_srw_sw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -522,12 +540,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_X | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0513)
+  LI(s1, 0x257a0513)
   la t1, test_region
-  sw t0, 0(t1)
+  sw s1, 0(t1)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 19: MXR=0 SUM=1 S-page X-only VS sw | Expected: Expected Fault
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(t0, 0xbad00fad)
@@ -537,8 +555,9 @@ RVTEST_BEGIN
   RVTEST_GOTO_MMODE
   la t1, test_region
   lw s4, 0(t1)
-  test19_sum1_xs_sw:
-  RVTEST_SIGUPD(x2, x5, x4, s4, test19_sum1_xs_sw, test19_sum1_xs_sw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test19_sum1_xs_sw:
+  # Check if x20 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x20, SvH_cg_cp_vsstatus_mxr_sum_rw_test19_sum1_xs_sw, SvH_cg_cp_vsstatus_mxr_sum_rw_test19_sum1_xs_sw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -550,12 +569,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0514)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a5, 0x257a0514)
+  la a4, test_region
+  sw a5, 0(a4)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 20: MXR=0 SUM=1 U-page X-only VS sw | Expected: Expected Fault
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(t0, 0xbad00fad)
@@ -565,8 +584,9 @@ RVTEST_BEGIN
   RVTEST_GOTO_MMODE
   la t1, test_region
   lw s5, 0(t1)
-  test20_sum1_xu_sw:
-  RVTEST_SIGUPD(x2, x5, x4, s5, test20_sum1_xu_sw, test20_sum1_xu_sw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test20_sum1_xu_sw:
+  # Check if x21 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x21, SvH_cg_cp_vsstatus_mxr_sum_rw_test20_sum1_xu_sw, SvH_cg_cp_vsstatus_mxr_sum_rw_test20_sum1_xu_sw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -575,12 +595,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region_s_rw, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V), va_s_rw, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x8067)
-  la t1, test_region_s_rw
-  sw t0, 0(t1)
+  LI(t1, 0x8067)
+  la a5, test_region_s_rw
+  sw t1, 0(a5)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 21: MXR=0 SUM=0 S-page XWR=111 VS jalr | Expected: Successful
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_s_rw)
   LI(s8, 0)
@@ -590,8 +610,9 @@ RVTEST_BEGIN
   LI(s8, 0x257a0515)
   nop
   RVTEST_GOTO_MMODE
-  test21_srw_jalr:
-  RVTEST_SIGUPD(x2, x5, x4, s8, test21_srw_jalr, test21_srw_jalr_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test21_srw_jalr:
+  # Check if x24 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x24, SvH_cg_cp_vsstatus_mxr_sum_rw_test21_srw_jalr, SvH_cg_cp_vsstatus_mxr_sum_rw_test21_srw_jalr_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -603,12 +624,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region_s_rw, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V), va_s_rw, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x8067)
-  la t1, test_region_s_rw
-  sw t0, 0(t1)
+  LI(t1, 0x8067)
+  la s0, test_region_s_rw
+  sw t1, 0(s0)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 22: MXR=0 SUM=1 S-page XWR=111 VS jalr | Expected: Successful
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_s_rw)
   LI(s9, 0)
@@ -618,8 +639,9 @@ RVTEST_BEGIN
   LI(s9, 0x257a0516)
   nop
   RVTEST_GOTO_MMODE
-  test22_sum1_srw_jalr:
-  RVTEST_SIGUPD(x2, x5, x4, s9, test22_sum1_srw_jalr, test22_sum1_srw_jalr_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test22_sum1_srw_jalr:
+  # Check if x25 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x25, SvH_cg_cp_vsstatus_mxr_sum_rw_test22_sum1_srw_jalr, SvH_cg_cp_vsstatus_mxr_sum_rw_test22_sum1_srw_jalr_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrs sstatus, t0
@@ -628,12 +650,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x8067)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(s0, 0x8067)
+  la a3, test_region
+  sw s0, 0(a3)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 23: MXR=1 SUM=1 U-page XWR=111 VS jalr | Expected: Successful
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(s10, 0)
@@ -643,8 +665,9 @@ RVTEST_BEGIN
   LI(s10, 0x257a0517)
   nop
   RVTEST_GOTO_MMODE
-  test23_urw_jalr:
-  RVTEST_SIGUPD(x2, x5, x4, s10, test23_urw_jalr, test23_urw_jalr_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test23_urw_jalr:
+  # Check if x26 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x26, SvH_cg_cp_vsstatus_mxr_sum_rw_test23_urw_jalr, SvH_cg_cp_vsstatus_mxr_sum_rw_test23_urw_jalr_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrs sstatus, t0
@@ -653,12 +676,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region_s_rw, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V), va_s_rw, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0518)
-  la t1, test_region_s_rw
-  sw t0, 0(t1)
+  LI(s1, 0x257a0518)
+  la a5, test_region_s_rw
+  sw s1, 0(a5)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 24: MXR=1 SUM=1 S-page XWR=111 VS sw+lw | Expected: Successful
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_s_rw)
   LI(t0, 0x257a0518)
@@ -668,8 +691,9 @@ RVTEST_BEGIN
   lw s2, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test24_mxr1_sum1_srw_sw:
-  RVTEST_SIGUPD(x2, x5, x4, s2, test24_mxr1_sum1_srw_sw, test24_mxr1_sum1_srw_sw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test24_mxr1_sum1_srw_sw:
+  # Check if x18 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x18, SvH_cg_cp_vsstatus_mxr_sum_rw_test24_mxr1_sum1_srw_sw, SvH_cg_cp_vsstatus_mxr_sum_rw_test24_mxr1_sum1_srw_sw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -681,12 +705,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0519)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a3, 0x257a0519)
+  la a4, test_region
+  sw a3, 0(a4)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 25: MXR=1 SUM=0 U-page X-only VS sw | Expected: Expected Fault
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(t0, 0xbad00fad)
@@ -696,8 +720,9 @@ RVTEST_BEGIN
   RVTEST_GOTO_MMODE
   la t1, test_region
   lw s3, 0(t1)
-  test25_mxr1_xu_sw:
-  RVTEST_SIGUPD(x2, x5, x4, s3, test25_mxr1_xu_sw, test25_mxr1_xu_sw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test25_mxr1_xu_sw:
+  # Check if x19 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x19, SvH_cg_cp_vsstatus_mxr_sum_rw_test25_mxr1_xu_sw, SvH_cg_cp_vsstatus_mxr_sum_rw_test25_mxr1_xu_sw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -709,12 +734,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_X | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a051a)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(s1, 0x257a051a)
+  la a5, test_region
+  sw s1, 0(a5)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 26: MXR=1 SUM=0 S-page X-only VS sw | Expected: Expected Fault
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(t0, 0xbad00fad)
@@ -724,8 +749,9 @@ RVTEST_BEGIN
   RVTEST_GOTO_MMODE
   la t1, test_region
   lw s4, 0(t1)
-  test26_mxr1_xs_sw:
-  RVTEST_SIGUPD(x2, x5, x4, s4, test26_mxr1_xs_sw, test26_mxr1_xs_sw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test26_mxr1_xs_sw:
+  # Check if x20 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x20, SvH_cg_cp_vsstatus_mxr_sum_rw_test26_mxr1_xs_sw, SvH_cg_cp_vsstatus_mxr_sum_rw_test26_mxr1_xs_sw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -737,12 +763,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a051b)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(t1, 0x257a051b)
+  la s1, test_region
+  sw t1, 0(s1)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 27: MXR=1 SUM=0 U-page XWR=111 VS sw | Expected: Expected Fault
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(t0, 0xbad00fad)
@@ -752,8 +778,9 @@ RVTEST_BEGIN
   RVTEST_GOTO_MMODE
   la t1, test_region
   lw s5, 0(t1)
-  test27_mxr1_sum0_urw_sw:
-  RVTEST_SIGUPD(x2, x5, x4, s5, test27_mxr1_sum0_urw_sw, test27_mxr1_sum0_urw_sw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test27_mxr1_sum0_urw_sw:
+  # Check if x21 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x21, SvH_cg_cp_vsstatus_mxr_sum_rw_test27_mxr1_sum0_urw_sw, SvH_cg_cp_vsstatus_mxr_sum_rw_test27_mxr1_sum0_urw_sw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -762,12 +789,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a051c)
+  LI(a4, 0x257a051c)
   la t1, test_region
-  sw t0, 0(t1)
+  sw a4, 0(t1)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 28: MXR=0 SUM=0 U-page X-only VS sw | Expected: Expected Fault
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(t0, 0xbad00fad)
@@ -777,8 +804,9 @@ RVTEST_BEGIN
   RVTEST_GOTO_MMODE
   la t1, test_region
   lw s2, 0(t1)
-  test28_mxr0_xu_sw:
-  RVTEST_SIGUPD(x2, x5, x4, s2, test28_mxr0_xu_sw, test28_mxr0_xu_sw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test28_mxr0_xu_sw:
+  # Check if x18 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x18, SvH_cg_cp_vsstatus_mxr_sum_rw_test28_mxr0_xu_sw, SvH_cg_cp_vsstatus_mxr_sum_rw_test28_mxr0_xu_sw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrs sstatus, t0
@@ -787,12 +815,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a051d)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a5, 0x257a051d)
+  la s0, test_region
+  sw a5, 0(s0)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 29: MXR=1 SUM=1 U-page XWR=111 VS lw | Expected: Successful
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(s3, 0)
@@ -800,8 +828,9 @@ RVTEST_BEGIN
   lw s3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test29_mxr1_sum1_urw_lw:
-  RVTEST_SIGUPD(x2, x5, x4, s3, test29_mxr1_sum1_urw_lw, test29_mxr1_sum1_urw_lw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test29_mxr1_sum1_urw_lw:
+  # Check if x19 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x19, SvH_cg_cp_vsstatus_mxr_sum_rw_test29_mxr1_sum1_urw_lw, SvH_cg_cp_vsstatus_mxr_sum_rw_test29_mxr1_sum1_urw_lw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrs sstatus, t0
@@ -810,12 +839,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_X | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a051e)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a3, 0x257a051e)
+  la a4, test_region
+  sw a3, 0(a4)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 30: MXR=1 SUM=1 S-page X-only VS lw | Expected: Successful
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(s4, 0)
@@ -823,8 +852,9 @@ RVTEST_BEGIN
   lw s4, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test30_mxr1_sum1_xs_lw:
-  RVTEST_SIGUPD(x2, x5, x4, s4, test30_mxr1_sum1_xs_lw, test30_mxr1_sum1_xs_lw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test30_mxr1_sum1_xs_lw:
+  # Check if x20 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x20, SvH_cg_cp_vsstatus_mxr_sum_rw_test30_mxr1_sum1_xs_lw, SvH_cg_cp_vsstatus_mxr_sum_rw_test30_mxr1_sum1_xs_lw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -836,12 +866,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region_s_rw, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V), va_s_rw, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a051f)
-  la t1, test_region_s_rw
-  sw t0, 0(t1)
+  LI(a4, 0x257a051f)
+  la a3, test_region_s_rw
+  sw a4, 0(a3)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 31: MXR=1 SUM=0 S-page XWR=111 VS lw only | Expected: Successful
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_s_rw)
   LI(s5, 0)
@@ -849,8 +879,9 @@ RVTEST_BEGIN
   lw s5, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test31_mxr1_sum0_srw_lw:
-  RVTEST_SIGUPD(x2, x5, x4, s5, test31_mxr1_sum0_srw_lw, test31_mxr1_sum0_srw_lw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test31_mxr1_sum0_srw_lw:
+  # Check if x21 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x21, SvH_cg_cp_vsstatus_mxr_sum_rw_test31_mxr1_sum0_srw_lw, SvH_cg_cp_vsstatus_mxr_sum_rw_test31_mxr1_sum0_srw_lw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -862,12 +893,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region_s_rw, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V), va_s_rw, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x8067)
-  la t1, test_region_s_rw
-  sw t0, 0(t1)
+  LI(t1, 0x8067)
+  la s0, test_region_s_rw
+  sw t1, 0(s0)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 32: MXR=1 SUM=0 S-page XWR=111 VS jalr | Expected: Successful
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_s_rw)
   LI(s6, 0)
@@ -877,8 +908,9 @@ RVTEST_BEGIN
   LI(s6, 0x257a0520)
   nop
   RVTEST_GOTO_MMODE
-  test32_mxr1_sum0_srw_jalr:
-  RVTEST_SIGUPD(x2, x5, x4, s6, test32_mxr1_sum0_srw_jalr, test32_mxr1_sum0_srw_jalr_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test32_mxr1_sum0_srw_jalr:
+  # Check if x22 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x22, SvH_cg_cp_vsstatus_mxr_sum_rw_test32_mxr1_sum0_srw_jalr, SvH_cg_cp_vsstatus_mxr_sum_rw_test32_mxr1_sum0_srw_jalr_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrs sstatus, t0
@@ -887,12 +919,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region_s_rw, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V), va_s_rw, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x8067)
-  la t1, test_region_s_rw
-  sw t0, 0(t1)
+  LI(t1, 0x8067)
+  la a4, test_region_s_rw
+  sw t1, 0(a4)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 32b: MXR=1 SUM=1 S-page XWR=111 VS jalr | Expected: Successful
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_s_rw)
   LI(s8, 0)
@@ -902,8 +934,9 @@ RVTEST_BEGIN
   LI(s8, 0x257a0521)
   nop
   RVTEST_GOTO_MMODE
-  test32b_mxr1_sum1_srw_jalr:
-  RVTEST_SIGUPD(x2, x5, x4, s8, test32b_mxr1_sum1_srw_jalr, test32b_mxr1_sum1_srw_jalr_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test32b_mxr1_sum1_srw_jalr:
+  # Check if x24 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x24, SvH_cg_cp_vsstatus_mxr_sum_rw_test32b_mxr1_sum1_srw_jalr, SvH_cg_cp_vsstatus_mxr_sum_rw_test32b_mxr1_sum1_srw_jalr_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrs sstatus, t0
@@ -912,12 +945,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_X | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0522)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(t1, 0x257a0522)
+  la a5, test_region
+  sw t1, 0(a5)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 33: MXR=1 SUM=1 S-page X-only VS lw | Expected: Successful
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(s7, 0)
@@ -925,8 +958,9 @@ RVTEST_BEGIN
   lw s7, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test33_mxr1_sum1_xs_lw2:
-  RVTEST_SIGUPD(x2, x5, x4, s7, test33_mxr1_sum1_xs_lw2, test33_mxr1_sum1_xs_lw2_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test33_mxr1_sum1_xs_lw2:
+  # Check if x23 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x23, SvH_cg_cp_vsstatus_mxr_sum_rw_test33_mxr1_sum1_xs_lw2, SvH_cg_cp_vsstatus_mxr_sum_rw_test33_mxr1_sum1_xs_lw2_str)
 
 
   .pushsection .data
@@ -945,40 +979,6 @@ test_region_s_rw:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_mxr0_xs_str: .string "\"Mismatch on MXR=0 SUM=0 S-page X-only VS lw in Test Case 1!\""
-test2_mxr1_xs_lw_str: .string "\"Mismatch on MXR=1 SUM=0 S-page X-only VS lw in Test Case 2!\""
-test3_mxr1_xs_sw_str: .string "\"Mismatch on MXR=1 SUM=0 S-page X-only VS sw in Test Case 3!\""
-test4_mxr0_xu_str: .string "\"Mismatch on MXR=0 SUM=0 U-page X-only VS lw in Test Case 4!\""
-test5_mxr1_xu_str: .string "\"Mismatch on MXR=1 SUM=0 U-page X-only VS lw in Test Case 5!\""
-test6_mxr1_sum1_xu_str: .string "\"Mismatch on MXR=1 SUM=1 U-page X-only VS lw in Test Case 6!\""
-test7_sum1_urw_lw_str: .string "\"Mismatch on MXR=0 SUM=1 U-page XWR=111 VS lw in Test Case 7!\""
-test8_sum1_urw_swlw_str: .string "\"Mismatch on MXR=1 SUM=1 U-page XWR=111 VS sw+lw in Test Case 8!\""
-test9_sum0_urw_sw_str: .string "\"Mismatch on MXR=0 SUM=0 U-page XWR=111 VS sw in Test Case 9!\""
-test10_srw_swlw_str: .string "\"Mismatch on MXR=0 SUM=0 S-page XWR=111 VS sw+lw in Test Case 10!\""
-test11_sum1_mxr0_xs_str: .string "\"Mismatch on MXR=0 SUM=1 S-page X-only VS lw in Test Case 11!\""
-test12_mxr1_sum1_srw_str: .string "\"Mismatch on MXR=1 SUM=1 S-page XWR=111 VS lw in Test Case 12!\""
-test13_sum1_mxr0_xu_str: .string "\"Mismatch on MXR=0 SUM=1 U-page X-only VS lw in Test Case 13!\""
-test14_mxr1_sum1_xu_sw_str: .string "\"Mismatch on MXR=1 SUM=1 U-page X-only VS sw in Test Case 14!\""
-test15_mxr1_sum0_urw_str: .string "\"Mismatch on MXR=1 SUM=0 U-page XWR=111 VS lw in Test Case 15!\""
-test16_mxr1_sum1_xs_sw_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS sw in Test Case 16!\""
-test17_sum1_mxr0_srw_str: .string "\"Mismatch on MXR=0 SUM=1 S-page XWR=111 VS lw in Test Case 17!\""
-test18_mxr1_sum0_srw_sw_str: .string "\"Mismatch on MXR=1 SUM=0 S-page XWR=111 VS sw+lw in Test Case 18!\""
-test19_sum1_xs_sw_str: .string "\"Mismatch on MXR=0 SUM=1 S-page X-only VS sw in Test Case 19!\""
-test20_sum1_xu_sw_str: .string "\"Mismatch on MXR=0 SUM=1 U-page X-only VS sw in Test Case 20!\""
-test21_srw_jalr_str: .string "\"Mismatch on MXR=0 SUM=0 S-page XWR=111 VS jalr in Test Case 21!\""
-test22_sum1_srw_jalr_str: .string "\"Mismatch on MXR=0 SUM=1 S-page XWR=111 VS jalr in Test Case 22!\""
-test23_urw_jalr_str: .string "\"Mismatch on MXR=1 SUM=1 U-page XWR=111 VS jalr in Test Case 23!\""
-test24_mxr1_sum1_srw_sw_str: .string "\"Mismatch on MXR=1 SUM=1 S-page XWR=111 VS sw+lw in Test Case 24!\""
-test25_mxr1_xu_sw_str: .string "\"Mismatch on MXR=1 SUM=0 U-page X-only VS sw in Test Case 25!\""
-test26_mxr1_xs_sw_str: .string "\"Mismatch on MXR=1 SUM=0 S-page X-only VS sw in Test Case 26!\""
-test27_mxr1_sum0_urw_sw_str: .string "\"Mismatch on MXR=1 SUM=0 U-page XWR=111 VS sw in Test Case 27!\""
-test28_mxr0_xu_sw_str: .string "\"Mismatch on MXR=0 SUM=0 U-page X-only VS sw in Test Case 28!\""
-test29_mxr1_sum1_urw_lw_str: .string "\"Mismatch on MXR=1 SUM=1 U-page XWR=111 VS lw in Test Case 29!\""
-test30_mxr1_sum1_xs_lw_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS lw in Test Case 30!\""
-test31_mxr1_sum0_srw_lw_str: .string "\"Mismatch on MXR=1 SUM=0 S-page XWR=111 VS lw only in Test Case 31!\""
-test32_mxr1_sum0_srw_jalr_str: .string "\"Mismatch on MXR=1 SUM=0 S-page XWR=111 VS jalr in Test Case 32!\""
-test32b_mxr1_sum1_srw_jalr_str: .string "\"Mismatch on MXR=1 SUM=1 S-page XWR=111 VS jalr in Test Case 32b!\""
-test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS lw in Test Case 33!\""
   .popsection
 
 #endif  // SV32_SUPPORTED
@@ -1009,12 +1009,12 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   VS_PTE_SETUP(sv39, PA, test_region, (PTE_D | PTE_A | PTE_X | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0501)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(t1, 0x257a0501)
+  la a4, test_region
+  sw t1, 0(a4)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 1: MXR=0 SUM=0 S-page X-only VS lw | Expected: Expected Fault
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(a3, 0)
@@ -1022,8 +1022,9 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   lw a3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test1_mxr0_xs:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_mxr0_xs, test1_mxr0_xs_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test1_mxr0_xs:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_vsstatus_mxr_sum_rw_test1_mxr0_xs, SvH_cg_cp_vsstatus_mxr_sum_rw_test1_mxr0_xs_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -1035,12 +1036,12 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   VS_PTE_SETUP(sv39, PA, test_region, (PTE_D | PTE_A | PTE_X | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0502)
+  LI(a5, 0x257a0502)
   la t1, test_region
-  sw t0, 0(t1)
+  sw a5, 0(t1)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: MXR=1 SUM=0 S-page X-only VS lw | Expected: Successful
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(a4, 0)
@@ -1048,8 +1049,9 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   lw a4, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test2_mxr1_xs_lw:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test2_mxr1_xs_lw, test2_mxr1_xs_lw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test2_mxr1_xs_lw:
+  # Check if x14 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x14, SvH_cg_cp_vsstatus_mxr_sum_rw_test2_mxr1_xs_lw, SvH_cg_cp_vsstatus_mxr_sum_rw_test2_mxr1_xs_lw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -1061,12 +1063,12 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   VS_PTE_SETUP(sv39, PA, test_region, (PTE_D | PTE_A | PTE_X | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0503)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(t1, 0x257a0503)
+  la a3, test_region
+  sw t1, 0(a3)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 3: MXR=1 SUM=0 S-page X-only VS sw | Expected: Expected Fault
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(t0, 0xbad00fad)
@@ -1076,8 +1078,9 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   RVTEST_GOTO_MMODE
   la t1, test_region
   lw a3, 0(t1)
-  test3_mxr1_xs_sw:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test3_mxr1_xs_sw, test3_mxr1_xs_sw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test3_mxr1_xs_sw:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_vsstatus_mxr_sum_rw_test3_mxr1_xs_sw, SvH_cg_cp_vsstatus_mxr_sum_rw_test3_mxr1_xs_sw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -1086,12 +1089,12 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   VS_PTE_SETUP(sv39, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0504)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(t1, 0x257a0504)
+  la a3, test_region
+  sw t1, 0(a3)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 4: MXR=0 SUM=0 U-page X-only VS lw | Expected: Expected Fault
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(a6, 0)
@@ -1099,8 +1102,9 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   lw a6, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test4_mxr0_xu:
-  RVTEST_SIGUPD(x2, x5, x4, a6, test4_mxr0_xu, test4_mxr0_xu_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test4_mxr0_xu:
+  # Check if x16 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x16, SvH_cg_cp_vsstatus_mxr_sum_rw_test4_mxr0_xu, SvH_cg_cp_vsstatus_mxr_sum_rw_test4_mxr0_xu_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -1112,12 +1116,12 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   VS_PTE_SETUP(sv39, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0505)
+  LI(a4, 0x257a0505)
   la t1, test_region
-  sw t0, 0(t1)
+  sw a4, 0(t1)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 5: MXR=1 SUM=0 U-page X-only VS lw | Expected: Expected Fault
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(a7, 0)
@@ -1125,8 +1129,9 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   lw a7, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test5_mxr1_xu:
-  RVTEST_SIGUPD(x2, x5, x4, a7, test5_mxr1_xu, test5_mxr1_xu_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test5_mxr1_xu:
+  # Check if x17 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x17, SvH_cg_cp_vsstatus_mxr_sum_rw_test5_mxr1_xu, SvH_cg_cp_vsstatus_mxr_sum_rw_test5_mxr1_xu_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrs sstatus, t0
@@ -1135,12 +1140,12 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   VS_PTE_SETUP(sv39, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0506)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a5, 0x257a0506)
+  la a3, test_region
+  sw a5, 0(a3)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 6: MXR=1 SUM=1 U-page X-only VS lw | Expected: Successful
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(a3, 0)
@@ -1148,8 +1153,9 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   lw a3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test6_mxr1_sum1_xu:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test6_mxr1_sum1_xu, test6_mxr1_sum1_xu_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test6_mxr1_sum1_xu:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_vsstatus_mxr_sum_rw_test6_mxr1_sum1_xu, SvH_cg_cp_vsstatus_mxr_sum_rw_test6_mxr1_sum1_xu_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -1161,12 +1167,12 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   VS_PTE_SETUP(sv39, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0507)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a4, 0x257a0507)
+  la s0, test_region
+  sw a4, 0(s0)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 7: MXR=0 SUM=1 U-page XWR=111 VS lw | Expected: Successful
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(a4, 0)
@@ -1174,8 +1180,9 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   lw a4, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test7_sum1_urw_lw:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test7_sum1_urw_lw, test7_sum1_urw_lw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test7_sum1_urw_lw:
+  # Check if x14 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x14, SvH_cg_cp_vsstatus_mxr_sum_rw_test7_sum1_urw_lw, SvH_cg_cp_vsstatus_mxr_sum_rw_test7_sum1_urw_lw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrs sstatus, t0
@@ -1184,12 +1191,12 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   VS_PTE_SETUP(sv39, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0508)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a4, 0x257a0508)
+  la a5, test_region
+  sw a4, 0(a5)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 8: MXR=1 SUM=1 U-page XWR=111 VS sw+lw | Expected: Successful
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(t0, 0x257a0508)
@@ -1199,8 +1206,9 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   lw a6, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test8_sum1_urw_swlw:
-  RVTEST_SIGUPD(x2, x5, x4, a6, test8_sum1_urw_swlw, test8_sum1_urw_swlw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test8_sum1_urw_swlw:
+  # Check if x16 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x16, SvH_cg_cp_vsstatus_mxr_sum_rw_test8_sum1_urw_swlw, SvH_cg_cp_vsstatus_mxr_sum_rw_test8_sum1_urw_swlw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -1209,12 +1217,12 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   VS_PTE_SETUP(sv39, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0509)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a3, 0x257a0509)
+  la a5, test_region
+  sw a3, 0(a5)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 9: MXR=0 SUM=0 U-page XWR=111 VS sw | Expected: Expected Fault
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(t0, 0xbad00fad)
@@ -1224,8 +1232,9 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   RVTEST_GOTO_MMODE
   la t1, test_region
   lw s2, 0(t1)
-  test9_sum0_urw_sw:
-  RVTEST_SIGUPD(x2, x5, x4, s2, test9_sum0_urw_sw, test9_sum0_urw_sw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test9_sum0_urw_sw:
+  # Check if x18 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x18, SvH_cg_cp_vsstatus_mxr_sum_rw_test9_sum0_urw_sw, SvH_cg_cp_vsstatus_mxr_sum_rw_test9_sum0_urw_sw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -1234,12 +1243,12 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   VS_PTE_SETUP(sv39, PA, test_region_s_rw, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V), va_s_rw, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a050a)
-  la t1, test_region_s_rw
-  sw t0, 0(t1)
+  LI(a5, 0x257a050a)
+  la a3, test_region_s_rw
+  sw a5, 0(a3)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 10: MXR=0 SUM=0 S-page XWR=111 VS sw+lw | Expected: Successful
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_s_rw)
   LI(t0, 0x257a050a)
@@ -1249,8 +1258,9 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   lw a7, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test10_srw_swlw:
-  RVTEST_SIGUPD(x2, x5, x4, a7, test10_srw_swlw, test10_srw_swlw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test10_srw_swlw:
+  # Check if x17 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x17, SvH_cg_cp_vsstatus_mxr_sum_rw_test10_srw_swlw, SvH_cg_cp_vsstatus_mxr_sum_rw_test10_srw_swlw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -1259,12 +1269,12 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   VS_PTE_SETUP(sv39, PA, test_region_s_rw, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V), va_s_rw, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a050b)
-  la t1, test_region_s_rw
-  sw t0, 0(t1)
+  LI(t1, 0x257a050b)
+  la a4, test_region_s_rw
+  sw t1, 0(a4)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 10b: MXR=0 SUM=0 S-page XWR=111 VS lw only | Expected: Successful
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_s_rw)
   LI(s11, 0)
@@ -1272,8 +1282,9 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   lw s11, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test10b_srw_lw:
-  RVTEST_SIGUPD(x2, x5, x4, s11, test10b_srw_lw, test10b_srw_lw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test10b_srw_lw:
+  # Check if x27 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x27, SvH_cg_cp_vsstatus_mxr_sum_rw_test10b_srw_lw, SvH_cg_cp_vsstatus_mxr_sum_rw_test10b_srw_lw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -1285,12 +1296,12 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   VS_PTE_SETUP(sv39, PA, test_region, (PTE_D | PTE_A | PTE_X | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a050c)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(s0, 0x257a050c)
+  la s1, test_region
+  sw s0, 0(s1)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 11: MXR=0 SUM=1 S-page X-only VS lw | Expected: Expected Fault
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(s3, 0)
@@ -1298,8 +1309,9 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   lw s3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test11_sum1_mxr0_xs:
-  RVTEST_SIGUPD(x2, x5, x4, s3, test11_sum1_mxr0_xs, test11_sum1_mxr0_xs_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test11_sum1_mxr0_xs:
+  # Check if x19 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x19, SvH_cg_cp_vsstatus_mxr_sum_rw_test11_sum1_mxr0_xs, SvH_cg_cp_vsstatus_mxr_sum_rw_test11_sum1_mxr0_xs_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrs sstatus, t0
@@ -1308,12 +1320,12 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   VS_PTE_SETUP(sv39, PA, test_region_s_rw, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V), va_s_rw, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a050d)
-  la t1, test_region_s_rw
-  sw t0, 0(t1)
+  LI(a3, 0x257a050d)
+  la s1, test_region_s_rw
+  sw a3, 0(s1)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 12: MXR=1 SUM=1 S-page XWR=111 VS lw | Expected: Successful
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_s_rw)
   LI(s2, 0)
@@ -1321,8 +1333,9 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   lw s2, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test12_mxr1_sum1_srw:
-  RVTEST_SIGUPD(x2, x5, x4, s2, test12_mxr1_sum1_srw, test12_mxr1_sum1_srw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test12_mxr1_sum1_srw:
+  # Check if x18 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x18, SvH_cg_cp_vsstatus_mxr_sum_rw_test12_mxr1_sum1_srw, SvH_cg_cp_vsstatus_mxr_sum_rw_test12_mxr1_sum1_srw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -1334,12 +1347,12 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   VS_PTE_SETUP(sv39, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a050e)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(s0, 0x257a050e)
+  la s1, test_region
+  sw s0, 0(s1)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 13: MXR=0 SUM=1 U-page X-only VS lw | Expected: Expected Fault
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(s4, 0)
@@ -1347,8 +1360,9 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   lw s4, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test13_sum1_mxr0_xu:
-  RVTEST_SIGUPD(x2, x5, x4, s4, test13_sum1_mxr0_xu, test13_sum1_mxr0_xu_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test13_sum1_mxr0_xu:
+  # Check if x20 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x20, SvH_cg_cp_vsstatus_mxr_sum_rw_test13_sum1_mxr0_xu, SvH_cg_cp_vsstatus_mxr_sum_rw_test13_sum1_mxr0_xu_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrs sstatus, t0
@@ -1357,12 +1371,12 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   VS_PTE_SETUP(sv39, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a050f)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a3, 0x257a050f)
+  la s0, test_region
+  sw a3, 0(s0)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 14: MXR=1 SUM=1 U-page X-only VS sw | Expected: Expected Fault
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(t0, 0xbad00fad)
@@ -1372,8 +1386,9 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   RVTEST_GOTO_MMODE
   la t1, test_region
   lw s5, 0(t1)
-  test14_mxr1_sum1_xu_sw:
-  RVTEST_SIGUPD(x2, x5, x4, s5, test14_mxr1_sum1_xu_sw, test14_mxr1_sum1_xu_sw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test14_mxr1_sum1_xu_sw:
+  # Check if x21 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x21, SvH_cg_cp_vsstatus_mxr_sum_rw_test14_mxr1_sum1_xu_sw, SvH_cg_cp_vsstatus_mxr_sum_rw_test14_mxr1_sum1_xu_sw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -1385,12 +1400,12 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   VS_PTE_SETUP(sv39, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0510)
+  LI(s0, 0x257a0510)
   la t1, test_region
-  sw t0, 0(t1)
+  sw s0, 0(t1)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 15: MXR=1 SUM=0 U-page XWR=111 VS lw | Expected: Expected Fault
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(s6, 0)
@@ -1398,8 +1413,9 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   lw s6, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test15_mxr1_sum0_urw:
-  RVTEST_SIGUPD(x2, x5, x4, s6, test15_mxr1_sum0_urw, test15_mxr1_sum0_urw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test15_mxr1_sum0_urw:
+  # Check if x22 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x22, SvH_cg_cp_vsstatus_mxr_sum_rw_test15_mxr1_sum0_urw, SvH_cg_cp_vsstatus_mxr_sum_rw_test15_mxr1_sum0_urw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrs sstatus, t0
@@ -1408,12 +1424,12 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   VS_PTE_SETUP(sv39, PA, test_region, (PTE_D | PTE_A | PTE_X | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0511)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a4, 0x257a0511)
+  la a3, test_region
+  sw a4, 0(a3)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 16: MXR=1 SUM=1 S-page X-only VS sw | Expected: Expected Fault
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(t0, 0xbad00fad)
@@ -1423,8 +1439,9 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   RVTEST_GOTO_MMODE
   la t1, test_region
   lw s7, 0(t1)
-  test16_mxr1_sum1_xs_sw:
-  RVTEST_SIGUPD(x2, x5, x4, s7, test16_mxr1_sum1_xs_sw, test16_mxr1_sum1_xs_sw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test16_mxr1_sum1_xs_sw:
+  # Check if x23 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x23, SvH_cg_cp_vsstatus_mxr_sum_rw_test16_mxr1_sum1_xs_sw, SvH_cg_cp_vsstatus_mxr_sum_rw_test16_mxr1_sum1_xs_sw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -1436,12 +1453,12 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   VS_PTE_SETUP(sv39, PA, test_region_s_rw, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V), va_s_rw, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0512)
-  la t1, test_region_s_rw
-  sw t0, 0(t1)
+  LI(a4, 0x257a0512)
+  la s0, test_region_s_rw
+  sw a4, 0(s0)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 17: MXR=0 SUM=1 S-page XWR=111 VS lw | Expected: Successful
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_s_rw)
   LI(s2, 0)
@@ -1449,8 +1466,9 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   lw s2, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test17_sum1_mxr0_srw:
-  RVTEST_SIGUPD(x2, x5, x4, s2, test17_sum1_mxr0_srw, test17_sum1_mxr0_srw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test17_sum1_mxr0_srw:
+  # Check if x18 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x18, SvH_cg_cp_vsstatus_mxr_sum_rw_test17_sum1_mxr0_srw, SvH_cg_cp_vsstatus_mxr_sum_rw_test17_sum1_mxr0_srw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -1462,12 +1480,12 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   VS_PTE_SETUP(sv39, PA, test_region_s_rw, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V), va_s_rw, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0513)
-  la t1, test_region_s_rw
-  sw t0, 0(t1)
+  LI(a5, 0x257a0513)
+  la a3, test_region_s_rw
+  sw a5, 0(a3)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 18: MXR=1 SUM=0 S-page XWR=111 VS sw+lw | Expected: Successful
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_s_rw)
   LI(t0, 0x257a0513)
@@ -1477,8 +1495,9 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   lw s3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test18_mxr1_sum0_srw_sw:
-  RVTEST_SIGUPD(x2, x5, x4, s3, test18_mxr1_sum0_srw_sw, test18_mxr1_sum0_srw_sw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test18_mxr1_sum0_srw_sw:
+  # Check if x19 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x19, SvH_cg_cp_vsstatus_mxr_sum_rw_test18_mxr1_sum0_srw_sw, SvH_cg_cp_vsstatus_mxr_sum_rw_test18_mxr1_sum0_srw_sw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -1490,12 +1509,12 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   VS_PTE_SETUP(sv39, PA, test_region, (PTE_D | PTE_A | PTE_X | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0514)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(s1, 0x257a0514)
+  la a5, test_region
+  sw s1, 0(a5)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 19: MXR=0 SUM=1 S-page X-only VS sw | Expected: Expected Fault
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(t0, 0xbad00fad)
@@ -1505,8 +1524,9 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   RVTEST_GOTO_MMODE
   la t1, test_region
   lw s4, 0(t1)
-  test19_sum1_xs_sw:
-  RVTEST_SIGUPD(x2, x5, x4, s4, test19_sum1_xs_sw, test19_sum1_xs_sw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test19_sum1_xs_sw:
+  # Check if x20 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x20, SvH_cg_cp_vsstatus_mxr_sum_rw_test19_sum1_xs_sw, SvH_cg_cp_vsstatus_mxr_sum_rw_test19_sum1_xs_sw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -1518,12 +1538,12 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   VS_PTE_SETUP(sv39, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0515)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a3, 0x257a0515)
+  la s1, test_region
+  sw a3, 0(s1)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 20: MXR=0 SUM=1 U-page X-only VS sw | Expected: Expected Fault
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(t0, 0xbad00fad)
@@ -1533,8 +1553,9 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   RVTEST_GOTO_MMODE
   la t1, test_region
   lw s5, 0(t1)
-  test20_sum1_xu_sw:
-  RVTEST_SIGUPD(x2, x5, x4, s5, test20_sum1_xu_sw, test20_sum1_xu_sw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test20_sum1_xu_sw:
+  # Check if x21 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x21, SvH_cg_cp_vsstatus_mxr_sum_rw_test20_sum1_xu_sw, SvH_cg_cp_vsstatus_mxr_sum_rw_test20_sum1_xu_sw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -1543,12 +1564,12 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   VS_PTE_SETUP(sv39, PA, test_region_s_rw, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V), va_s_rw, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x8067)
-  la t1, test_region_s_rw
-  sw t0, 0(t1)
+  LI(s1, 0x8067)
+  la a3, test_region_s_rw
+  sw s1, 0(a3)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 21: MXR=0 SUM=0 S-page XWR=111 VS jalr | Expected: Successful
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_s_rw)
   LI(s8, 0)
@@ -1558,8 +1579,9 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   LI(s8, 0x257a0516)
   nop
   RVTEST_GOTO_MMODE
-  test21_srw_jalr:
-  RVTEST_SIGUPD(x2, x5, x4, s8, test21_srw_jalr, test21_srw_jalr_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test21_srw_jalr:
+  # Check if x24 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x24, SvH_cg_cp_vsstatus_mxr_sum_rw_test21_srw_jalr, SvH_cg_cp_vsstatus_mxr_sum_rw_test21_srw_jalr_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -1571,12 +1593,12 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   VS_PTE_SETUP(sv39, PA, test_region_s_rw, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V), va_s_rw, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x8067)
-  la t1, test_region_s_rw
-  sw t0, 0(t1)
+  LI(a3, 0x8067)
+  la a4, test_region_s_rw
+  sw a3, 0(a4)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 22: MXR=0 SUM=1 S-page XWR=111 VS jalr | Expected: Successful
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_s_rw)
   LI(s9, 0)
@@ -1586,8 +1608,9 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   LI(s9, 0x257a0517)
   nop
   RVTEST_GOTO_MMODE
-  test22_sum1_srw_jalr:
-  RVTEST_SIGUPD(x2, x5, x4, s9, test22_sum1_srw_jalr, test22_sum1_srw_jalr_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test22_sum1_srw_jalr:
+  # Check if x25 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x25, SvH_cg_cp_vsstatus_mxr_sum_rw_test22_sum1_srw_jalr, SvH_cg_cp_vsstatus_mxr_sum_rw_test22_sum1_srw_jalr_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrs sstatus, t0
@@ -1596,12 +1619,12 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   VS_PTE_SETUP(sv39, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x8067)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(s0, 0x8067)
+  la a5, test_region
+  sw s0, 0(a5)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 23: MXR=1 SUM=1 U-page XWR=111 VS jalr | Expected: Successful
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(s10, 0)
@@ -1611,8 +1634,9 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   LI(s10, 0x257a0518)
   nop
   RVTEST_GOTO_MMODE
-  test23_urw_jalr:
-  RVTEST_SIGUPD(x2, x5, x4, s10, test23_urw_jalr, test23_urw_jalr_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test23_urw_jalr:
+  # Check if x26 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x26, SvH_cg_cp_vsstatus_mxr_sum_rw_test23_urw_jalr, SvH_cg_cp_vsstatus_mxr_sum_rw_test23_urw_jalr_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrs sstatus, t0
@@ -1621,12 +1645,12 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   VS_PTE_SETUP(sv39, PA, test_region_s_rw, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V), va_s_rw, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0519)
-  la t1, test_region_s_rw
-  sw t0, 0(t1)
+  LI(s0, 0x257a0519)
+  la s1, test_region_s_rw
+  sw s0, 0(s1)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 24: MXR=1 SUM=1 S-page XWR=111 VS sw+lw | Expected: Successful
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_s_rw)
   LI(t0, 0x257a0519)
@@ -1636,8 +1660,9 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   lw s2, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test24_mxr1_sum1_srw_sw:
-  RVTEST_SIGUPD(x2, x5, x4, s2, test24_mxr1_sum1_srw_sw, test24_mxr1_sum1_srw_sw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test24_mxr1_sum1_srw_sw:
+  # Check if x18 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x18, SvH_cg_cp_vsstatus_mxr_sum_rw_test24_mxr1_sum1_srw_sw, SvH_cg_cp_vsstatus_mxr_sum_rw_test24_mxr1_sum1_srw_sw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -1649,12 +1674,12 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   VS_PTE_SETUP(sv39, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a051a)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a3, 0x257a051a)
+  la a5, test_region
+  sw a3, 0(a5)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 25: MXR=1 SUM=0 U-page X-only VS sw | Expected: Expected Fault
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(t0, 0xbad00fad)
@@ -1664,8 +1689,9 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   RVTEST_GOTO_MMODE
   la t1, test_region
   lw s3, 0(t1)
-  test25_mxr1_xu_sw:
-  RVTEST_SIGUPD(x2, x5, x4, s3, test25_mxr1_xu_sw, test25_mxr1_xu_sw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test25_mxr1_xu_sw:
+  # Check if x19 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x19, SvH_cg_cp_vsstatus_mxr_sum_rw_test25_mxr1_xu_sw, SvH_cg_cp_vsstatus_mxr_sum_rw_test25_mxr1_xu_sw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -1677,12 +1703,12 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   VS_PTE_SETUP(sv39, PA, test_region, (PTE_D | PTE_A | PTE_X | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a051b)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(s0, 0x257a051b)
+  la a3, test_region
+  sw s0, 0(a3)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 26: MXR=1 SUM=0 S-page X-only VS sw | Expected: Expected Fault
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(t0, 0xbad00fad)
@@ -1692,8 +1718,9 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   RVTEST_GOTO_MMODE
   la t1, test_region
   lw s4, 0(t1)
-  test26_mxr1_xs_sw:
-  RVTEST_SIGUPD(x2, x5, x4, s4, test26_mxr1_xs_sw, test26_mxr1_xs_sw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test26_mxr1_xs_sw:
+  # Check if x20 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x20, SvH_cg_cp_vsstatus_mxr_sum_rw_test26_mxr1_xs_sw, SvH_cg_cp_vsstatus_mxr_sum_rw_test26_mxr1_xs_sw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -1705,12 +1732,12 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   VS_PTE_SETUP(sv39, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a051c)
+  LI(a4, 0x257a051c)
   la t1, test_region
-  sw t0, 0(t1)
+  sw a4, 0(t1)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 27: MXR=1 SUM=0 U-page XWR=111 VS sw | Expected: Expected Fault
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(t0, 0xbad00fad)
@@ -1720,8 +1747,9 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   RVTEST_GOTO_MMODE
   la t1, test_region
   lw s5, 0(t1)
-  test27_mxr1_sum0_urw_sw:
-  RVTEST_SIGUPD(x2, x5, x4, s5, test27_mxr1_sum0_urw_sw, test27_mxr1_sum0_urw_sw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test27_mxr1_sum0_urw_sw:
+  # Check if x21 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x21, SvH_cg_cp_vsstatus_mxr_sum_rw_test27_mxr1_sum0_urw_sw, SvH_cg_cp_vsstatus_mxr_sum_rw_test27_mxr1_sum0_urw_sw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -1730,12 +1758,12 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   VS_PTE_SETUP(sv39, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a051d)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a3, 0x257a051d)
+  la s0, test_region
+  sw a3, 0(s0)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 28: MXR=0 SUM=0 U-page X-only VS sw | Expected: Expected Fault
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(t0, 0xbad00fad)
@@ -1745,8 +1773,9 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   RVTEST_GOTO_MMODE
   la t1, test_region
   lw s2, 0(t1)
-  test28_mxr0_xu_sw:
-  RVTEST_SIGUPD(x2, x5, x4, s2, test28_mxr0_xu_sw, test28_mxr0_xu_sw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test28_mxr0_xu_sw:
+  # Check if x18 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x18, SvH_cg_cp_vsstatus_mxr_sum_rw_test28_mxr0_xu_sw, SvH_cg_cp_vsstatus_mxr_sum_rw_test28_mxr0_xu_sw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrs sstatus, t0
@@ -1755,12 +1784,12 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   VS_PTE_SETUP(sv39, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a051e)
+  LI(s0, 0x257a051e)
   la t1, test_region
-  sw t0, 0(t1)
+  sw s0, 0(t1)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 29: MXR=1 SUM=1 U-page XWR=111 VS lw | Expected: Successful
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(s3, 0)
@@ -1768,8 +1797,9 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   lw s3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test29_mxr1_sum1_urw_lw:
-  RVTEST_SIGUPD(x2, x5, x4, s3, test29_mxr1_sum1_urw_lw, test29_mxr1_sum1_urw_lw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test29_mxr1_sum1_urw_lw:
+  # Check if x19 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x19, SvH_cg_cp_vsstatus_mxr_sum_rw_test29_mxr1_sum1_urw_lw, SvH_cg_cp_vsstatus_mxr_sum_rw_test29_mxr1_sum1_urw_lw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrs sstatus, t0
@@ -1778,12 +1808,12 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   VS_PTE_SETUP(sv39, PA, test_region, (PTE_D | PTE_A | PTE_X | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a051f)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a3, 0x257a051f)
+  la a5, test_region
+  sw a3, 0(a5)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 30: MXR=1 SUM=1 S-page X-only VS lw | Expected: Successful
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(s4, 0)
@@ -1791,8 +1821,9 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   lw s4, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test30_mxr1_sum1_xs_lw:
-  RVTEST_SIGUPD(x2, x5, x4, s4, test30_mxr1_sum1_xs_lw, test30_mxr1_sum1_xs_lw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test30_mxr1_sum1_xs_lw:
+  # Check if x20 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x20, SvH_cg_cp_vsstatus_mxr_sum_rw_test30_mxr1_sum1_xs_lw, SvH_cg_cp_vsstatus_mxr_sum_rw_test30_mxr1_sum1_xs_lw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -1804,12 +1835,12 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   VS_PTE_SETUP(sv39, PA, test_region_s_rw, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V), va_s_rw, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0520)
-  la t1, test_region_s_rw
-  sw t0, 0(t1)
+  LI(a5, 0x257a0520)
+  la a4, test_region_s_rw
+  sw a5, 0(a4)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 31: MXR=1 SUM=0 S-page XWR=111 VS lw only | Expected: Successful
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_s_rw)
   LI(s5, 0)
@@ -1817,8 +1848,9 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   lw s5, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test31_mxr1_sum0_srw_lw:
-  RVTEST_SIGUPD(x2, x5, x4, s5, test31_mxr1_sum0_srw_lw, test31_mxr1_sum0_srw_lw_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test31_mxr1_sum0_srw_lw:
+  # Check if x21 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x21, SvH_cg_cp_vsstatus_mxr_sum_rw_test31_mxr1_sum0_srw_lw, SvH_cg_cp_vsstatus_mxr_sum_rw_test31_mxr1_sum0_srw_lw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -1830,12 +1862,12 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   VS_PTE_SETUP(sv39, PA, test_region_s_rw, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V), va_s_rw, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x8067)
-  la t1, test_region_s_rw
-  sw t0, 0(t1)
+  LI(a5, 0x8067)
+  la s1, test_region_s_rw
+  sw a5, 0(s1)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 32: MXR=1 SUM=0 S-page XWR=111 VS jalr | Expected: Successful
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_s_rw)
   LI(s6, 0)
@@ -1845,8 +1877,9 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   LI(s6, 0x257a0521)
   nop
   RVTEST_GOTO_MMODE
-  test32_mxr1_sum0_srw_jalr:
-  RVTEST_SIGUPD(x2, x5, x4, s6, test32_mxr1_sum0_srw_jalr, test32_mxr1_sum0_srw_jalr_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test32_mxr1_sum0_srw_jalr:
+  # Check if x22 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x22, SvH_cg_cp_vsstatus_mxr_sum_rw_test32_mxr1_sum0_srw_jalr, SvH_cg_cp_vsstatus_mxr_sum_rw_test32_mxr1_sum0_srw_jalr_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrs sstatus, t0
@@ -1855,12 +1888,12 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   VS_PTE_SETUP(sv39, PA, test_region_s_rw, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V), va_s_rw, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x8067)
-  la t1, test_region_s_rw
-  sw t0, 0(t1)
+  LI(a5, 0x8067)
+  la a4, test_region_s_rw
+  sw a5, 0(a4)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 32b: MXR=1 SUM=1 S-page XWR=111 VS jalr | Expected: Successful
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_s_rw)
   LI(s8, 0)
@@ -1870,8 +1903,9 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   LI(s8, 0x257a0522)
   nop
   RVTEST_GOTO_MMODE
-  test32b_mxr1_sum1_srw_jalr:
-  RVTEST_SIGUPD(x2, x5, x4, s8, test32b_mxr1_sum1_srw_jalr, test32b_mxr1_sum1_srw_jalr_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test32b_mxr1_sum1_srw_jalr:
+  # Check if x24 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x24, SvH_cg_cp_vsstatus_mxr_sum_rw_test32b_mxr1_sum1_srw_jalr, SvH_cg_cp_vsstatus_mxr_sum_rw_test32b_mxr1_sum1_srw_jalr_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrs sstatus, t0
@@ -1880,12 +1914,12 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   VS_PTE_SETUP(sv39, PA, test_region, (PTE_D | PTE_A | PTE_X | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0523)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(s0, 0x257a0523)
+  la s1, test_region
+  sw s0, 0(s1)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 33: MXR=1 SUM=1 S-page X-only VS lw | Expected: Successful
-// Coverpoints: cp_vsstatus_mxr_sum
+// Coverpoints: cp_vsstatus_mxr_sum_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(s7, 0)
@@ -1893,8 +1927,9 @@ test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS
   lw s7, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test33_mxr1_sum1_xs_lw2:
-  RVTEST_SIGUPD(x2, x5, x4, s7, test33_mxr1_sum1_xs_lw2, test33_mxr1_sum1_xs_lw2_str)
+SvH_cg_cp_vsstatus_mxr_sum_rw_test33_mxr1_sum1_xs_lw2:
+  # Check if x23 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x23, SvH_cg_cp_vsstatus_mxr_sum_rw_test33_mxr1_sum1_xs_lw2, SvH_cg_cp_vsstatus_mxr_sum_rw_test33_mxr1_sum1_xs_lw2_str)
 
 
   .pushsection .data
@@ -1916,41 +1951,6 @@ rvtest_vlvl1_pg_tbl:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_mxr0_xs_str: .string "\"Mismatch on MXR=0 SUM=0 S-page X-only VS lw in Test Case 1!\""
-test2_mxr1_xs_lw_str: .string "\"Mismatch on MXR=1 SUM=0 S-page X-only VS lw in Test Case 2!\""
-test3_mxr1_xs_sw_str: .string "\"Mismatch on MXR=1 SUM=0 S-page X-only VS sw in Test Case 3!\""
-test4_mxr0_xu_str: .string "\"Mismatch on MXR=0 SUM=0 U-page X-only VS lw in Test Case 4!\""
-test5_mxr1_xu_str: .string "\"Mismatch on MXR=1 SUM=0 U-page X-only VS lw in Test Case 5!\""
-test6_mxr1_sum1_xu_str: .string "\"Mismatch on MXR=1 SUM=1 U-page X-only VS lw in Test Case 6!\""
-test7_sum1_urw_lw_str: .string "\"Mismatch on MXR=0 SUM=1 U-page XWR=111 VS lw in Test Case 7!\""
-test8_sum1_urw_swlw_str: .string "\"Mismatch on MXR=1 SUM=1 U-page XWR=111 VS sw+lw in Test Case 8!\""
-test9_sum0_urw_sw_str: .string "\"Mismatch on MXR=0 SUM=0 U-page XWR=111 VS sw in Test Case 9!\""
-test10_srw_swlw_str: .string "\"Mismatch on MXR=0 SUM=0 S-page XWR=111 VS sw+lw in Test Case 10!\""
-test10b_srw_lw_str: .string "\"Mismatch on MXR=0 SUM=0 S-page XWR=111 VS lw only in Test Case 10b!\""
-test11_sum1_mxr0_xs_str: .string "\"Mismatch on MXR=0 SUM=1 S-page X-only VS lw in Test Case 11!\""
-test12_mxr1_sum1_srw_str: .string "\"Mismatch on MXR=1 SUM=1 S-page XWR=111 VS lw in Test Case 12!\""
-test13_sum1_mxr0_xu_str: .string "\"Mismatch on MXR=0 SUM=1 U-page X-only VS lw in Test Case 13!\""
-test14_mxr1_sum1_xu_sw_str: .string "\"Mismatch on MXR=1 SUM=1 U-page X-only VS sw in Test Case 14!\""
-test15_mxr1_sum0_urw_str: .string "\"Mismatch on MXR=1 SUM=0 U-page XWR=111 VS lw in Test Case 15!\""
-test16_mxr1_sum1_xs_sw_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS sw in Test Case 16!\""
-test17_sum1_mxr0_srw_str: .string "\"Mismatch on MXR=0 SUM=1 S-page XWR=111 VS lw in Test Case 17!\""
-test18_mxr1_sum0_srw_sw_str: .string "\"Mismatch on MXR=1 SUM=0 S-page XWR=111 VS sw+lw in Test Case 18!\""
-test19_sum1_xs_sw_str: .string "\"Mismatch on MXR=0 SUM=1 S-page X-only VS sw in Test Case 19!\""
-test20_sum1_xu_sw_str: .string "\"Mismatch on MXR=0 SUM=1 U-page X-only VS sw in Test Case 20!\""
-test21_srw_jalr_str: .string "\"Mismatch on MXR=0 SUM=0 S-page XWR=111 VS jalr in Test Case 21!\""
-test22_sum1_srw_jalr_str: .string "\"Mismatch on MXR=0 SUM=1 S-page XWR=111 VS jalr in Test Case 22!\""
-test23_urw_jalr_str: .string "\"Mismatch on MXR=1 SUM=1 U-page XWR=111 VS jalr in Test Case 23!\""
-test24_mxr1_sum1_srw_sw_str: .string "\"Mismatch on MXR=1 SUM=1 S-page XWR=111 VS sw+lw in Test Case 24!\""
-test25_mxr1_xu_sw_str: .string "\"Mismatch on MXR=1 SUM=0 U-page X-only VS sw in Test Case 25!\""
-test26_mxr1_xs_sw_str: .string "\"Mismatch on MXR=1 SUM=0 S-page X-only VS sw in Test Case 26!\""
-test27_mxr1_sum0_urw_sw_str: .string "\"Mismatch on MXR=1 SUM=0 U-page XWR=111 VS sw in Test Case 27!\""
-test28_mxr0_xu_sw_str: .string "\"Mismatch on MXR=0 SUM=0 U-page X-only VS sw in Test Case 28!\""
-test29_mxr1_sum1_urw_lw_str: .string "\"Mismatch on MXR=1 SUM=1 U-page XWR=111 VS lw in Test Case 29!\""
-test30_mxr1_sum1_xs_lw_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS lw in Test Case 30!\""
-test31_mxr1_sum0_srw_lw_str: .string "\"Mismatch on MXR=1 SUM=0 S-page XWR=111 VS lw only in Test Case 31!\""
-test32_mxr1_sum0_srw_jalr_str: .string "\"Mismatch on MXR=1 SUM=0 S-page XWR=111 VS jalr in Test Case 32!\""
-test32b_mxr1_sum1_srw_jalr_str: .string "\"Mismatch on MXR=1 SUM=1 S-page XWR=111 VS jalr in Test Case 32b!\""
-test33_mxr1_sum1_xs_lw2_str: .string "\"Mismatch on MXR=1 SUM=1 S-page X-only VS lw in Test Case 33!\""
   .popsection
 
 #endif  // SV39_SUPPORTED
@@ -1965,7 +1965,79 @@ RVTEST_DATA_BEGIN
 
 
 // Testcase strings
-
+#ifdef SV32_SUPPORTED
+SvH_cg_cp_vsstatus_mxr_sum_rw_test1_mxr0_xs_str: .string "\"test: 399; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test1_mxr0_xs\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test2_mxr1_xs_lw_str: .string "\"test: 400; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test2_mxr1_xs_lw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test3_mxr1_xs_sw_str: .string "\"test: 401; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test3_mxr1_xs_sw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test4_mxr0_xu_str: .string "\"test: 402; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test4_mxr0_xu\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test5_mxr1_xu_str: .string "\"test: 403; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test5_mxr1_xu\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test6_mxr1_sum1_xu_str: .string "\"test: 404; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test6_mxr1_sum1_xu\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test7_sum1_urw_lw_str: .string "\"test: 405; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test7_sum1_urw_lw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test8_sum1_urw_swlw_str: .string "\"test: 406; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test8_sum1_urw_swlw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test9_sum0_urw_sw_str: .string "\"test: 407; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test9_sum0_urw_sw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test10_srw_swlw_str: .string "\"test: 408; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test10_srw_swlw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test11_sum1_mxr0_xs_str: .string "\"test: 409; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test11_sum1_mxr0_xs\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test12_mxr1_sum1_srw_str: .string "\"test: 410; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test12_mxr1_sum1_srw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test13_sum1_mxr0_xu_str: .string "\"test: 411; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test13_sum1_mxr0_xu\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test14_mxr1_sum1_xu_sw_str: .string "\"test: 412; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test14_mxr1_sum1_xu_sw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test15_mxr1_sum0_urw_str: .string "\"test: 413; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test15_mxr1_sum0_urw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test16_mxr1_sum1_xs_sw_str: .string "\"test: 414; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test16_mxr1_sum1_xs_sw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test17_sum1_mxr0_srw_str: .string "\"test: 415; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test17_sum1_mxr0_srw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test18_mxr1_sum0_srw_sw_str: .string "\"test: 416; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test18_mxr1_sum0_srw_sw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test19_sum1_xs_sw_str: .string "\"test: 417; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test19_sum1_xs_sw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test20_sum1_xu_sw_str: .string "\"test: 418; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test20_sum1_xu_sw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test21_srw_jalr_str: .string "\"test: 419; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test21_srw_jalr\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test22_sum1_srw_jalr_str: .string "\"test: 420; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test22_sum1_srw_jalr\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test23_urw_jalr_str: .string "\"test: 421; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test23_urw_jalr\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test24_mxr1_sum1_srw_sw_str: .string "\"test: 422; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test24_mxr1_sum1_srw_sw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test25_mxr1_xu_sw_str: .string "\"test: 423; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test25_mxr1_xu_sw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test26_mxr1_xs_sw_str: .string "\"test: 424; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test26_mxr1_xs_sw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test27_mxr1_sum0_urw_sw_str: .string "\"test: 425; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test27_mxr1_sum0_urw_sw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test28_mxr0_xu_sw_str: .string "\"test: 426; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test28_mxr0_xu_sw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test29_mxr1_sum1_urw_lw_str: .string "\"test: 427; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test29_mxr1_sum1_urw_lw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test30_mxr1_sum1_xs_lw_str: .string "\"test: 428; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test30_mxr1_sum1_xs_lw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test31_mxr1_sum0_srw_lw_str: .string "\"test: 429; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test31_mxr1_sum0_srw_lw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test32_mxr1_sum0_srw_jalr_str: .string "\"test: 430; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test32_mxr1_sum0_srw_jalr\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test32b_mxr1_sum1_srw_jalr_str: .string "\"test: 431; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test32b_mxr1_sum1_srw_jalr\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test33_mxr1_sum1_xs_lw2_str: .string "\"test: 432; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test33_mxr1_sum1_xs_lw2\""
+#endif  // SV32_SUPPORTED
+#ifdef SV39_SUPPORTED
+SvH_cg_cp_vsstatus_mxr_sum_rw_test1_mxr0_xs_str: .string "\"test: 433; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test1_mxr0_xs\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test2_mxr1_xs_lw_str: .string "\"test: 434; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test2_mxr1_xs_lw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test3_mxr1_xs_sw_str: .string "\"test: 435; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test3_mxr1_xs_sw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test4_mxr0_xu_str: .string "\"test: 436; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test4_mxr0_xu\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test5_mxr1_xu_str: .string "\"test: 437; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test5_mxr1_xu\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test6_mxr1_sum1_xu_str: .string "\"test: 438; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test6_mxr1_sum1_xu\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test7_sum1_urw_lw_str: .string "\"test: 439; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test7_sum1_urw_lw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test8_sum1_urw_swlw_str: .string "\"test: 440; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test8_sum1_urw_swlw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test9_sum0_urw_sw_str: .string "\"test: 441; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test9_sum0_urw_sw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test10_srw_swlw_str: .string "\"test: 442; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test10_srw_swlw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test10b_srw_lw_str: .string "\"test: 443; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test10b_srw_lw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test11_sum1_mxr0_xs_str: .string "\"test: 444; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test11_sum1_mxr0_xs\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test12_mxr1_sum1_srw_str: .string "\"test: 445; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test12_mxr1_sum1_srw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test13_sum1_mxr0_xu_str: .string "\"test: 446; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test13_sum1_mxr0_xu\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test14_mxr1_sum1_xu_sw_str: .string "\"test: 447; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test14_mxr1_sum1_xu_sw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test15_mxr1_sum0_urw_str: .string "\"test: 448; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test15_mxr1_sum0_urw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test16_mxr1_sum1_xs_sw_str: .string "\"test: 449; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test16_mxr1_sum1_xs_sw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test17_sum1_mxr0_srw_str: .string "\"test: 450; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test17_sum1_mxr0_srw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test18_mxr1_sum0_srw_sw_str: .string "\"test: 451; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test18_mxr1_sum0_srw_sw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test19_sum1_xs_sw_str: .string "\"test: 452; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test19_sum1_xs_sw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test20_sum1_xu_sw_str: .string "\"test: 453; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test20_sum1_xu_sw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test21_srw_jalr_str: .string "\"test: 454; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test21_srw_jalr\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test22_sum1_srw_jalr_str: .string "\"test: 455; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test22_sum1_srw_jalr\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test23_urw_jalr_str: .string "\"test: 456; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test23_urw_jalr\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test24_mxr1_sum1_srw_sw_str: .string "\"test: 457; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test24_mxr1_sum1_srw_sw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test25_mxr1_xu_sw_str: .string "\"test: 458; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test25_mxr1_xu_sw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test26_mxr1_xs_sw_str: .string "\"test: 459; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test26_mxr1_xs_sw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test27_mxr1_sum0_urw_sw_str: .string "\"test: 460; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test27_mxr1_sum0_urw_sw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test28_mxr0_xu_sw_str: .string "\"test: 461; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test28_mxr0_xu_sw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test29_mxr1_sum1_urw_lw_str: .string "\"test: 462; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test29_mxr1_sum1_urw_lw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test30_mxr1_sum1_xs_lw_str: .string "\"test: 463; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test30_mxr1_sum1_xs_lw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test31_mxr1_sum0_srw_lw_str: .string "\"test: 464; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test31_mxr1_sum0_srw_lw\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test32_mxr1_sum0_srw_jalr_str: .string "\"test: 465; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test32_mxr1_sum0_srw_jalr\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test32b_mxr1_sum1_srw_jalr_str: .string "\"test: 466; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test32b_mxr1_sum1_srw_jalr\""
+SvH_cg_cp_vsstatus_mxr_sum_rw_test33_mxr1_sum1_xs_lw2_str: .string "\"test: 467; cg: SvH_cg; cp: cp_vsstatus_mxr_sum_rw; bin: test33_mxr1_sum1_xs_lw2\""
+#endif  // SV39_SUPPORTED
 
 // End of test data section and model specific data
 RVTEST_DATA_END

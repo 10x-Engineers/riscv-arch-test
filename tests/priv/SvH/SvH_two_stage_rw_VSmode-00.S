@@ -62,9 +62,9 @@ RVTEST_BEGIN
   HGATP_SETUP(sv32x4)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0xdeadbeef)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a5, 0xdeadbeef)
+  la s1, test_region
+  sw a5, 0(s1)
   LI(a5, va_data)
   RVTEST_GOTO_LOWER_MODE VSmode
   LI(a2, 0x257A0005)
@@ -73,12 +73,14 @@ RVTEST_BEGIN
   lw   a3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test1_vs:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_vs, test1_vs_str)
+SvH_cg_two_stage_read_test1_vs:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_two_stage_read_test1_vs, SvH_cg_two_stage_read_test1_vs_str)
   la t1, test_region
   lw t2, 0(t1)
-  test2_spa:
-  RVTEST_SIGUPD(x2, x5, x4, t2, test2_spa, test2_spa_str)
+SvH_cg_two_stage_write_test2_spa:
+  # Check if x7 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x7, SvH_cg_two_stage_write_test2_spa, SvH_cg_two_stage_write_test2_spa_str)
 
   .pushsection .data
   .p2align 12
@@ -93,8 +95,6 @@ rvtest_hlvl0_pg_tbl:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_vs_str: .string "\"Mismatch on VS lw after two-stage sw\""
-test2_spa_str: .string "\"Mismatch on SPA readback after two-stage store\""
   .popsection
 
 #endif  // SV32_SUPPORTED
@@ -125,9 +125,9 @@ test2_spa_str: .string "\"Mismatch on SPA readback after two-stage store\""
   HGATP_SETUP(sv39x4)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0xdeadbeef)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a5, 0xdeadbeef)
+  la a4, test_region
+  sw a5, 0(a4)
   LI(a5, va_data)
   RVTEST_GOTO_LOWER_MODE VSmode
   LI(a2, 0x257A0005)
@@ -136,12 +136,14 @@ test2_spa_str: .string "\"Mismatch on SPA readback after two-stage store\""
   lw   a3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test1_vs:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_vs, test1_vs_str)
+SvH_cg_two_stage_read_test1_vs:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_two_stage_read_test1_vs, SvH_cg_two_stage_read_test1_vs_str)
   la t1, test_region
   lw t2, 0(t1)
-  test2_spa:
-  RVTEST_SIGUPD(x2, x5, x4, t2, test2_spa, test2_spa_str)
+SvH_cg_two_stage_write_test2_spa:
+  # Check if x7 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x7, SvH_cg_two_stage_write_test2_spa, SvH_cg_two_stage_write_test2_spa_str)
 
   .pushsection .data
   .p2align 12
@@ -162,8 +164,6 @@ rvtest_vlvl1_pg_tbl:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_vs_str: .string "\"Mismatch on VS lw after two-stage sw\""
-test2_spa_str: .string "\"Mismatch on SPA readback after two-stage store\""
   .popsection
 
 #endif  // SV39_SUPPORTED
@@ -178,7 +178,14 @@ RVTEST_DATA_BEGIN
 
 
 // Testcase strings
-
+#ifdef SV32_SUPPORTED
+SvH_cg_two_stage_read_test1_vs_str: .string "\"test: 25; cg: SvH_cg; cp: two_stage_read; bin: test1_vs\""
+SvH_cg_two_stage_write_test2_spa_str: .string "\"test: 26; cg: SvH_cg; cp: two_stage_write; bin: test2_spa\""
+#endif  // SV32_SUPPORTED
+#ifdef SV39_SUPPORTED
+SvH_cg_two_stage_read_test1_vs_str: .string "\"test: 27; cg: SvH_cg; cp: two_stage_read; bin: test1_vs\""
+SvH_cg_two_stage_write_test2_spa_str: .string "\"test: 28; cg: SvH_cg; cp: two_stage_write; bin: test2_spa\""
+#endif  // SV39_SUPPORTED
 
 // End of test data section and model specific data
 RVTEST_DATA_END

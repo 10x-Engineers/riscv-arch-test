@@ -52,9 +52,9 @@ RVTEST_BEGIN
   csrw hgatp, x0
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0811)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(t1, 0x257a0811)
+  la a3, test_region
+  sw t1, 0(a3)
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
   csrc vsstatus, t0
@@ -73,8 +73,9 @@ RVTEST_BEGIN
   RVTEST_GOTO_MMODE
   LI(t0, HSTATUS_SPVP)
   csrc hstatus, t0
-  test1_hlv:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_hlv, test1_hlv_str)
+SvH_cg_xonly_mxr0_vs_hs_test1_hlv:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_xonly_mxr0_vs_hs_test1_hlv, SvH_cg_xonly_mxr0_vs_hs_test1_hlv_str)
 
   .pushsection .data
   .p2align 12
@@ -89,7 +90,6 @@ rvtest_hlvl0_pg_tbl:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_hlv_str: .string "\"Mismatch on HS HLV X-only MXR=0!\""
   .popsection
 
 #endif  // SV32_SUPPORTED
@@ -107,9 +107,9 @@ test1_hlv_str: .string "\"Mismatch on HS HLV X-only MXR=0!\""
   csrw hgatp, x0
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0811)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a5, 0x257a0811)
+  la a3, test_region
+  sw a5, 0(a3)
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
   csrc vsstatus, t0
@@ -128,8 +128,9 @@ test1_hlv_str: .string "\"Mismatch on HS HLV X-only MXR=0!\""
   RVTEST_GOTO_MMODE
   LI(t0, HSTATUS_SPVP)
   csrc hstatus, t0
-  test1_hlv:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_hlv, test1_hlv_str)
+SvH_cg_xonly_mxr0_vs_hs_test1_hlv:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_xonly_mxr0_vs_hs_test1_hlv, SvH_cg_xonly_mxr0_vs_hs_test1_hlv_str)
 
   .pushsection .data
   .p2align 12
@@ -150,7 +151,6 @@ rvtest_vlvl1_pg_tbl:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_hlv_str: .string "\"Mismatch on HS HLV X-only MXR=0!\""
   .popsection
 
 #endif  // SV39_SUPPORTED
@@ -165,7 +165,12 @@ RVTEST_DATA_BEGIN
 
 
 // Testcase strings
-
+#ifdef SV32_SUPPORTED
+SvH_cg_xonly_mxr0_vs_hs_test1_hlv_str: .string "\"test: 546; cg: SvH_cg; cp: xonly_mxr0_vs_hs; bin: test1_hlv\""
+#endif  // SV32_SUPPORTED
+#ifdef SV39_SUPPORTED
+SvH_cg_xonly_mxr0_vs_hs_test1_hlv_str: .string "\"test: 547; cg: SvH_cg; cp: xonly_mxr0_vs_hs; bin: test1_hlv\""
+#endif  // SV39_SUPPORTED
 
 // End of test data section and model specific data
 RVTEST_DATA_END

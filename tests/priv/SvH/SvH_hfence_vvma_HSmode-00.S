@@ -56,9 +56,9 @@ RVTEST_BEGIN
   csrw hgatp, x0
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0901)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(s0, 0x257a0901)
+  la a5, test_region
+  sw s0, 0(a5)
 
 // --------------------------------------------------------------------------------------------------------------------------------
 // Test Cases Start from here
@@ -75,15 +75,16 @@ RVTEST_BEGIN
   lw a3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test1_all:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_all, test1_all_str)
+SvH_cg_cp_hfence_vvma_operand_test1_all:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_hfence_vvma_operand_test1_all, SvH_cg_cp_hfence_vvma_operand_test1_all_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: hfence.vvma a5, x0 then VS lw | Expected: Successful
 //--------------------------------------------------------------------------------------------------------------------------------
-  LI(t0, 0x257a0902)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a3, 0x257a0902)
+  la a4, test_region
+  sw a3, 0(a4)
   LI(a5, va_data)
   RVTEST_TSBI_GOTO_SMODE
   hfence.vvma a5, x0
@@ -92,15 +93,16 @@ RVTEST_BEGIN
   lw a3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test2_gva:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test2_gva, test2_gva_str)
+SvH_cg_cp_hfence_vvma_operand_test2_gva:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_hfence_vvma_operand_test2_gva, SvH_cg_cp_hfence_vvma_operand_test2_gva_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 3: hfence.vvma x0, a6 and a5,a6 then VS lw | Expected: Successful
 //--------------------------------------------------------------------------------------------------------------------------------
-  LI(t0, 0x257a0903)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(s1, 0x257a0903)
+  la a3, test_region
+  sw s1, 0(a3)
   LI(a5, va_data)
   csrr t0, vsatp
   LI(t1, 1)
@@ -116,8 +118,9 @@ RVTEST_BEGIN
   lw a3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test3_asid:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test3_asid, test3_asid_str)
+SvH_cg_cp_hfence_vvma_operand_test3_asid:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_hfence_vvma_operand_test3_asid, SvH_cg_cp_hfence_vvma_operand_test3_asid_str)
 
   .pushsection .data
   .p2align 12
@@ -132,9 +135,6 @@ rvtest_hlvl0_pg_tbl:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_all_str: .string "\"Mismatch on hfence.vvma VS lw\""
-test2_gva_str: .string "\"Mismatch on hfence.vvma a5, x0 VS lw\""
-test3_asid_str: .string "\"Mismatch on hfence.vvma x0, a6 and a5,a6 VS lw\""
   .popsection
 
 #endif  // SV32_SUPPORTED
@@ -157,9 +157,9 @@ test3_asid_str: .string "\"Mismatch on hfence.vvma x0, a6 and a5,a6 VS lw\""
   csrw hgatp, x0
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0901)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(s1, 0x257a0901)
+  la s0, test_region
+  sw s1, 0(s0)
 
 // --------------------------------------------------------------------------------------------------------------------------------
 // Test Cases Start from here
@@ -176,15 +176,16 @@ test3_asid_str: .string "\"Mismatch on hfence.vvma x0, a6 and a5,a6 VS lw\""
   lw a3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test1_all:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_all, test1_all_str)
+SvH_cg_cp_hfence_vvma_operand_test1_all:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_hfence_vvma_operand_test1_all, SvH_cg_cp_hfence_vvma_operand_test1_all_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: hfence.vvma a5, x0 then VS lw | Expected: Successful
 //--------------------------------------------------------------------------------------------------------------------------------
-  LI(t0, 0x257a0902)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(t1, 0x257a0902)
+  la s0, test_region
+  sw t1, 0(s0)
   LI(a5, va_data)
   RVTEST_TSBI_GOTO_SMODE
   hfence.vvma a5, x0
@@ -193,15 +194,16 @@ test3_asid_str: .string "\"Mismatch on hfence.vvma x0, a6 and a5,a6 VS lw\""
   lw a3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test2_gva:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test2_gva, test2_gva_str)
+SvH_cg_cp_hfence_vvma_operand_test2_gva:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_hfence_vvma_operand_test2_gva, SvH_cg_cp_hfence_vvma_operand_test2_gva_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 3: hfence.vvma x0, a6 and a5,a6 then VS lw | Expected: Successful
 //--------------------------------------------------------------------------------------------------------------------------------
-  LI(t0, 0x257a0903)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a4, 0x257a0903)
+  la a5, test_region
+  sw a4, 0(a5)
   LI(a5, va_data)
   csrr t0, vsatp
   LI(t1, 1)
@@ -217,8 +219,9 @@ test3_asid_str: .string "\"Mismatch on hfence.vvma x0, a6 and a5,a6 VS lw\""
   lw a3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test3_asid:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test3_asid, test3_asid_str)
+SvH_cg_cp_hfence_vvma_operand_test3_asid:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_hfence_vvma_operand_test3_asid, SvH_cg_cp_hfence_vvma_operand_test3_asid_str)
 
   .pushsection .data
   .p2align 12
@@ -239,9 +242,6 @@ rvtest_vlvl1_pg_tbl:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_all_str: .string "\"Mismatch on hfence.vvma VS lw\""
-test2_gva_str: .string "\"Mismatch on hfence.vvma a5, x0 VS lw\""
-test3_asid_str: .string "\"Mismatch on hfence.vvma x0, a6 and a5,a6 VS lw\""
   .popsection
 
 #endif  // SV39_SUPPORTED
@@ -256,7 +256,16 @@ RVTEST_DATA_BEGIN
 
 
 // Testcase strings
-
+#ifdef SV32_SUPPORTED
+SvH_cg_cp_hfence_vvma_operand_test1_all_str: .string "\"test: 654; cg: SvH_cg; cp: cp_hfence_vvma_operand; bin: test1_all\""
+SvH_cg_cp_hfence_vvma_operand_test2_gva_str: .string "\"test: 655; cg: SvH_cg; cp: cp_hfence_vvma_operand; bin: test2_gva\""
+SvH_cg_cp_hfence_vvma_operand_test3_asid_str: .string "\"test: 656; cg: SvH_cg; cp: cp_hfence_vvma_operand; bin: test3_asid\""
+#endif  // SV32_SUPPORTED
+#ifdef SV39_SUPPORTED
+SvH_cg_cp_hfence_vvma_operand_test1_all_str: .string "\"test: 657; cg: SvH_cg; cp: cp_hfence_vvma_operand; bin: test1_all\""
+SvH_cg_cp_hfence_vvma_operand_test2_gva_str: .string "\"test: 658; cg: SvH_cg; cp: cp_hfence_vvma_operand; bin: test2_gva\""
+SvH_cg_cp_hfence_vvma_operand_test3_asid_str: .string "\"test: 659; cg: SvH_cg; cp: cp_hfence_vvma_operand; bin: test3_asid\""
+#endif  // SV39_SUPPORTED
 
 // End of test data section and model specific data
 RVTEST_DATA_END

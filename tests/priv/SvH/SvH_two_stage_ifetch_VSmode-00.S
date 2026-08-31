@@ -61,8 +61,9 @@ RVTEST_BEGIN
   nop
   nop
   RVTEST_GOTO_MMODE
-  test1_ifetch:
-  RVTEST_SIGUPD(x2, x5, x4, a2, test1_ifetch, test1_ifetch_str)
+SvH_cg_two_stage_ifetch_test1_ifetch:
+  # Check if x12 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x12, SvH_cg_two_stage_ifetch_test1_ifetch, SvH_cg_two_stage_ifetch_test1_ifetch_str)
 
   .pushsection .data
   .p2align 12
@@ -77,7 +78,6 @@ rvtest_hlvl0_pg_tbl:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_ifetch_str: .string "\"Mismatch on VS ifetch through two-stage\""
   .popsection
 
 #endif  // SV32_SUPPORTED
@@ -106,8 +106,9 @@ test1_ifetch_str: .string "\"Mismatch on VS ifetch through two-stage\""
   nop
   nop
   RVTEST_GOTO_MMODE
-  test1_ifetch:
-  RVTEST_SIGUPD(x2, x5, x4, a2, test1_ifetch, test1_ifetch_str)
+SvH_cg_two_stage_ifetch_test1_ifetch:
+  # Check if x12 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x12, SvH_cg_two_stage_ifetch_test1_ifetch, SvH_cg_two_stage_ifetch_test1_ifetch_str)
 
   .pushsection .data
   .p2align 12
@@ -128,7 +129,6 @@ rvtest_vlvl1_pg_tbl:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_ifetch_str: .string "\"Mismatch on VS ifetch through two-stage\""
   .popsection
 
 #endif  // SV39_SUPPORTED
@@ -143,7 +143,12 @@ RVTEST_DATA_BEGIN
 
 
 // Testcase strings
-
+#ifdef SV32_SUPPORTED
+SvH_cg_two_stage_ifetch_test1_ifetch_str: .string "\"test: 15; cg: SvH_cg; cp: two_stage_ifetch; bin: test1_ifetch\""
+#endif  // SV32_SUPPORTED
+#ifdef SV39_SUPPORTED
+SvH_cg_two_stage_ifetch_test1_ifetch_str: .string "\"test: 16; cg: SvH_cg; cp: two_stage_ifetch; bin: test1_ifetch\""
+#endif  // SV39_SUPPORTED
 
 // End of test data section and model specific data
 RVTEST_DATA_END

@@ -50,9 +50,9 @@ RVTEST_BEGIN
   HGATP_SETUP(sv32x4)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0221)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(t1, 0x257a0221)
+  la a3, test_region
+  sw t1, 0(a3)
   LI(a5, gpa_data)
 
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -223,9 +223,9 @@ rvtest_vlvl0_pg_tbl:
   HGATP_SETUP(sv39x4)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0221)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a4, 0x257a0221)
+  la s0, test_region
+  sw a4, 0(s0)
   LI(a5, gpa_data)
 
 // --------------------------------------------------------------------------------------------------------------------------------
@@ -401,24 +401,28 @@ RVTEST_DATA_BEGIN
 
 
 // Testcase strings
-SvH_cg_cp_hgatp_invalid_pte_sv32_v0_lw_sv32_str: .string "\"test: 215; cg: SvH_cg; cp: cp_hgatp_invalid_pte; bin: sv32_v0_lw_sv32\""
-SvH_cg_cp_hgatp_nonleaf_lvl0_sv32_nonleaf_lw_sv32_str: .string "\"test: 216; cg: SvH_cg; cp: cp_hgatp_nonleaf_lvl0; bin: sv32_nonleaf_lw_sv32\""
-SvH_cg_cp_hgatp_invalid_pte_sv32_hlv_v0_sv32_str: .string "\"test: 217; cg: SvH_cg; cp: cp_hgatp_invalid_pte; bin: sv32_hlv_v0_sv32\""
-SvH_cg_cp_hgatp_invalid_pte_sv32_hsv_v0_sv32_str: .string "\"test: 218; cg: SvH_cg; cp: cp_hgatp_invalid_pte; bin: sv32_hsv_v0_sv32\""
-SvH_cg_cp_hgatp_nonleaf_lvl0_sv32_hsv_nonleaf_sv32_str: .string "\"test: 219; cg: SvH_cg; cp: cp_hgatp_nonleaf_lvl0; bin: sv32_hsv_nonleaf_sv32\""
-SvH_cg_cp_hgatp_nonleaf_lvl0_sv32_hlv_nonleaf_sv32_str: .string "\"test: 220; cg: SvH_cg; cp: cp_hgatp_nonleaf_lvl0; bin: sv32_hlv_nonleaf_sv32\""
-SvH_cg_hgatp_exception_reporting_sv32_restore_lw_sv32_str: .string "\"test: 221; cg: SvH_cg; cp: hgatp_exception_reporting; bin: sv32_restore_lw_sv32\""
-SvH_cg_cp_hgatp_invalid_pte_sv32_v0_ifetch_sv32_str: .string "\"test: 222; cg: SvH_cg; cp: cp_hgatp_invalid_pte; bin: sv32_v0_ifetch_sv32\""
-SvH_cg_hgatp_exception_reporting_sv32_v0_sw_sv32_str: .string "\"test: 223; cg: SvH_cg; cp: hgatp_exception_reporting; bin: sv32_v0_sw_sv32\""
-SvH_cg_cp_hgatp_invalid_pte_sv39_v0_lw_sv39_str: .string "\"test: 224; cg: SvH_cg; cp: cp_hgatp_invalid_pte; bin: sv39_v0_lw_sv39\""
-SvH_cg_cp_hgatp_nonleaf_lvl0_sv39_nonleaf_lw_sv39_str: .string "\"test: 225; cg: SvH_cg; cp: cp_hgatp_nonleaf_lvl0; bin: sv39_nonleaf_lw_sv39\""
-SvH_cg_cp_hgatp_invalid_pte_sv39_hlv_v0_sv39_str: .string "\"test: 226; cg: SvH_cg; cp: cp_hgatp_invalid_pte; bin: sv39_hlv_v0_sv39\""
-SvH_cg_cp_hgatp_invalid_pte_sv39_hsv_v0_sv39_str: .string "\"test: 227; cg: SvH_cg; cp: cp_hgatp_invalid_pte; bin: sv39_hsv_v0_sv39\""
-SvH_cg_cp_hgatp_nonleaf_lvl0_sv39_hsv_nonleaf_sv39_str: .string "\"test: 228; cg: SvH_cg; cp: cp_hgatp_nonleaf_lvl0; bin: sv39_hsv_nonleaf_sv39\""
-SvH_cg_cp_hgatp_nonleaf_lvl0_sv39_hlv_nonleaf_sv39_str: .string "\"test: 229; cg: SvH_cg; cp: cp_hgatp_nonleaf_lvl0; bin: sv39_hlv_nonleaf_sv39\""
-SvH_cg_hgatp_exception_reporting_sv39_restore_lw_sv39_str: .string "\"test: 230; cg: SvH_cg; cp: hgatp_exception_reporting; bin: sv39_restore_lw_sv39\""
-SvH_cg_cp_hgatp_invalid_pte_sv39_v0_ifetch_sv39_str: .string "\"test: 231; cg: SvH_cg; cp: cp_hgatp_invalid_pte; bin: sv39_v0_ifetch_sv39\""
-SvH_cg_hgatp_exception_reporting_sv39_v0_sw_sv39_str: .string "\"test: 232; cg: SvH_cg; cp: hgatp_exception_reporting; bin: sv39_v0_sw_sv39\""
+#ifdef SV32_SUPPORTED
+SvH_cg_cp_hgatp_invalid_pte_sv32_v0_lw_sv32_str: .string "\"test: 556; cg: SvH_cg; cp: cp_hgatp_invalid_pte; bin: sv32_v0_lw_sv32\""
+SvH_cg_cp_hgatp_nonleaf_lvl0_sv32_nonleaf_lw_sv32_str: .string "\"test: 557; cg: SvH_cg; cp: cp_hgatp_nonleaf_lvl0; bin: sv32_nonleaf_lw_sv32\""
+SvH_cg_cp_hgatp_invalid_pte_sv32_hlv_v0_sv32_str: .string "\"test: 558; cg: SvH_cg; cp: cp_hgatp_invalid_pte; bin: sv32_hlv_v0_sv32\""
+SvH_cg_cp_hgatp_invalid_pte_sv32_hsv_v0_sv32_str: .string "\"test: 559; cg: SvH_cg; cp: cp_hgatp_invalid_pte; bin: sv32_hsv_v0_sv32\""
+SvH_cg_cp_hgatp_nonleaf_lvl0_sv32_hsv_nonleaf_sv32_str: .string "\"test: 560; cg: SvH_cg; cp: cp_hgatp_nonleaf_lvl0; bin: sv32_hsv_nonleaf_sv32\""
+SvH_cg_cp_hgatp_nonleaf_lvl0_sv32_hlv_nonleaf_sv32_str: .string "\"test: 561; cg: SvH_cg; cp: cp_hgatp_nonleaf_lvl0; bin: sv32_hlv_nonleaf_sv32\""
+SvH_cg_hgatp_exception_reporting_sv32_restore_lw_sv32_str: .string "\"test: 562; cg: SvH_cg; cp: hgatp_exception_reporting; bin: sv32_restore_lw_sv32\""
+SvH_cg_cp_hgatp_invalid_pte_sv32_v0_ifetch_sv32_str: .string "\"test: 563; cg: SvH_cg; cp: cp_hgatp_invalid_pte; bin: sv32_v0_ifetch_sv32\""
+SvH_cg_hgatp_exception_reporting_sv32_v0_sw_sv32_str: .string "\"test: 564; cg: SvH_cg; cp: hgatp_exception_reporting; bin: sv32_v0_sw_sv32\""
+#endif  // SV32_SUPPORTED
+#ifdef SV39_SUPPORTED
+SvH_cg_cp_hgatp_invalid_pte_sv39_v0_lw_sv39_str: .string "\"test: 565; cg: SvH_cg; cp: cp_hgatp_invalid_pte; bin: sv39_v0_lw_sv39\""
+SvH_cg_cp_hgatp_nonleaf_lvl0_sv39_nonleaf_lw_sv39_str: .string "\"test: 566; cg: SvH_cg; cp: cp_hgatp_nonleaf_lvl0; bin: sv39_nonleaf_lw_sv39\""
+SvH_cg_cp_hgatp_invalid_pte_sv39_hlv_v0_sv39_str: .string "\"test: 567; cg: SvH_cg; cp: cp_hgatp_invalid_pte; bin: sv39_hlv_v0_sv39\""
+SvH_cg_cp_hgatp_invalid_pte_sv39_hsv_v0_sv39_str: .string "\"test: 568; cg: SvH_cg; cp: cp_hgatp_invalid_pte; bin: sv39_hsv_v0_sv39\""
+SvH_cg_cp_hgatp_nonleaf_lvl0_sv39_hsv_nonleaf_sv39_str: .string "\"test: 569; cg: SvH_cg; cp: cp_hgatp_nonleaf_lvl0; bin: sv39_hsv_nonleaf_sv39\""
+SvH_cg_cp_hgatp_nonleaf_lvl0_sv39_hlv_nonleaf_sv39_str: .string "\"test: 570; cg: SvH_cg; cp: cp_hgatp_nonleaf_lvl0; bin: sv39_hlv_nonleaf_sv39\""
+SvH_cg_hgatp_exception_reporting_sv39_restore_lw_sv39_str: .string "\"test: 571; cg: SvH_cg; cp: hgatp_exception_reporting; bin: sv39_restore_lw_sv39\""
+SvH_cg_cp_hgatp_invalid_pte_sv39_v0_ifetch_sv39_str: .string "\"test: 572; cg: SvH_cg; cp: cp_hgatp_invalid_pte; bin: sv39_v0_ifetch_sv39\""
+SvH_cg_hgatp_exception_reporting_sv39_v0_sw_sv39_str: .string "\"test: 573; cg: SvH_cg; cp: hgatp_exception_reporting; bin: sv39_v0_sw_sv39\""
+#endif  // SV39_SUPPORTED
 
 // End of test data section and model specific data
 RVTEST_DATA_END

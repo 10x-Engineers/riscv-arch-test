@@ -52,12 +52,12 @@ RVTEST_BEGIN
   hfence.gvma
   G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R | PTE_V | PTE_G), gpa_data, LEVEL0)
   hfence.gvma
-  LI(t0, 0x257a0301)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(s0, 0x257a0301)
+  la s1, test_region
+  sw s0, 0(s1)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 1: G leaf U=1 XWR=111+G VU sw/lw | Expected: Successful
-// Coverpoints: cp_hgatp_perm_checks
+// Coverpoints: cp_hgatp_perm_checks_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, gpa_data)
   LI(t0, 0x257a0301)
@@ -67,17 +67,18 @@ RVTEST_BEGIN
   lw a3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test1_u1_rwx:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_u1_rwx, test1_u1_rwx_str)
+SvH_cg_cp_hgatp_perm_checks_rw_test1_u1_rwx:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_hgatp_perm_checks_rw_test1_u1_rwx, SvH_cg_cp_hgatp_perm_checks_rw_test1_u1_rwx_str)
 
   G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V | PTE_G), gpa_data, LEVEL0)
   hfence.gvma
-  LI(t0, 0x257a0302)
+  LI(a3, 0x257a0302)
   la t1, test_region
-  sw t0, 0(t1)
+  sw a3, 0(t1)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: G leaf U=0 XWR=111+G VU lw | Expected: Expected Fault
-// Coverpoints: cp_hgatp_perm_checks
+// Coverpoints: cp_hgatp_perm_checks_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, gpa_data)
   LI(a4, 0)
@@ -85,17 +86,18 @@ RVTEST_BEGIN
   lw a4, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test2_u0_lw:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test2_u0_lw, test2_u0_lw_str)
+SvH_cg_cp_hgatp_perm_checks_rw_test2_u0_lw:
+  # Check if x14 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x14, SvH_cg_cp_hgatp_perm_checks_rw_test2_u0_lw, SvH_cg_cp_hgatp_perm_checks_rw_test2_u0_lw_str)
 
   G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V | PTE_G), gpa_data, LEVEL0)
   hfence.gvma
-  LI(t0, 0x257a0303)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a5, 0x257a0303)
+  la s0, test_region
+  sw a5, 0(s0)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 3: G leaf U=0 XWR=111+G VU sw | Expected: Expected Fault
-// Coverpoints: cp_hgatp_perm_checks
+// Coverpoints: cp_hgatp_perm_checks_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, gpa_data)
   LI(t0, 0xbad00fad)
@@ -105,17 +107,18 @@ RVTEST_BEGIN
   RVTEST_GOTO_MMODE
   la t1, test_region
   lw s2, 0(t1)
-  test3_u0_sw:
-  RVTEST_SIGUPD(x2, x5, x4, s2, test3_u0_sw, test3_u0_sw_str)
+SvH_cg_cp_hgatp_perm_checks_rw_test3_u0_sw:
+  # Check if x18 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x18, SvH_cg_cp_hgatp_perm_checks_rw_test3_u0_sw, SvH_cg_cp_hgatp_perm_checks_rw_test3_u0_sw_str)
 
   G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_V | PTE_G), gpa_data, LEVEL0)
   hfence.gvma
-  LI(t0, 0x257a0304)
+  LI(s1, 0x257a0304)
   la t1, test_region
-  sw t0, 0(t1)
+  sw s1, 0(t1)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 4: G leaf U=1 X-only | Expected: Expected Fault
-// Coverpoints: cp_hgatp_perm_checks
+// Coverpoints: cp_hgatp_perm_checks_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, gpa_data)
   LI(a6, 0)
@@ -123,17 +126,18 @@ RVTEST_BEGIN
   lw a6, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test4_xonly:
-  RVTEST_SIGUPD(x2, x5, x4, a6, test4_xonly, test4_xonly_str)
+SvH_cg_cp_hgatp_perm_checks_rw_test4_xonly:
+  # Check if x16 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x16, SvH_cg_cp_hgatp_perm_checks_rw_test4_xonly, SvH_cg_cp_hgatp_perm_checks_rw_test4_xonly_str)
 
   G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_V | PTE_G), gpa_data, LEVEL0)
   hfence.gvma
-  LI(t0, 0x257a0305)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a4, 0x257a0305)
+  la s0, test_region
+  sw a4, 0(s0)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 5: G leaf U=1 V-only | Expected: Expected Fault
-// Coverpoints: cp_hgatp_perm_checks
+// Coverpoints: cp_hgatp_perm_checks_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, gpa_data)
   LI(s3, 0)
@@ -141,17 +145,18 @@ RVTEST_BEGIN
   lw s3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test5_vonly_u1:
-  RVTEST_SIGUPD(x2, x5, x4, s3, test5_vonly_u1, test5_vonly_u1_str)
+SvH_cg_cp_hgatp_perm_checks_rw_test5_vonly_u1:
+  # Check if x19 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x19, SvH_cg_cp_hgatp_perm_checks_rw_test5_vonly_u1, SvH_cg_cp_hgatp_perm_checks_rw_test5_vonly_u1_str)
 
   G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R | PTE_V | PTE_G), gpa_data, LEVEL0)
   hfence.gvma
-  LI(t0, 0x257a0306)
+  LI(s1, 0x257a0306)
   la t1, test_region
-  sw t0, 0(t1)
+  sw s1, 0(t1)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 6: Restore U=1 XWR=111+G VU lw | Expected: Successful
-// Coverpoints: cp_hgatp_perm_checks
+// Coverpoints: cp_hgatp_perm_checks_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, gpa_data)
   LI(a7, 0)
@@ -159,17 +164,18 @@ RVTEST_BEGIN
   lw a7, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test6_restore:
-  RVTEST_SIGUPD(x2, x5, x4, a7, test6_restore, test6_restore_str)
+SvH_cg_cp_hgatp_perm_checks_rw_test6_restore:
+  # Check if x17 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x17, SvH_cg_cp_hgatp_perm_checks_rw_test6_restore, SvH_cg_cp_hgatp_perm_checks_rw_test6_restore_str)
 
   G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_V | PTE_G), gpa_data, LEVEL0)
   hfence.gvma
-  LI(t0, 0x257a0307)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a5, 0x257a0307)
+  la s1, test_region
+  sw a5, 0(s1)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 7: G leaf U=1 V-only VU sw | Expected: Expected Fault
-// Coverpoints: cp_hgatp_perm_checks
+// Coverpoints: cp_hgatp_perm_checks_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, gpa_data)
   LI(t0, 0xbad00fad)
@@ -179,17 +185,18 @@ RVTEST_BEGIN
   RVTEST_GOTO_MMODE
   la t1, test_region
   lw s6, 0(t1)
-  test7_vonly_u1_sw:
-  RVTEST_SIGUPD(x2, x5, x4, s6, test7_vonly_u1_sw, test7_vonly_u1_sw_str)
+SvH_cg_cp_hgatp_perm_checks_rw_test7_vonly_u1_sw:
+  # Check if x22 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x22, SvH_cg_cp_hgatp_perm_checks_rw_test7_vonly_u1_sw, SvH_cg_cp_hgatp_perm_checks_rw_test7_vonly_u1_sw_str)
 
   G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_V | PTE_G), gpa_data, LEVEL0)
   hfence.gvma
-  LI(t0, 0x257a0308)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(s0, 0x257a0308)
+  la a3, test_region
+  sw s0, 0(a3)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 8: G leaf U=0 V-only VU sw | Expected: Expected Fault
-// Coverpoints: cp_hgatp_perm_checks
+// Coverpoints: cp_hgatp_perm_checks_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, gpa_data)
   LI(t0, 0xbad00fad)
@@ -199,17 +206,18 @@ RVTEST_BEGIN
   RVTEST_GOTO_MMODE
   la t1, test_region
   lw s7, 0(t1)
-  test8_vonly_u0_sw:
-  RVTEST_SIGUPD(x2, x5, x4, s7, test8_vonly_u0_sw, test8_vonly_u0_sw_str)
+SvH_cg_cp_hgatp_perm_checks_rw_test8_vonly_u0_sw:
+  # Check if x23 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x23, SvH_cg_cp_hgatp_perm_checks_rw_test8_vonly_u0_sw, SvH_cg_cp_hgatp_perm_checks_rw_test8_vonly_u0_sw_str)
 
   G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_V | PTE_G), gpa_data, LEVEL0)
   hfence.gvma
-  LI(t0, 0x257a0309)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a3, 0x257a0309)
+  la a5, test_region
+  sw a3, 0(a5)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 9: G leaf U=0 V-only VU lw | Expected: Expected Fault
-// Coverpoints: cp_hgatp_perm_checks
+// Coverpoints: cp_hgatp_perm_checks_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, gpa_data)
   LI(s4, 0)
@@ -217,8 +225,9 @@ RVTEST_BEGIN
   lw s4, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test9_vonly_u0_lw:
-  RVTEST_SIGUPD(x2, x5, x4, s4, test9_vonly_u0_lw, test9_vonly_u0_lw_str)
+SvH_cg_cp_hgatp_perm_checks_rw_test9_vonly_u0_lw:
+  # Check if x20 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x20, SvH_cg_cp_hgatp_perm_checks_rw_test9_vonly_u0_lw, SvH_cg_cp_hgatp_perm_checks_rw_test9_vonly_u0_lw_str)
 
 
   .pushsection .data
@@ -234,15 +243,6 @@ rvtest_hlvl0_pg_tbl:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_u1_rwx_str: .string "\"Mismatch on VU sw/lw with G U=1 XWR=111+G in Test Case 1!\""
-test2_u0_lw_str: .string "\"Mismatch on VU lw with G U=0 XWR=111 (expect fault) in Test Case 2!\""
-test3_u0_sw_str: .string "\"Mismatch on VU sw with G U=0 XWR=111 (expect SPA unchanged) in Test Case 3!\""
-test4_xonly_str: .string "\"Mismatch on VU lw with G X-only (expect fault) in Test Case 4!\""
-test5_vonly_u1_str: .string "\"Mismatch on VU lw with G U=1 V-only (expect fault) in Test Case 5!\""
-test6_restore_str: .string "\"Mismatch on VU lw after G perm restore in Test Case 6!\""
-test7_vonly_u1_sw_str: .string "\"Mismatch on VU sw with G U=1 V-only (expect SPA unchanged) in Test Case 7!\""
-test8_vonly_u0_sw_str: .string "\"Mismatch on VU sw with G U=0 V-only (expect SPA unchanged) in Test Case 8!\""
-test9_vonly_u0_lw_str: .string "\"Mismatch on VU lw with G U=0 V-only (expect fault) in Test Case 9!\""
   .popsection
 
 #endif  // SV32_SUPPORTED
@@ -260,12 +260,12 @@ test9_vonly_u0_lw_str: .string "\"Mismatch on VU lw with G U=0 V-only (expect fa
   hfence.gvma
   G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R | PTE_V | PTE_G), gpa_data, LEVEL0)
   hfence.gvma
-  LI(t0, 0x257a0301)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a5, 0x257a0301)
+  la s0, test_region
+  sw a5, 0(s0)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 1: G leaf U=1 XWR=111+G VU sw/lw | Expected: Successful
-// Coverpoints: cp_hgatp_perm_checks
+// Coverpoints: cp_hgatp_perm_checks_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, gpa_data)
   LI(t0, 0x257a0301)
@@ -275,17 +275,18 @@ test9_vonly_u0_lw_str: .string "\"Mismatch on VU lw with G U=0 V-only (expect fa
   lw a3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test1_u1_rwx:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_u1_rwx, test1_u1_rwx_str)
+SvH_cg_cp_hgatp_perm_checks_rw_test1_u1_rwx:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_hgatp_perm_checks_rw_test1_u1_rwx, SvH_cg_cp_hgatp_perm_checks_rw_test1_u1_rwx_str)
 
   G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V | PTE_G), gpa_data, LEVEL0)
   hfence.gvma
-  LI(t0, 0x257a0302)
+  LI(a3, 0x257a0302)
   la t1, test_region
-  sw t0, 0(t1)
+  sw a3, 0(t1)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: G leaf U=0 XWR=111+G VU lw | Expected: Expected Fault
-// Coverpoints: cp_hgatp_perm_checks
+// Coverpoints: cp_hgatp_perm_checks_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, gpa_data)
   LI(a4, 0)
@@ -293,17 +294,18 @@ test9_vonly_u0_lw_str: .string "\"Mismatch on VU lw with G U=0 V-only (expect fa
   lw a4, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test2_u0_lw:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test2_u0_lw, test2_u0_lw_str)
+SvH_cg_cp_hgatp_perm_checks_rw_test2_u0_lw:
+  # Check if x14 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x14, SvH_cg_cp_hgatp_perm_checks_rw_test2_u0_lw, SvH_cg_cp_hgatp_perm_checks_rw_test2_u0_lw_str)
 
   G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V | PTE_G), gpa_data, LEVEL0)
   hfence.gvma
-  LI(t0, 0x257a0303)
+  LI(s1, 0x257a0303)
   la t1, test_region
-  sw t0, 0(t1)
+  sw s1, 0(t1)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 3: G leaf U=0 XWR=111+G VU sw | Expected: Expected Fault
-// Coverpoints: cp_hgatp_perm_checks
+// Coverpoints: cp_hgatp_perm_checks_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, gpa_data)
   LI(t0, 0xbad00fad)
@@ -313,17 +315,18 @@ test9_vonly_u0_lw_str: .string "\"Mismatch on VU lw with G U=0 V-only (expect fa
   RVTEST_GOTO_MMODE
   la t1, test_region
   lw s2, 0(t1)
-  test3_u0_sw:
-  RVTEST_SIGUPD(x2, x5, x4, s2, test3_u0_sw, test3_u0_sw_str)
+SvH_cg_cp_hgatp_perm_checks_rw_test3_u0_sw:
+  # Check if x18 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x18, SvH_cg_cp_hgatp_perm_checks_rw_test3_u0_sw, SvH_cg_cp_hgatp_perm_checks_rw_test3_u0_sw_str)
 
   G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_V | PTE_G), gpa_data, LEVEL0)
   hfence.gvma
-  LI(t0, 0x257a0304)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(s1, 0x257a0304)
+  la a4, test_region
+  sw s1, 0(a4)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 4: G leaf U=1 X-only | Expected: Expected Fault
-// Coverpoints: cp_hgatp_perm_checks
+// Coverpoints: cp_hgatp_perm_checks_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, gpa_data)
   LI(a6, 0)
@@ -331,17 +334,18 @@ test9_vonly_u0_lw_str: .string "\"Mismatch on VU lw with G U=0 V-only (expect fa
   lw a6, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test4_xonly:
-  RVTEST_SIGUPD(x2, x5, x4, a6, test4_xonly, test4_xonly_str)
+SvH_cg_cp_hgatp_perm_checks_rw_test4_xonly:
+  # Check if x16 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x16, SvH_cg_cp_hgatp_perm_checks_rw_test4_xonly, SvH_cg_cp_hgatp_perm_checks_rw_test4_xonly_str)
 
   G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_V | PTE_G), gpa_data, LEVEL0)
   hfence.gvma
-  LI(t0, 0x257a0305)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a4, 0x257a0305)
+  la s1, test_region
+  sw a4, 0(s1)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 5: G leaf U=1 V-only | Expected: Expected Fault
-// Coverpoints: cp_hgatp_perm_checks
+// Coverpoints: cp_hgatp_perm_checks_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, gpa_data)
   LI(s3, 0)
@@ -349,17 +353,18 @@ test9_vonly_u0_lw_str: .string "\"Mismatch on VU lw with G U=0 V-only (expect fa
   lw s3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test5_vonly_u1:
-  RVTEST_SIGUPD(x2, x5, x4, s3, test5_vonly_u1, test5_vonly_u1_str)
+SvH_cg_cp_hgatp_perm_checks_rw_test5_vonly_u1:
+  # Check if x19 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x19, SvH_cg_cp_hgatp_perm_checks_rw_test5_vonly_u1, SvH_cg_cp_hgatp_perm_checks_rw_test5_vonly_u1_str)
 
   G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R | PTE_V | PTE_G), gpa_data, LEVEL0)
   hfence.gvma
-  LI(t0, 0x257a0306)
+  LI(a4, 0x257a0306)
   la t1, test_region
-  sw t0, 0(t1)
+  sw a4, 0(t1)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 6: Restore U=1 XWR=111+G VU lw | Expected: Successful
-// Coverpoints: cp_hgatp_perm_checks
+// Coverpoints: cp_hgatp_perm_checks_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, gpa_data)
   LI(a7, 0)
@@ -367,17 +372,18 @@ test9_vonly_u0_lw_str: .string "\"Mismatch on VU lw with G U=0 V-only (expect fa
   lw a7, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test6_restore:
-  RVTEST_SIGUPD(x2, x5, x4, a7, test6_restore, test6_restore_str)
+SvH_cg_cp_hgatp_perm_checks_rw_test6_restore:
+  # Check if x17 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x17, SvH_cg_cp_hgatp_perm_checks_rw_test6_restore, SvH_cg_cp_hgatp_perm_checks_rw_test6_restore_str)
 
   G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_V | PTE_G), gpa_data, LEVEL0)
   hfence.gvma
-  LI(t0, 0x257a0307)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(s0, 0x257a0307)
+  la a3, test_region
+  sw s0, 0(a3)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 7: G leaf U=1 V-only VU sw | Expected: Expected Fault
-// Coverpoints: cp_hgatp_perm_checks
+// Coverpoints: cp_hgatp_perm_checks_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, gpa_data)
   LI(t0, 0xbad00fad)
@@ -387,17 +393,18 @@ test9_vonly_u0_lw_str: .string "\"Mismatch on VU lw with G U=0 V-only (expect fa
   RVTEST_GOTO_MMODE
   la t1, test_region
   lw s6, 0(t1)
-  test7_vonly_u1_sw:
-  RVTEST_SIGUPD(x2, x5, x4, s6, test7_vonly_u1_sw, test7_vonly_u1_sw_str)
+SvH_cg_cp_hgatp_perm_checks_rw_test7_vonly_u1_sw:
+  # Check if x22 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x22, SvH_cg_cp_hgatp_perm_checks_rw_test7_vonly_u1_sw, SvH_cg_cp_hgatp_perm_checks_rw_test7_vonly_u1_sw_str)
 
   G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_V | PTE_G), gpa_data, LEVEL0)
   hfence.gvma
-  LI(t0, 0x257a0308)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a3, 0x257a0308)
+  la a4, test_region
+  sw a3, 0(a4)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 8: G leaf U=0 V-only VU sw | Expected: Expected Fault
-// Coverpoints: cp_hgatp_perm_checks
+// Coverpoints: cp_hgatp_perm_checks_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, gpa_data)
   LI(t0, 0xbad00fad)
@@ -407,17 +414,18 @@ test9_vonly_u0_lw_str: .string "\"Mismatch on VU lw with G U=0 V-only (expect fa
   RVTEST_GOTO_MMODE
   la t1, test_region
   lw s7, 0(t1)
-  test8_vonly_u0_sw:
-  RVTEST_SIGUPD(x2, x5, x4, s7, test8_vonly_u0_sw, test8_vonly_u0_sw_str)
+SvH_cg_cp_hgatp_perm_checks_rw_test8_vonly_u0_sw:
+  # Check if x23 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x23, SvH_cg_cp_hgatp_perm_checks_rw_test8_vonly_u0_sw, SvH_cg_cp_hgatp_perm_checks_rw_test8_vonly_u0_sw_str)
 
   G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_V | PTE_G), gpa_data, LEVEL0)
   hfence.gvma
-  LI(t0, 0x257a0309)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a5, 0x257a0309)
+  la a3, test_region
+  sw a5, 0(a3)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 9: G leaf U=0 V-only VU lw | Expected: Expected Fault
-// Coverpoints: cp_hgatp_perm_checks
+// Coverpoints: cp_hgatp_perm_checks_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, gpa_data)
   LI(s4, 0)
@@ -425,8 +433,9 @@ test9_vonly_u0_lw_str: .string "\"Mismatch on VU lw with G U=0 V-only (expect fa
   lw s4, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test9_vonly_u0_lw:
-  RVTEST_SIGUPD(x2, x5, x4, s4, test9_vonly_u0_lw, test9_vonly_u0_lw_str)
+SvH_cg_cp_hgatp_perm_checks_rw_test9_vonly_u0_lw:
+  # Check if x20 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x20, SvH_cg_cp_hgatp_perm_checks_rw_test9_vonly_u0_lw, SvH_cg_cp_hgatp_perm_checks_rw_test9_vonly_u0_lw_str)
 
 
   .pushsection .data
@@ -448,15 +457,6 @@ rvtest_vlvl1_pg_tbl:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_u1_rwx_str: .string "\"Mismatch on VU sw/lw with G U=1 XWR=111+G in Test Case 1!\""
-test2_u0_lw_str: .string "\"Mismatch on VU lw with G U=0 XWR=111 (expect fault) in Test Case 2!\""
-test3_u0_sw_str: .string "\"Mismatch on VU sw with G U=0 XWR=111 (expect SPA unchanged) in Test Case 3!\""
-test4_xonly_str: .string "\"Mismatch on VU lw with G X-only (expect fault) in Test Case 4!\""
-test5_vonly_u1_str: .string "\"Mismatch on VU lw with G U=1 V-only (expect fault) in Test Case 5!\""
-test6_restore_str: .string "\"Mismatch on VU lw after G perm restore in Test Case 6!\""
-test7_vonly_u1_sw_str: .string "\"Mismatch on VU sw with G U=1 V-only (expect SPA unchanged) in Test Case 7!\""
-test8_vonly_u0_sw_str: .string "\"Mismatch on VU sw with G U=0 V-only (expect SPA unchanged) in Test Case 8!\""
-test9_vonly_u0_lw_str: .string "\"Mismatch on VU lw with G U=0 V-only (expect fault) in Test Case 9!\""
   .popsection
 
 #endif  // SV39_SUPPORTED
@@ -471,7 +471,28 @@ RVTEST_DATA_BEGIN
 
 
 // Testcase strings
-
+#ifdef SV32_SUPPORTED
+SvH_cg_cp_hgatp_perm_checks_rw_test1_u1_rwx_str: .string "\"test: 293; cg: SvH_cg; cp: cp_hgatp_perm_checks_rw; bin: test1_u1_rwx\""
+SvH_cg_cp_hgatp_perm_checks_rw_test2_u0_lw_str: .string "\"test: 294; cg: SvH_cg; cp: cp_hgatp_perm_checks_rw; bin: test2_u0_lw\""
+SvH_cg_cp_hgatp_perm_checks_rw_test3_u0_sw_str: .string "\"test: 295; cg: SvH_cg; cp: cp_hgatp_perm_checks_rw; bin: test3_u0_sw\""
+SvH_cg_cp_hgatp_perm_checks_rw_test4_xonly_str: .string "\"test: 296; cg: SvH_cg; cp: cp_hgatp_perm_checks_rw; bin: test4_xonly\""
+SvH_cg_cp_hgatp_perm_checks_rw_test5_vonly_u1_str: .string "\"test: 297; cg: SvH_cg; cp: cp_hgatp_perm_checks_rw; bin: test5_vonly_u1\""
+SvH_cg_cp_hgatp_perm_checks_rw_test6_restore_str: .string "\"test: 298; cg: SvH_cg; cp: cp_hgatp_perm_checks_rw; bin: test6_restore\""
+SvH_cg_cp_hgatp_perm_checks_rw_test7_vonly_u1_sw_str: .string "\"test: 299; cg: SvH_cg; cp: cp_hgatp_perm_checks_rw; bin: test7_vonly_u1_sw\""
+SvH_cg_cp_hgatp_perm_checks_rw_test8_vonly_u0_sw_str: .string "\"test: 300; cg: SvH_cg; cp: cp_hgatp_perm_checks_rw; bin: test8_vonly_u0_sw\""
+SvH_cg_cp_hgatp_perm_checks_rw_test9_vonly_u0_lw_str: .string "\"test: 301; cg: SvH_cg; cp: cp_hgatp_perm_checks_rw; bin: test9_vonly_u0_lw\""
+#endif  // SV32_SUPPORTED
+#ifdef SV39_SUPPORTED
+SvH_cg_cp_hgatp_perm_checks_rw_test1_u1_rwx_str: .string "\"test: 302; cg: SvH_cg; cp: cp_hgatp_perm_checks_rw; bin: test1_u1_rwx\""
+SvH_cg_cp_hgatp_perm_checks_rw_test2_u0_lw_str: .string "\"test: 303; cg: SvH_cg; cp: cp_hgatp_perm_checks_rw; bin: test2_u0_lw\""
+SvH_cg_cp_hgatp_perm_checks_rw_test3_u0_sw_str: .string "\"test: 304; cg: SvH_cg; cp: cp_hgatp_perm_checks_rw; bin: test3_u0_sw\""
+SvH_cg_cp_hgatp_perm_checks_rw_test4_xonly_str: .string "\"test: 305; cg: SvH_cg; cp: cp_hgatp_perm_checks_rw; bin: test4_xonly\""
+SvH_cg_cp_hgatp_perm_checks_rw_test5_vonly_u1_str: .string "\"test: 306; cg: SvH_cg; cp: cp_hgatp_perm_checks_rw; bin: test5_vonly_u1\""
+SvH_cg_cp_hgatp_perm_checks_rw_test6_restore_str: .string "\"test: 307; cg: SvH_cg; cp: cp_hgatp_perm_checks_rw; bin: test6_restore\""
+SvH_cg_cp_hgatp_perm_checks_rw_test7_vonly_u1_sw_str: .string "\"test: 308; cg: SvH_cg; cp: cp_hgatp_perm_checks_rw; bin: test7_vonly_u1_sw\""
+SvH_cg_cp_hgatp_perm_checks_rw_test8_vonly_u0_sw_str: .string "\"test: 309; cg: SvH_cg; cp: cp_hgatp_perm_checks_rw; bin: test8_vonly_u0_sw\""
+SvH_cg_cp_hgatp_perm_checks_rw_test9_vonly_u0_lw_str: .string "\"test: 310; cg: SvH_cg; cp: cp_hgatp_perm_checks_rw; bin: test9_vonly_u0_lw\""
+#endif  // SV39_SUPPORTED
 
 // End of test data section and model specific data
 RVTEST_DATA_END

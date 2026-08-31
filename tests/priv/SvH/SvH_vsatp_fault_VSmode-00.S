@@ -56,9 +56,9 @@ RVTEST_BEGIN
   csrw hgatp, x0
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0310)
+  LI(a3, 0x257a0310)
   la t1, test_region
-  sw t0, 0(t1)
+  sw a3, 0(t1)
 
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                               Test Cases Start from here
@@ -209,9 +209,9 @@ rvtest_vlvl0_pg_tbl:
   csrw hgatp, x0
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0310)
+  LI(a3, 0x257a0310)
   la t1, test_region
-  sw t0, 0(t1)
+  sw a3, 0(t1)
 
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                               Test Cases Start from here
@@ -361,22 +361,26 @@ RVTEST_DATA_BEGIN
 
 
 // Testcase strings
-SvH_cg_cp_vsatp_invalid_pte_sv32_invalid_lw_sv32_str: .string "\"test: 245; cg: SvH_cg; cp: cp_vsatp_invalid_pte; bin: sv32_invalid_lw_sv32\""
-SvH_cg_cp_vsatp_invalid_pte_sv32_invalid_sw_sv32_str: .string "\"test: 246; cg: SvH_cg; cp: cp_vsatp_invalid_pte; bin: sv32_invalid_sw_sv32\""
-SvH_cg_cp_vsatp_nonleaf_lvl0_sv32_nonleaf_lw_sv32_str: .string "\"test: 247; cg: SvH_cg; cp: cp_vsatp_nonleaf_lvl0; bin: sv32_nonleaf_lw_sv32\""
-SvH_cg_cp_vsatp_nonleaf_lvl0_sv32_nonleaf_sw_sv32_str: .string "\"test: 248; cg: SvH_cg; cp: cp_vsatp_nonleaf_lvl0; bin: sv32_nonleaf_sw_sv32\""
-SvH_cg_cp_vsatp_invalid_pte_sv32_hlv_spvp_v0_sv32_str: .string "\"test: 249; cg: SvH_cg; cp: cp_vsatp_invalid_pte; bin: sv32_hlv_spvp_v0_sv32\""
-SvH_cg_cp_vsatp_invalid_pte_sv32_hsv_spvp_v0_sv32_str: .string "\"test: 250; cg: SvH_cg; cp: cp_vsatp_invalid_pte; bin: sv32_hsv_spvp_v0_sv32\""
-SvH_cg_cp_vsatp_invalid_pte_sv32_valid_lw_sv32_str: .string "\"test: 251; cg: SvH_cg; cp: cp_vsatp_invalid_pte; bin: sv32_valid_lw_sv32\""
-SvH_cg_cp_vsatp_invalid_pte_sv32_v0_ifetch_sv32_str: .string "\"test: 252; cg: SvH_cg; cp: cp_vsatp_invalid_pte; bin: sv32_v0_ifetch_sv32\""
-SvH_cg_cp_vsatp_invalid_pte_sv39_invalid_lw_sv39_str: .string "\"test: 253; cg: SvH_cg; cp: cp_vsatp_invalid_pte; bin: sv39_invalid_lw_sv39\""
-SvH_cg_cp_vsatp_invalid_pte_sv39_invalid_sw_sv39_str: .string "\"test: 254; cg: SvH_cg; cp: cp_vsatp_invalid_pte; bin: sv39_invalid_sw_sv39\""
-SvH_cg_cp_vsatp_nonleaf_lvl0_sv39_nonleaf_lw_sv39_str: .string "\"test: 255; cg: SvH_cg; cp: cp_vsatp_nonleaf_lvl0; bin: sv39_nonleaf_lw_sv39\""
-SvH_cg_cp_vsatp_nonleaf_lvl0_sv39_nonleaf_sw_sv39_str: .string "\"test: 256; cg: SvH_cg; cp: cp_vsatp_nonleaf_lvl0; bin: sv39_nonleaf_sw_sv39\""
-SvH_cg_cp_vsatp_invalid_pte_sv39_hlv_spvp_v0_sv39_str: .string "\"test: 257; cg: SvH_cg; cp: cp_vsatp_invalid_pte; bin: sv39_hlv_spvp_v0_sv39\""
-SvH_cg_cp_vsatp_invalid_pte_sv39_hsv_spvp_v0_sv39_str: .string "\"test: 258; cg: SvH_cg; cp: cp_vsatp_invalid_pte; bin: sv39_hsv_spvp_v0_sv39\""
-SvH_cg_cp_vsatp_invalid_pte_sv39_valid_lw_sv39_str: .string "\"test: 259; cg: SvH_cg; cp: cp_vsatp_invalid_pte; bin: sv39_valid_lw_sv39\""
-SvH_cg_cp_vsatp_invalid_pte_sv39_v0_ifetch_sv39_str: .string "\"test: 260; cg: SvH_cg; cp: cp_vsatp_invalid_pte; bin: sv39_v0_ifetch_sv39\""
+#ifdef SV32_SUPPORTED
+SvH_cg_cp_vsatp_invalid_pte_sv32_invalid_lw_sv32_str: .string "\"test: 586; cg: SvH_cg; cp: cp_vsatp_invalid_pte; bin: sv32_invalid_lw_sv32\""
+SvH_cg_cp_vsatp_invalid_pte_sv32_invalid_sw_sv32_str: .string "\"test: 587; cg: SvH_cg; cp: cp_vsatp_invalid_pte; bin: sv32_invalid_sw_sv32\""
+SvH_cg_cp_vsatp_nonleaf_lvl0_sv32_nonleaf_lw_sv32_str: .string "\"test: 588; cg: SvH_cg; cp: cp_vsatp_nonleaf_lvl0; bin: sv32_nonleaf_lw_sv32\""
+SvH_cg_cp_vsatp_nonleaf_lvl0_sv32_nonleaf_sw_sv32_str: .string "\"test: 589; cg: SvH_cg; cp: cp_vsatp_nonleaf_lvl0; bin: sv32_nonleaf_sw_sv32\""
+SvH_cg_cp_vsatp_invalid_pte_sv32_hlv_spvp_v0_sv32_str: .string "\"test: 590; cg: SvH_cg; cp: cp_vsatp_invalid_pte; bin: sv32_hlv_spvp_v0_sv32\""
+SvH_cg_cp_vsatp_invalid_pte_sv32_hsv_spvp_v0_sv32_str: .string "\"test: 591; cg: SvH_cg; cp: cp_vsatp_invalid_pte; bin: sv32_hsv_spvp_v0_sv32\""
+SvH_cg_cp_vsatp_invalid_pte_sv32_valid_lw_sv32_str: .string "\"test: 592; cg: SvH_cg; cp: cp_vsatp_invalid_pte; bin: sv32_valid_lw_sv32\""
+SvH_cg_cp_vsatp_invalid_pte_sv32_v0_ifetch_sv32_str: .string "\"test: 593; cg: SvH_cg; cp: cp_vsatp_invalid_pte; bin: sv32_v0_ifetch_sv32\""
+#endif  // SV32_SUPPORTED
+#ifdef SV39_SUPPORTED
+SvH_cg_cp_vsatp_invalid_pte_sv39_invalid_lw_sv39_str: .string "\"test: 594; cg: SvH_cg; cp: cp_vsatp_invalid_pte; bin: sv39_invalid_lw_sv39\""
+SvH_cg_cp_vsatp_invalid_pte_sv39_invalid_sw_sv39_str: .string "\"test: 595; cg: SvH_cg; cp: cp_vsatp_invalid_pte; bin: sv39_invalid_sw_sv39\""
+SvH_cg_cp_vsatp_nonleaf_lvl0_sv39_nonleaf_lw_sv39_str: .string "\"test: 596; cg: SvH_cg; cp: cp_vsatp_nonleaf_lvl0; bin: sv39_nonleaf_lw_sv39\""
+SvH_cg_cp_vsatp_nonleaf_lvl0_sv39_nonleaf_sw_sv39_str: .string "\"test: 597; cg: SvH_cg; cp: cp_vsatp_nonleaf_lvl0; bin: sv39_nonleaf_sw_sv39\""
+SvH_cg_cp_vsatp_invalid_pte_sv39_hlv_spvp_v0_sv39_str: .string "\"test: 598; cg: SvH_cg; cp: cp_vsatp_invalid_pte; bin: sv39_hlv_spvp_v0_sv39\""
+SvH_cg_cp_vsatp_invalid_pte_sv39_hsv_spvp_v0_sv39_str: .string "\"test: 599; cg: SvH_cg; cp: cp_vsatp_invalid_pte; bin: sv39_hsv_spvp_v0_sv39\""
+SvH_cg_cp_vsatp_invalid_pte_sv39_valid_lw_sv39_str: .string "\"test: 600; cg: SvH_cg; cp: cp_vsatp_invalid_pte; bin: sv39_valid_lw_sv39\""
+SvH_cg_cp_vsatp_invalid_pte_sv39_v0_ifetch_sv39_str: .string "\"test: 601; cg: SvH_cg; cp: cp_vsatp_invalid_pte; bin: sv39_v0_ifetch_sv39\""
+#endif  // SV39_SUPPORTED
 
 // End of test data section and model specific data
 RVTEST_DATA_END

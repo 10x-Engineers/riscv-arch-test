@@ -46,13 +46,13 @@ RVTEST_BEGIN
   csrw vsatp, x0
   SUPERPAGE_G_PTE_SETUP(sv32x4, rvtest_code_begin, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_R | PTE_V), gpa_code, LEVEL1)
   G_PTE_SETUP(sv32x4, rvtest_hlvl0_pg_tbl, (PTE_V), gpa_data, LEVEL1)
-  G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_V), gpa_data, LEVEL0)
+  G_PTE_SETUP(sv32x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_V | PTE_G), gpa_data, LEVEL0)
   HGATP_SETUP(sv32x4)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0821)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(s1, 0x257a0821)
+  la s0, test_region
+  sw s1, 0(s0)
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
   csrc vsstatus, t0
@@ -67,8 +67,9 @@ RVTEST_BEGIN
   hlv.w a3, (t1)
   nop
   RVTEST_GOTO_MMODE
-  test1_g_xonly:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_g_xonly, test1_g_xonly_str)
+SvH_cg_xonly_mxr0_g_hs_test1_g_xonly:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_xonly_mxr0_g_hs_test1_g_xonly, SvH_cg_xonly_mxr0_g_hs_test1_g_xonly_str)
 
   .pushsection .data
   .p2align 12
@@ -83,7 +84,6 @@ rvtest_hlvl0_pg_tbl:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_g_xonly_str: .string "\"Mismatch on HS HLV G X-only MXR=0!\""
   .popsection
 
 #endif  // SV32_SUPPORTED
@@ -95,13 +95,13 @@ test1_g_xonly_str: .string "\"Mismatch on HS HLV G X-only MXR=0!\""
   SUPERPAGE_G_PTE_SETUP(sv39x4, rvtest_code_begin, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_R | PTE_V), gpa_code, LEVEL2)
   G_PTE_SETUP(sv39x4, rvtest_hlvl1_pg_tbl, (PTE_V), gpa_data, LEVEL2)
   G_PTE_SETUP(sv39x4, rvtest_hlvl0_pg_tbl, (PTE_V), gpa_data, LEVEL1)
-  G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_V), gpa_data, LEVEL0)
+  G_PTE_SETUP(sv39x4, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_V | PTE_G), gpa_data, LEVEL0)
   HGATP_SETUP(sv39x4)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0821)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(s1, 0x257a0821)
+  la s0, test_region
+  sw s1, 0(s0)
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
   csrc vsstatus, t0
@@ -116,8 +116,9 @@ test1_g_xonly_str: .string "\"Mismatch on HS HLV G X-only MXR=0!\""
   hlv.w a3, (t1)
   nop
   RVTEST_GOTO_MMODE
-  test1_g_xonly:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_g_xonly, test1_g_xonly_str)
+SvH_cg_xonly_mxr0_g_hs_test1_g_xonly:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_xonly_mxr0_g_hs_test1_g_xonly, SvH_cg_xonly_mxr0_g_hs_test1_g_xonly_str)
 
   .pushsection .data
   .p2align 12
@@ -138,7 +139,6 @@ rvtest_vlvl1_pg_tbl:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_g_xonly_str: .string "\"Mismatch on HS HLV G X-only MXR=0!\""
   .popsection
 
 #endif  // SV39_SUPPORTED
@@ -153,7 +153,12 @@ RVTEST_DATA_BEGIN
 
 
 // Testcase strings
-
+#ifdef SV32_SUPPORTED
+SvH_cg_xonly_mxr0_g_hs_test1_g_xonly_str: .string "\"test: 554; cg: SvH_cg; cp: xonly_mxr0_g_hs; bin: test1_g_xonly\""
+#endif  // SV32_SUPPORTED
+#ifdef SV39_SUPPORTED
+SvH_cg_xonly_mxr0_g_hs_test1_g_xonly_str: .string "\"test: 555; cg: SvH_cg; cp: xonly_mxr0_g_hs; bin: test1_g_xonly\""
+#endif  // SV39_SUPPORTED
 
 // End of test data section and model specific data
 RVTEST_DATA_END

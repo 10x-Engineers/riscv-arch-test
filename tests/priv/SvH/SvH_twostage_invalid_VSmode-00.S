@@ -65,9 +65,9 @@ RVTEST_BEGIN
   HGATP_SETUP(sv32x4)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0a01)
+  LI(a3, 0x257a0a01)
   la t1, test_region
-  sw t0, 0(t1)
+  sw a3, 0(t1)
 
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                               Test Cases Start from here
@@ -229,9 +229,9 @@ rvtest_vlvl0_pg_tbl:
   HGATP_SETUP(sv39x4)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0a01)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a4, 0x257a0a01)
+  la s1, test_region
+  sw a4, 0(s1)
 
 // --------------------------------------------------------------------------------------------------------------------------------
 //                                               Test Cases Start from here
@@ -382,18 +382,22 @@ RVTEST_DATA_BEGIN
 
 
 // Testcase strings
-SvH_cg_VM_permission_invalid_vs_rw_sv32_vs_v0_lw_sv32_str: .string "\"test: 233; cg: SvH_cg; cp: VM_permission_invalid_vs_rw; bin: sv32_vs_v0_lw_sv32\""
-SvH_cg_VM_permission_invalid_g_rw_sv32_g_v0_lw_sv32_str: .string "\"test: 234; cg: SvH_cg; cp: VM_permission_invalid_g_rw; bin: sv32_g_v0_lw_sv32\""
-SvH_cg_VM_permission_invalid_vs_rw_sv32_vs_v0_sw_sv32_str: .string "\"test: 235; cg: SvH_cg; cp: VM_permission_invalid_vs_rw; bin: sv32_vs_v0_sw_sv32\""
-SvH_cg_VM_permission_invalid_g_rw_sv32_g_v0_sw_sv32_str: .string "\"test: 236; cg: SvH_cg; cp: VM_permission_invalid_g_rw; bin: sv32_g_v0_sw_sv32\""
-SvH_cg_VM_permission_invalid_vs_x_sv32_vs_v0_jalr_sv32_str: .string "\"test: 237; cg: SvH_cg; cp: VM_permission_invalid_vs_x; bin: sv32_vs_v0_jalr_sv32\""
-SvH_cg_VM_permission_invalid_g_x_sv32_g_v0_jalr_sv32_str: .string "\"test: 238; cg: SvH_cg; cp: VM_permission_invalid_g_x; bin: sv32_g_v0_jalr_sv32\""
-SvH_cg_VM_permission_invalid_vs_rw_sv39_vs_v0_lw_sv39_str: .string "\"test: 239; cg: SvH_cg; cp: VM_permission_invalid_vs_rw; bin: sv39_vs_v0_lw_sv39\""
-SvH_cg_VM_permission_invalid_g_rw_sv39_g_v0_lw_sv39_str: .string "\"test: 240; cg: SvH_cg; cp: VM_permission_invalid_g_rw; bin: sv39_g_v0_lw_sv39\""
-SvH_cg_VM_permission_invalid_vs_rw_sv39_vs_v0_sw_sv39_str: .string "\"test: 241; cg: SvH_cg; cp: VM_permission_invalid_vs_rw; bin: sv39_vs_v0_sw_sv39\""
-SvH_cg_VM_permission_invalid_g_rw_sv39_g_v0_sw_sv39_str: .string "\"test: 242; cg: SvH_cg; cp: VM_permission_invalid_g_rw; bin: sv39_g_v0_sw_sv39\""
-SvH_cg_VM_permission_invalid_vs_x_sv39_vs_v0_jalr_sv39_str: .string "\"test: 243; cg: SvH_cg; cp: VM_permission_invalid_vs_x; bin: sv39_vs_v0_jalr_sv39\""
-SvH_cg_VM_permission_invalid_g_x_sv39_g_v0_jalr_sv39_str: .string "\"test: 244; cg: SvH_cg; cp: VM_permission_invalid_g_x; bin: sv39_g_v0_jalr_sv39\""
+#ifdef SV32_SUPPORTED
+SvH_cg_VM_permission_invalid_vs_rw_sv32_vs_v0_lw_sv32_str: .string "\"test: 574; cg: SvH_cg; cp: VM_permission_invalid_vs_rw; bin: sv32_vs_v0_lw_sv32\""
+SvH_cg_VM_permission_invalid_g_rw_sv32_g_v0_lw_sv32_str: .string "\"test: 575; cg: SvH_cg; cp: VM_permission_invalid_g_rw; bin: sv32_g_v0_lw_sv32\""
+SvH_cg_VM_permission_invalid_vs_rw_sv32_vs_v0_sw_sv32_str: .string "\"test: 576; cg: SvH_cg; cp: VM_permission_invalid_vs_rw; bin: sv32_vs_v0_sw_sv32\""
+SvH_cg_VM_permission_invalid_g_rw_sv32_g_v0_sw_sv32_str: .string "\"test: 577; cg: SvH_cg; cp: VM_permission_invalid_g_rw; bin: sv32_g_v0_sw_sv32\""
+SvH_cg_VM_permission_invalid_vs_x_sv32_vs_v0_jalr_sv32_str: .string "\"test: 578; cg: SvH_cg; cp: VM_permission_invalid_vs_x; bin: sv32_vs_v0_jalr_sv32\""
+SvH_cg_VM_permission_invalid_g_x_sv32_g_v0_jalr_sv32_str: .string "\"test: 579; cg: SvH_cg; cp: VM_permission_invalid_g_x; bin: sv32_g_v0_jalr_sv32\""
+#endif  // SV32_SUPPORTED
+#ifdef SV39_SUPPORTED
+SvH_cg_VM_permission_invalid_vs_rw_sv39_vs_v0_lw_sv39_str: .string "\"test: 580; cg: SvH_cg; cp: VM_permission_invalid_vs_rw; bin: sv39_vs_v0_lw_sv39\""
+SvH_cg_VM_permission_invalid_g_rw_sv39_g_v0_lw_sv39_str: .string "\"test: 581; cg: SvH_cg; cp: VM_permission_invalid_g_rw; bin: sv39_g_v0_lw_sv39\""
+SvH_cg_VM_permission_invalid_vs_rw_sv39_vs_v0_sw_sv39_str: .string "\"test: 582; cg: SvH_cg; cp: VM_permission_invalid_vs_rw; bin: sv39_vs_v0_sw_sv39\""
+SvH_cg_VM_permission_invalid_g_rw_sv39_g_v0_sw_sv39_str: .string "\"test: 583; cg: SvH_cg; cp: VM_permission_invalid_g_rw; bin: sv39_g_v0_sw_sv39\""
+SvH_cg_VM_permission_invalid_vs_x_sv39_vs_v0_jalr_sv39_str: .string "\"test: 584; cg: SvH_cg; cp: VM_permission_invalid_vs_x; bin: sv39_vs_v0_jalr_sv39\""
+SvH_cg_VM_permission_invalid_g_x_sv39_g_v0_jalr_sv39_str: .string "\"test: 585; cg: SvH_cg; cp: VM_permission_invalid_g_x; bin: sv39_g_v0_jalr_sv39\""
+#endif  // SV39_SUPPORTED
 
 // End of test data section and model specific data
 RVTEST_DATA_END

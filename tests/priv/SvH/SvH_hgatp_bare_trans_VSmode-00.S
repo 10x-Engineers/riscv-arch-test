@@ -56,9 +56,9 @@ RVTEST_BEGIN
   csrw hgatp, x0
   hfence.vvma
   hfence.gvma
-  LI(t0, 0xdeadbeef)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a5, 0xdeadbeef)
+  la s0, test_region
+  sw a5, 0(s0)
   LI(a5, va_data)
   RVTEST_GOTO_LOWER_MODE VSmode
   LI(a2, 0x257A0005)
@@ -67,14 +67,17 @@ RVTEST_BEGIN
   lw   a3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test1_vs:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_vs, test1_vs_str)
+SvH_cg_cp_hgatp_bare_trans_test1_vs:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_hgatp_bare_trans_test1_vs, SvH_cg_cp_hgatp_bare_trans_test1_vs_str)
   la t1, test_region
   lw t2, 0(t1)
-  test2_spa:
-  RVTEST_SIGUPD(x2, x5, x4, t2, test2_spa, test2_spa_str)
-  test3_hgatp:
-  RVTEST_SIGUPD_CSR_READ(hgatp, a4, test3_hgatp, test3_hgatp_str)
+SvH_cg_cp_hgatp_bare_trans_test2_spa:
+  # Check if x7 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x7, SvH_cg_cp_hgatp_bare_trans_test2_spa, SvH_cg_cp_hgatp_bare_trans_test2_spa_str)
+SvH_cg_hgatp_bare_test3_hgatp:
+  # Read hgatp into x14 and check against expected.
+  RVTEST_SIGUPD_CSR_READ(hgatp, x14, SvH_cg_hgatp_bare_test3_hgatp, SvH_cg_hgatp_bare_test3_hgatp_str)
 
   .pushsection .data
   .p2align 12
@@ -89,9 +92,6 @@ rvtest_hlvl0_pg_tbl:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_vs_str: .string "\"Mismatch on VS lw (hgatp Bare)\""
-test2_spa_str: .string "\"Mismatch on SPA readback (hgatp Bare)\""
-test3_hgatp_str: .string "\"Mismatch on hgatp still Bare\""
   .popsection
 
 #endif  // SV32_SUPPORTED
@@ -113,9 +113,9 @@ test3_hgatp_str: .string "\"Mismatch on hgatp still Bare\""
   csrw hgatp, x0
   hfence.vvma
   hfence.gvma
-  LI(t0, 0xdeadbeef)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a5, 0xdeadbeef)
+  la s0, test_region
+  sw a5, 0(s0)
   LI(a5, va_data)
   RVTEST_GOTO_LOWER_MODE VSmode
   LI(a2, 0x257A0005)
@@ -124,14 +124,17 @@ test3_hgatp_str: .string "\"Mismatch on hgatp still Bare\""
   lw   a3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test1_vs:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_vs, test1_vs_str)
+SvH_cg_cp_hgatp_bare_trans_test1_vs:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_hgatp_bare_trans_test1_vs, SvH_cg_cp_hgatp_bare_trans_test1_vs_str)
   la t1, test_region
   lw t2, 0(t1)
-  test2_spa:
-  RVTEST_SIGUPD(x2, x5, x4, t2, test2_spa, test2_spa_str)
-  test3_hgatp:
-  RVTEST_SIGUPD_CSR_READ(hgatp, a4, test3_hgatp, test3_hgatp_str)
+SvH_cg_cp_hgatp_bare_trans_test2_spa:
+  # Check if x7 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x7, SvH_cg_cp_hgatp_bare_trans_test2_spa, SvH_cg_cp_hgatp_bare_trans_test2_spa_str)
+SvH_cg_hgatp_bare_test3_hgatp:
+  # Read hgatp into x14 and check against expected.
+  RVTEST_SIGUPD_CSR_READ(hgatp, x14, SvH_cg_hgatp_bare_test3_hgatp, SvH_cg_hgatp_bare_test3_hgatp_str)
 
   .pushsection .data
   .p2align 12
@@ -152,9 +155,6 @@ rvtest_vlvl1_pg_tbl:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_vs_str: .string "\"Mismatch on VS lw (hgatp Bare)\""
-test2_spa_str: .string "\"Mismatch on SPA readback (hgatp Bare)\""
-test3_hgatp_str: .string "\"Mismatch on hgatp still Bare\""
   .popsection
 
 #endif  // SV39_SUPPORTED
@@ -169,7 +169,16 @@ RVTEST_DATA_BEGIN
 
 
 // Testcase strings
-
+#ifdef SV32_SUPPORTED
+SvH_cg_cp_hgatp_bare_trans_test1_vs_str: .string "\"test: 5; cg: SvH_cg; cp: cp_hgatp_bare_trans; bin: test1_vs\""
+SvH_cg_cp_hgatp_bare_trans_test2_spa_str: .string "\"test: 6; cg: SvH_cg; cp: cp_hgatp_bare_trans; bin: test2_spa\""
+SvH_cg_hgatp_bare_test3_hgatp_str: .string "\"test: 7; cg: SvH_cg; cp: hgatp_bare; bin: test3_hgatp\""
+#endif  // SV32_SUPPORTED
+#ifdef SV39_SUPPORTED
+SvH_cg_cp_hgatp_bare_trans_test1_vs_str: .string "\"test: 8; cg: SvH_cg; cp: cp_hgatp_bare_trans; bin: test1_vs\""
+SvH_cg_cp_hgatp_bare_trans_test2_spa_str: .string "\"test: 9; cg: SvH_cg; cp: cp_hgatp_bare_trans; bin: test2_spa\""
+SvH_cg_hgatp_bare_test3_hgatp_str: .string "\"test: 10; cg: SvH_cg; cp: hgatp_bare; bin: test3_hgatp\""
+#endif  // SV39_SUPPORTED
 
 // End of test data section and model specific data
 RVTEST_DATA_END

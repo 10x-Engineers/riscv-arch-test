@@ -63,12 +63,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a070f)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(t1, 0x257a070f)
+  la a5, test_region
+  sw t1, 0(a5)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 1: U=1 XWR=111 VU sw+lw | Expected: Successful
-// Coverpoints: cp_vsatp_perm_checks
+// Coverpoints: cp_vsatp_perm_checks_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(t0, 0x257a070f)
@@ -78,8 +78,9 @@ RVTEST_BEGIN
   lw a3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test1_urw_rwx:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_urw_rwx, test1_urw_rwx_str)
+SvH_cg_cp_vsatp_perm_checks_rw_test1_urw_rwx:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_vsatp_perm_checks_rw_test1_urw_rwx, SvH_cg_cp_vsatp_perm_checks_rw_test1_urw_rwx_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -88,12 +89,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0728)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(s0, 0x257a0728)
+  la s1, test_region
+  sw s0, 0(s1)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: U=1 X-only VU lw | Expected: Expected Fault
-// Coverpoints: cp_vsatp_perm_checks
+// Coverpoints: cp_vsatp_perm_checks_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(a4, 0)
@@ -101,8 +102,9 @@ RVTEST_BEGIN
   lw a4, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test2_ux_lw:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test2_ux_lw, test2_ux_lw_str)
+SvH_cg_cp_vsatp_perm_checks_rw_test2_ux_lw:
+  # Check if x14 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x14, SvH_cg_cp_vsatp_perm_checks_rw_test2_ux_lw, SvH_cg_cp_vsatp_perm_checks_rw_test2_ux_lw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -111,12 +113,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a073f)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a4, 0x257a073f)
+  la a5, test_region
+  sw a4, 0(a5)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 3: U=1 X-only VU sw | Expected: Expected Fault
-// Coverpoints: cp_vsatp_perm_checks
+// Coverpoints: cp_vsatp_perm_checks_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(t0, 0xbad00fad)
@@ -126,8 +128,9 @@ RVTEST_BEGIN
   RVTEST_GOTO_MMODE
   la t1, test_region
   lw a3, 0(t1)
-  test3_ux_sw:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test3_ux_sw, test3_ux_sw_str)
+SvH_cg_cp_vsatp_perm_checks_rw_test3_ux_sw:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_vsatp_perm_checks_rw_test3_ux_sw, SvH_cg_cp_vsatp_perm_checks_rw_test3_ux_sw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -136,12 +139,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_R | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0758)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(s0, 0x257a0758)
+  la a3, test_region
+  sw s0, 0(a3)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 4: U=1 R-only VU lw OK, VU sw fault | Expected: Successful
-// Coverpoints: cp_vsatp_perm_checks
+// Coverpoints: cp_vsatp_perm_checks_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(a3, 0)
@@ -149,8 +152,9 @@ RVTEST_BEGIN
   lw a3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test4_ur_only:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test4_ur_only, test4_ur_only_str)
+SvH_cg_cp_vsatp_perm_checks_rw_test4_ur_only:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_vsatp_perm_checks_rw_test4_ur_only, SvH_cg_cp_vsatp_perm_checks_rw_test4_ur_only_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -159,12 +163,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a076f)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(s1, 0x257a076f)
+  la a5, test_region
+  sw s1, 0(a5)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 5: U=1 R/W VU sw+lw | Expected: Successful
-// Coverpoints: cp_vsatp_perm_checks
+// Coverpoints: cp_vsatp_perm_checks_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(t0, 0x257a076f)
@@ -174,8 +178,9 @@ RVTEST_BEGIN
   lw a3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test5_urw:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test5_urw, test5_urw_str)
+SvH_cg_cp_vsatp_perm_checks_rw_test5_urw:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_vsatp_perm_checks_rw_test5_urw, SvH_cg_cp_vsatp_perm_checks_rw_test5_urw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -184,12 +189,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_R | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0788)
+  LI(a4, 0x257a0788)
   la t1, test_region
-  sw t0, 0(t1)
+  sw a4, 0(t1)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 6: U=1 R/X VU lw OK, VU sw fault | Expected: Successful
-// Coverpoints: cp_vsatp_perm_checks
+// Coverpoints: cp_vsatp_perm_checks_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(a3, 0)
@@ -197,8 +202,9 @@ RVTEST_BEGIN
   lw a3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test6_urx:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test6_urx, test6_urx_str)
+SvH_cg_cp_vsatp_perm_checks_rw_test6_urx:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_vsatp_perm_checks_rw_test6_urx, SvH_cg_cp_vsatp_perm_checks_rw_test6_urx_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -207,12 +213,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a079f)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a5, 0x257a079f)
+  la a4, test_region
+  sw a5, 0(a4)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 7: U=0 XWR=111 VU lw | Expected: Expected Fault
-// Coverpoints: cp_vsatp_perm_checks
+// Coverpoints: cp_vsatp_perm_checks_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(a6, 0)
@@ -220,8 +226,9 @@ RVTEST_BEGIN
   lw a6, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test7_s_lw:
-  RVTEST_SIGUPD(x2, x5, x4, a6, test7_s_lw, test7_s_lw_str)
+SvH_cg_cp_vsatp_perm_checks_rw_test7_s_lw:
+  # Check if x16 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x16, SvH_cg_cp_vsatp_perm_checks_rw_test7_s_lw, SvH_cg_cp_vsatp_perm_checks_rw_test7_s_lw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -230,12 +237,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a07b6)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(s1, 0x257a07b6)
+  la s0, test_region
+  sw s1, 0(s0)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 8: U=1 V-only VU lw | Expected: Expected Fault
-// Coverpoints: cp_vsatp_perm_checks
+// Coverpoints: cp_vsatp_perm_checks_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(a7, 0)
@@ -243,8 +250,9 @@ RVTEST_BEGIN
   lw a7, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test8_uv_lw:
-  RVTEST_SIGUPD(x2, x5, x4, a7, test8_uv_lw, test8_uv_lw_str)
+SvH_cg_cp_vsatp_perm_checks_rw_test8_uv_lw:
+  # Check if x17 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x17, SvH_cg_cp_vsatp_perm_checks_rw_test8_uv_lw, SvH_cg_cp_vsatp_perm_checks_rw_test8_uv_lw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -253,12 +261,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a07cd)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(t1, 0x257a07cd)
+  la s1, test_region
+  sw t1, 0(s1)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 9: U=0 XWR=111 VU sw | Expected: Expected Fault
-// Coverpoints: cp_vsatp_perm_checks
+// Coverpoints: cp_vsatp_perm_checks_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(t0, 0xbad00fad)
@@ -268,8 +276,9 @@ RVTEST_BEGIN
   RVTEST_GOTO_MMODE
   la t1, test_region
   lw s2, 0(t1)
-  test9_s_sw:
-  RVTEST_SIGUPD(x2, x5, x4, s2, test9_s_sw, test9_s_sw_str)
+SvH_cg_cp_vsatp_perm_checks_rw_test9_s_sw:
+  # Check if x18 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x18, SvH_cg_cp_vsatp_perm_checks_rw_test9_s_sw, SvH_cg_cp_vsatp_perm_checks_rw_test9_s_sw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -278,12 +287,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a07e6)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(t1, 0x257a07e6)
+  la a4, test_region
+  sw t1, 0(a4)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 10: U=0 V-only VU lw | Expected: Expected Fault
-// Coverpoints: cp_vsatp_perm_checks
+// Coverpoints: cp_vsatp_perm_checks_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(s3, 0)
@@ -291,8 +300,9 @@ RVTEST_BEGIN
   lw s3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test10_sv_lw:
-  RVTEST_SIGUPD(x2, x5, x4, s3, test10_sv_lw, test10_sv_lw_str)
+SvH_cg_cp_vsatp_perm_checks_rw_test10_sv_lw:
+  # Check if x19 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x19, SvH_cg_cp_vsatp_perm_checks_rw_test10_sv_lw, SvH_cg_cp_vsatp_perm_checks_rw_test10_sv_lw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -301,12 +311,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a07fd)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(s0, 0x257a07fd)
+  la a3, test_region
+  sw s0, 0(a3)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 11: U=0 V-only VU sw | Expected: Expected Fault
-// Coverpoints: cp_vsatp_perm_checks
+// Coverpoints: cp_vsatp_perm_checks_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(t0, 0xbad00fad)
@@ -316,8 +326,9 @@ RVTEST_BEGIN
   RVTEST_GOTO_MMODE
   la t1, test_region
   lw s4, 0(t1)
-  test11_sv_sw:
-  RVTEST_SIGUPD(x2, x5, x4, s4, test11_sv_sw, test11_sv_sw_str)
+SvH_cg_cp_vsatp_perm_checks_rw_test11_sv_sw:
+  # Check if x20 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x20, SvH_cg_cp_vsatp_perm_checks_rw_test11_sv_sw, SvH_cg_cp_vsatp_perm_checks_rw_test11_sv_sw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -326,12 +337,12 @@ RVTEST_BEGIN
   VS_PTE_SETUP(sv32, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0816)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(t1, 0x257a0816)
+  la s0, test_region
+  sw t1, 0(s0)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 12: U=1 V-only VU sw | Expected: Expected Fault
-// Coverpoints: cp_vsatp_perm_checks
+// Coverpoints: cp_vsatp_perm_checks_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(t0, 0xbad00fad)
@@ -341,8 +352,9 @@ RVTEST_BEGIN
   RVTEST_GOTO_MMODE
   la t1, test_region
   lw s5, 0(t1)
-  test12_uv_sw:
-  RVTEST_SIGUPD(x2, x5, x4, s5, test12_uv_sw, test12_uv_sw_str)
+SvH_cg_cp_vsatp_perm_checks_rw_test12_uv_sw:
+  # Check if x21 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x21, SvH_cg_cp_vsatp_perm_checks_rw_test12_uv_sw, SvH_cg_cp_vsatp_perm_checks_rw_test12_uv_sw_str)
 
 
   .pushsection .data
@@ -355,18 +367,6 @@ test_region:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_urw_rwx_str: .string "\"Mismatch on U=1 RWX VU lw in Test Case 1!\""
-test2_ux_lw_str: .string "\"Mismatch on U=1 X-only VU lw (expect fault) in Test Case 2!\""
-test3_ux_sw_str: .string "\"Mismatch on U=1 X-only VU sw (expect fault) in Test Case 3!\""
-test4_ur_only_str: .string "\"Mismatch on U=1 R-only VU lw in Test Case 4!\""
-test5_urw_str: .string "\"Mismatch on U=1 R/W VU lw in Test Case 5!\""
-test6_urx_str: .string "\"Mismatch on U=1 R/X VU lw in Test Case 6!\""
-test7_s_lw_str: .string "\"Mismatch on U=0 VU lw (expect fault) in Test Case 7!\""
-test8_uv_lw_str: .string "\"Mismatch on U=1 V-only VU lw (expect fault) in Test Case 8!\""
-test9_s_sw_str: .string "\"Mismatch on U=0 VU sw (expect fault) in Test Case 9!\""
-test10_sv_lw_str: .string "\"Mismatch on U=0 V-only VU lw (expect fault) in Test Case 10!\""
-test11_sv_sw_str: .string "\"Mismatch on U=0 V-only VU sw (expect fault) in Test Case 11!\""
-test12_uv_sw_str: .string "\"Mismatch on U=1 V-only VU sw (expect fault) in Test Case 12!\""
   .popsection
 
 #endif  // SV32_SUPPORTED
@@ -395,12 +395,12 @@ test12_uv_sw_str: .string "\"Mismatch on U=1 V-only VU sw (expect fault) in Test
   VS_PTE_SETUP(sv39, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_W | PTE_R | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0711)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a3, 0x257a0711)
+  la s1, test_region
+  sw a3, 0(s1)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 1: U=1 XWR=111 VU sw+lw | Expected: Successful
-// Coverpoints: cp_vsatp_perm_checks
+// Coverpoints: cp_vsatp_perm_checks_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(t0, 0x257a0711)
@@ -410,8 +410,9 @@ test12_uv_sw_str: .string "\"Mismatch on U=1 V-only VU sw (expect fault) in Test
   lw a3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test1_urw_rwx:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_urw_rwx, test1_urw_rwx_str)
+SvH_cg_cp_vsatp_perm_checks_rw_test1_urw_rwx:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_vsatp_perm_checks_rw_test1_urw_rwx, SvH_cg_cp_vsatp_perm_checks_rw_test1_urw_rwx_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -420,12 +421,12 @@ test12_uv_sw_str: .string "\"Mismatch on U=1 V-only VU sw (expect fault) in Test
   VS_PTE_SETUP(sv39, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a072a)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(s0, 0x257a072a)
+  la a4, test_region
+  sw s0, 0(a4)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: U=1 X-only VU lw | Expected: Expected Fault
-// Coverpoints: cp_vsatp_perm_checks
+// Coverpoints: cp_vsatp_perm_checks_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(a4, 0)
@@ -433,8 +434,9 @@ test12_uv_sw_str: .string "\"Mismatch on U=1 V-only VU sw (expect fault) in Test
   lw a4, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test2_ux_lw:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test2_ux_lw, test2_ux_lw_str)
+SvH_cg_cp_vsatp_perm_checks_rw_test2_ux_lw:
+  # Check if x14 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x14, SvH_cg_cp_vsatp_perm_checks_rw_test2_ux_lw, SvH_cg_cp_vsatp_perm_checks_rw_test2_ux_lw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -443,12 +445,12 @@ test12_uv_sw_str: .string "\"Mismatch on U=1 V-only VU sw (expect fault) in Test
   VS_PTE_SETUP(sv39, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0741)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a4, 0x257a0741)
+  la a5, test_region
+  sw a4, 0(a5)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 3: U=1 X-only VU sw | Expected: Expected Fault
-// Coverpoints: cp_vsatp_perm_checks
+// Coverpoints: cp_vsatp_perm_checks_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(t0, 0xbad00fad)
@@ -458,8 +460,9 @@ test12_uv_sw_str: .string "\"Mismatch on U=1 V-only VU sw (expect fault) in Test
   RVTEST_GOTO_MMODE
   la t1, test_region
   lw a3, 0(t1)
-  test3_ux_sw:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test3_ux_sw, test3_ux_sw_str)
+SvH_cg_cp_vsatp_perm_checks_rw_test3_ux_sw:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_vsatp_perm_checks_rw_test3_ux_sw, SvH_cg_cp_vsatp_perm_checks_rw_test3_ux_sw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -468,12 +471,12 @@ test12_uv_sw_str: .string "\"Mismatch on U=1 V-only VU sw (expect fault) in Test
   VS_PTE_SETUP(sv39, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_R | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a075a)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(s1, 0x257a075a)
+  la s0, test_region
+  sw s1, 0(s0)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 4: U=1 R-only VU lw OK, VU sw fault | Expected: Successful
-// Coverpoints: cp_vsatp_perm_checks
+// Coverpoints: cp_vsatp_perm_checks_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(a3, 0)
@@ -481,8 +484,9 @@ test12_uv_sw_str: .string "\"Mismatch on U=1 V-only VU sw (expect fault) in Test
   lw a3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test4_ur_only:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test4_ur_only, test4_ur_only_str)
+SvH_cg_cp_vsatp_perm_checks_rw_test4_ur_only:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_vsatp_perm_checks_rw_test4_ur_only, SvH_cg_cp_vsatp_perm_checks_rw_test4_ur_only_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -491,12 +495,12 @@ test12_uv_sw_str: .string "\"Mismatch on U=1 V-only VU sw (expect fault) in Test
   VS_PTE_SETUP(sv39, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_W | PTE_R | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0771)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(s1, 0x257a0771)
+  la s0, test_region
+  sw s1, 0(s0)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 5: U=1 R/W VU sw+lw | Expected: Successful
-// Coverpoints: cp_vsatp_perm_checks
+// Coverpoints: cp_vsatp_perm_checks_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(t0, 0x257a0771)
@@ -506,8 +510,9 @@ test12_uv_sw_str: .string "\"Mismatch on U=1 V-only VU sw (expect fault) in Test
   lw a3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test5_urw:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test5_urw, test5_urw_str)
+SvH_cg_cp_vsatp_perm_checks_rw_test5_urw:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_vsatp_perm_checks_rw_test5_urw, SvH_cg_cp_vsatp_perm_checks_rw_test5_urw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -516,12 +521,12 @@ test12_uv_sw_str: .string "\"Mismatch on U=1 V-only VU sw (expect fault) in Test
   VS_PTE_SETUP(sv39, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_X | PTE_R | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a078a)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a3, 0x257a078a)
+  la s0, test_region
+  sw a3, 0(s0)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 6: U=1 R/X VU lw OK, VU sw fault | Expected: Successful
-// Coverpoints: cp_vsatp_perm_checks
+// Coverpoints: cp_vsatp_perm_checks_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(a3, 0)
@@ -529,8 +534,9 @@ test12_uv_sw_str: .string "\"Mismatch on U=1 V-only VU sw (expect fault) in Test
   lw a3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test6_urx:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test6_urx, test6_urx_str)
+SvH_cg_cp_vsatp_perm_checks_rw_test6_urx:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_vsatp_perm_checks_rw_test6_urx, SvH_cg_cp_vsatp_perm_checks_rw_test6_urx_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -539,12 +545,12 @@ test12_uv_sw_str: .string "\"Mismatch on U=1 V-only VU sw (expect fault) in Test
   VS_PTE_SETUP(sv39, PA, test_region, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a07a1)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a3, 0x257a07a1)
+  la a5, test_region
+  sw a3, 0(a5)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 7: U=0 XWR=111 VU lw | Expected: Expected Fault
-// Coverpoints: cp_vsatp_perm_checks
+// Coverpoints: cp_vsatp_perm_checks_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(a6, 0)
@@ -552,8 +558,9 @@ test12_uv_sw_str: .string "\"Mismatch on U=1 V-only VU sw (expect fault) in Test
   lw a6, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test7_s_lw:
-  RVTEST_SIGUPD(x2, x5, x4, a6, test7_s_lw, test7_s_lw_str)
+SvH_cg_cp_vsatp_perm_checks_rw_test7_s_lw:
+  # Check if x16 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x16, SvH_cg_cp_vsatp_perm_checks_rw_test7_s_lw, SvH_cg_cp_vsatp_perm_checks_rw_test7_s_lw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -562,12 +569,12 @@ test12_uv_sw_str: .string "\"Mismatch on U=1 V-only VU sw (expect fault) in Test
   VS_PTE_SETUP(sv39, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a07b8)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(s0, 0x257a07b8)
+  la a5, test_region
+  sw s0, 0(a5)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 8: U=1 V-only VU lw | Expected: Expected Fault
-// Coverpoints: cp_vsatp_perm_checks
+// Coverpoints: cp_vsatp_perm_checks_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(a7, 0)
@@ -575,8 +582,9 @@ test12_uv_sw_str: .string "\"Mismatch on U=1 V-only VU sw (expect fault) in Test
   lw a7, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test8_uv_lw:
-  RVTEST_SIGUPD(x2, x5, x4, a7, test8_uv_lw, test8_uv_lw_str)
+SvH_cg_cp_vsatp_perm_checks_rw_test8_uv_lw:
+  # Check if x17 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x17, SvH_cg_cp_vsatp_perm_checks_rw_test8_uv_lw, SvH_cg_cp_vsatp_perm_checks_rw_test8_uv_lw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -585,12 +593,12 @@ test12_uv_sw_str: .string "\"Mismatch on U=1 V-only VU sw (expect fault) in Test
   VS_PTE_SETUP(sv39, PA, test_region, (PTE_D | PTE_A | PTE_X | PTE_W | PTE_R | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a07cf)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a3, 0x257a07cf)
+  la a4, test_region
+  sw a3, 0(a4)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 9: U=0 XWR=111 VU sw | Expected: Expected Fault
-// Coverpoints: cp_vsatp_perm_checks
+// Coverpoints: cp_vsatp_perm_checks_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(t0, 0xbad00fad)
@@ -600,8 +608,9 @@ test12_uv_sw_str: .string "\"Mismatch on U=1 V-only VU sw (expect fault) in Test
   RVTEST_GOTO_MMODE
   la t1, test_region
   lw s2, 0(t1)
-  test9_s_sw:
-  RVTEST_SIGUPD(x2, x5, x4, s2, test9_s_sw, test9_s_sw_str)
+SvH_cg_cp_vsatp_perm_checks_rw_test9_s_sw:
+  # Check if x18 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x18, SvH_cg_cp_vsatp_perm_checks_rw_test9_s_sw, SvH_cg_cp_vsatp_perm_checks_rw_test9_s_sw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -610,12 +619,12 @@ test12_uv_sw_str: .string "\"Mismatch on U=1 V-only VU sw (expect fault) in Test
   VS_PTE_SETUP(sv39, PA, test_region, (PTE_D | PTE_A | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a07e8)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a3, 0x257a07e8)
+  la a4, test_region
+  sw a3, 0(a4)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 10: U=0 V-only VU lw | Expected: Expected Fault
-// Coverpoints: cp_vsatp_perm_checks
+// Coverpoints: cp_vsatp_perm_checks_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(s3, 0)
@@ -623,8 +632,9 @@ test12_uv_sw_str: .string "\"Mismatch on U=1 V-only VU sw (expect fault) in Test
   lw s3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test10_sv_lw:
-  RVTEST_SIGUPD(x2, x5, x4, s3, test10_sv_lw, test10_sv_lw_str)
+SvH_cg_cp_vsatp_perm_checks_rw_test10_sv_lw:
+  # Check if x19 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x19, SvH_cg_cp_vsatp_perm_checks_rw_test10_sv_lw, SvH_cg_cp_vsatp_perm_checks_rw_test10_sv_lw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -633,12 +643,12 @@ test12_uv_sw_str: .string "\"Mismatch on U=1 V-only VU sw (expect fault) in Test
   VS_PTE_SETUP(sv39, PA, test_region, (PTE_D | PTE_A | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a07ff)
+  LI(a3, 0x257a07ff)
   la t1, test_region
-  sw t0, 0(t1)
+  sw a3, 0(t1)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 11: U=0 V-only VU sw | Expected: Expected Fault
-// Coverpoints: cp_vsatp_perm_checks
+// Coverpoints: cp_vsatp_perm_checks_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(t0, 0xbad00fad)
@@ -648,8 +658,9 @@ test12_uv_sw_str: .string "\"Mismatch on U=1 V-only VU sw (expect fault) in Test
   RVTEST_GOTO_MMODE
   la t1, test_region
   lw s4, 0(t1)
-  test11_sv_sw:
-  RVTEST_SIGUPD(x2, x5, x4, s4, test11_sv_sw, test11_sv_sw_str)
+SvH_cg_cp_vsatp_perm_checks_rw_test11_sv_sw:
+  # Check if x20 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x20, SvH_cg_cp_vsatp_perm_checks_rw_test11_sv_sw, SvH_cg_cp_vsatp_perm_checks_rw_test11_sv_sw_str)
 
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -658,12 +669,12 @@ test12_uv_sw_str: .string "\"Mismatch on U=1 V-only VU sw (expect fault) in Test
   VS_PTE_SETUP(sv39, PA, test_region, (PTE_D | PTE_A | PTE_U | PTE_V), va_data, LEVEL0)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0818)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a4, 0x257a0818)
+  la s0, test_region
+  sw a4, 0(s0)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 12: U=1 V-only VU sw | Expected: Expected Fault
-// Coverpoints: cp_vsatp_perm_checks
+// Coverpoints: cp_vsatp_perm_checks_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a5, va_data)
   LI(t0, 0xbad00fad)
@@ -673,8 +684,9 @@ test12_uv_sw_str: .string "\"Mismatch on U=1 V-only VU sw (expect fault) in Test
   RVTEST_GOTO_MMODE
   la t1, test_region
   lw s5, 0(t1)
-  test12_uv_sw:
-  RVTEST_SIGUPD(x2, x5, x4, s5, test12_uv_sw, test12_uv_sw_str)
+SvH_cg_cp_vsatp_perm_checks_rw_test12_uv_sw:
+  # Check if x21 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x21, SvH_cg_cp_vsatp_perm_checks_rw_test12_uv_sw, SvH_cg_cp_vsatp_perm_checks_rw_test12_uv_sw_str)
 
 
   .pushsection .data
@@ -690,18 +702,6 @@ rvtest_vlvl1_pg_tbl:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_urw_rwx_str: .string "\"Mismatch on U=1 RWX VU lw in Test Case 1!\""
-test2_ux_lw_str: .string "\"Mismatch on U=1 X-only VU lw (expect fault) in Test Case 2!\""
-test3_ux_sw_str: .string "\"Mismatch on U=1 X-only VU sw (expect fault) in Test Case 3!\""
-test4_ur_only_str: .string "\"Mismatch on U=1 R-only VU lw in Test Case 4!\""
-test5_urw_str: .string "\"Mismatch on U=1 R/W VU lw in Test Case 5!\""
-test6_urx_str: .string "\"Mismatch on U=1 R/X VU lw in Test Case 6!\""
-test7_s_lw_str: .string "\"Mismatch on U=0 VU lw (expect fault) in Test Case 7!\""
-test8_uv_lw_str: .string "\"Mismatch on U=1 V-only VU lw (expect fault) in Test Case 8!\""
-test9_s_sw_str: .string "\"Mismatch on U=0 VU sw (expect fault) in Test Case 9!\""
-test10_sv_lw_str: .string "\"Mismatch on U=0 V-only VU lw (expect fault) in Test Case 10!\""
-test11_sv_sw_str: .string "\"Mismatch on U=0 V-only VU sw (expect fault) in Test Case 11!\""
-test12_uv_sw_str: .string "\"Mismatch on U=1 V-only VU sw (expect fault) in Test Case 12!\""
   .popsection
 
 #endif  // SV39_SUPPORTED
@@ -716,7 +716,34 @@ RVTEST_DATA_BEGIN
 
 
 // Testcase strings
-
+#ifdef SV32_SUPPORTED
+SvH_cg_cp_vsatp_perm_checks_rw_test1_urw_rwx_str: .string "\"test: 375; cg: SvH_cg; cp: cp_vsatp_perm_checks_rw; bin: test1_urw_rwx\""
+SvH_cg_cp_vsatp_perm_checks_rw_test2_ux_lw_str: .string "\"test: 376; cg: SvH_cg; cp: cp_vsatp_perm_checks_rw; bin: test2_ux_lw\""
+SvH_cg_cp_vsatp_perm_checks_rw_test3_ux_sw_str: .string "\"test: 377; cg: SvH_cg; cp: cp_vsatp_perm_checks_rw; bin: test3_ux_sw\""
+SvH_cg_cp_vsatp_perm_checks_rw_test4_ur_only_str: .string "\"test: 378; cg: SvH_cg; cp: cp_vsatp_perm_checks_rw; bin: test4_ur_only\""
+SvH_cg_cp_vsatp_perm_checks_rw_test5_urw_str: .string "\"test: 379; cg: SvH_cg; cp: cp_vsatp_perm_checks_rw; bin: test5_urw\""
+SvH_cg_cp_vsatp_perm_checks_rw_test6_urx_str: .string "\"test: 380; cg: SvH_cg; cp: cp_vsatp_perm_checks_rw; bin: test6_urx\""
+SvH_cg_cp_vsatp_perm_checks_rw_test7_s_lw_str: .string "\"test: 381; cg: SvH_cg; cp: cp_vsatp_perm_checks_rw; bin: test7_s_lw\""
+SvH_cg_cp_vsatp_perm_checks_rw_test8_uv_lw_str: .string "\"test: 382; cg: SvH_cg; cp: cp_vsatp_perm_checks_rw; bin: test8_uv_lw\""
+SvH_cg_cp_vsatp_perm_checks_rw_test9_s_sw_str: .string "\"test: 383; cg: SvH_cg; cp: cp_vsatp_perm_checks_rw; bin: test9_s_sw\""
+SvH_cg_cp_vsatp_perm_checks_rw_test10_sv_lw_str: .string "\"test: 384; cg: SvH_cg; cp: cp_vsatp_perm_checks_rw; bin: test10_sv_lw\""
+SvH_cg_cp_vsatp_perm_checks_rw_test11_sv_sw_str: .string "\"test: 385; cg: SvH_cg; cp: cp_vsatp_perm_checks_rw; bin: test11_sv_sw\""
+SvH_cg_cp_vsatp_perm_checks_rw_test12_uv_sw_str: .string "\"test: 386; cg: SvH_cg; cp: cp_vsatp_perm_checks_rw; bin: test12_uv_sw\""
+#endif  // SV32_SUPPORTED
+#ifdef SV39_SUPPORTED
+SvH_cg_cp_vsatp_perm_checks_rw_test1_urw_rwx_str: .string "\"test: 387; cg: SvH_cg; cp: cp_vsatp_perm_checks_rw; bin: test1_urw_rwx\""
+SvH_cg_cp_vsatp_perm_checks_rw_test2_ux_lw_str: .string "\"test: 388; cg: SvH_cg; cp: cp_vsatp_perm_checks_rw; bin: test2_ux_lw\""
+SvH_cg_cp_vsatp_perm_checks_rw_test3_ux_sw_str: .string "\"test: 389; cg: SvH_cg; cp: cp_vsatp_perm_checks_rw; bin: test3_ux_sw\""
+SvH_cg_cp_vsatp_perm_checks_rw_test4_ur_only_str: .string "\"test: 390; cg: SvH_cg; cp: cp_vsatp_perm_checks_rw; bin: test4_ur_only\""
+SvH_cg_cp_vsatp_perm_checks_rw_test5_urw_str: .string "\"test: 391; cg: SvH_cg; cp: cp_vsatp_perm_checks_rw; bin: test5_urw\""
+SvH_cg_cp_vsatp_perm_checks_rw_test6_urx_str: .string "\"test: 392; cg: SvH_cg; cp: cp_vsatp_perm_checks_rw; bin: test6_urx\""
+SvH_cg_cp_vsatp_perm_checks_rw_test7_s_lw_str: .string "\"test: 393; cg: SvH_cg; cp: cp_vsatp_perm_checks_rw; bin: test7_s_lw\""
+SvH_cg_cp_vsatp_perm_checks_rw_test8_uv_lw_str: .string "\"test: 394; cg: SvH_cg; cp: cp_vsatp_perm_checks_rw; bin: test8_uv_lw\""
+SvH_cg_cp_vsatp_perm_checks_rw_test9_s_sw_str: .string "\"test: 395; cg: SvH_cg; cp: cp_vsatp_perm_checks_rw; bin: test9_s_sw\""
+SvH_cg_cp_vsatp_perm_checks_rw_test10_sv_lw_str: .string "\"test: 396; cg: SvH_cg; cp: cp_vsatp_perm_checks_rw; bin: test10_sv_lw\""
+SvH_cg_cp_vsatp_perm_checks_rw_test11_sv_sw_str: .string "\"test: 397; cg: SvH_cg; cp: cp_vsatp_perm_checks_rw; bin: test11_sv_sw\""
+SvH_cg_cp_vsatp_perm_checks_rw_test12_uv_sw_str: .string "\"test: 398; cg: SvH_cg; cp: cp_vsatp_perm_checks_rw; bin: test12_uv_sw\""
+#endif  // SV39_SUPPORTED
 
 // End of test data section and model specific data
 RVTEST_DATA_END

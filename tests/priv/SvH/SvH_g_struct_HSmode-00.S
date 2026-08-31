@@ -48,9 +48,9 @@ RVTEST_BEGIN
   csrw vsatp, x0
   HGATP_SETUP(sv32x4)
   hfence.gvma
-  LI(t0, 0x257a0d02)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a4, 0x257a0d02)
+  la s1, test_region
+  sw a4, 0(s1)
 
 // --------------------------------------------------------------------------------------------------------------------------------
 // Test Cases Start from here
@@ -65,8 +65,9 @@ RVTEST_BEGIN
   hlv.w a3, (t1)
   nop
   RVTEST_GOTO_MMODE
-  test1_misalign:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_misalign, test1_misalign_str)
+SvH_cg_hgatp_misaligned_superpage_test1_misalign:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_hgatp_misaligned_superpage_test1_misalign, SvH_cg_hgatp_misaligned_superpage_test1_misalign_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: Valid 4KiB leaf plus HFENCE.GVMA HS HLV | Expected: Successful
@@ -80,8 +81,9 @@ RVTEST_BEGIN
   hlv.w a4, (t1)
   nop
   RVTEST_GOTO_MMODE
-  test2_ok:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test2_ok, test2_ok_str)
+SvH_cg_hgatp_root_table_alignment_and_size_test2_ok:
+  # Check if x14 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x14, SvH_cg_hgatp_root_table_alignment_and_size_test2_ok, SvH_cg_hgatp_root_table_alignment_and_size_test2_ok_str)
 
   .pushsection .data
   .p2align 12
@@ -96,8 +98,6 @@ rvtest_hlvl0_pg_tbl:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_misalign_str: .string "\"Mismatch on misaligned G superpage HLV\""
-test2_ok_str: .string "\"Mismatch on restored G leaf HLV\""
   .popsection
 
 #endif  // SV32_SUPPORTED
@@ -109,9 +109,9 @@ test2_ok_str: .string "\"Mismatch on restored G leaf HLV\""
   csrw vsatp, x0
   HGATP_SETUP(sv39x4)
   hfence.gvma
-  LI(t0, 0x257a0d12)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a3, 0x257a0d12)
+  la s0, test_region
+  sw a3, 0(s0)
 
 // --------------------------------------------------------------------------------------------------------------------------------
 // Test Cases Start from here
@@ -126,8 +126,9 @@ test2_ok_str: .string "\"Mismatch on restored G leaf HLV\""
   hlv.d a3, (t1)
   nop
   RVTEST_GOTO_MMODE
-  test1_misalign:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_misalign, test1_misalign_str)
+SvH_cg_hgatp_misaligned_superpage_test1_misalign:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_hgatp_misaligned_superpage_test1_misalign, SvH_cg_hgatp_misaligned_superpage_test1_misalign_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: Valid 4KiB leaf plus HFENCE.GVMA HS HLV | Expected: Successful
@@ -142,8 +143,9 @@ test2_ok_str: .string "\"Mismatch on restored G leaf HLV\""
   hlv.d a4, (t1)
   nop
   RVTEST_GOTO_MMODE
-  test2_ok:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test2_ok, test2_ok_str)
+SvH_cg_hgatp_root_table_alignment_and_size_test2_ok:
+  # Check if x14 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x14, SvH_cg_hgatp_root_table_alignment_and_size_test2_ok, SvH_cg_hgatp_root_table_alignment_and_size_test2_ok_str)
 
   .pushsection .data
   .p2align 12
@@ -164,8 +166,6 @@ rvtest_vlvl1_pg_tbl:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_misalign_str: .string "\"Mismatch on misaligned G superpage HLV\""
-test2_ok_str: .string "\"Mismatch on restored G leaf HLV\""
   .popsection
 
 #endif  // SV39_SUPPORTED
@@ -180,7 +180,14 @@ RVTEST_DATA_BEGIN
 
 
 // Testcase strings
-
+#ifdef SV32_SUPPORTED
+SvH_cg_hgatp_misaligned_superpage_test1_misalign_str: .string "\"test: 637; cg: SvH_cg; cp: hgatp_misaligned_superpage; bin: test1_misalign\""
+SvH_cg_hgatp_root_table_alignment_and_size_test2_ok_str: .string "\"test: 638; cg: SvH_cg; cp: hgatp_root_table_alignment_and_size; bin: test2_ok\""
+#endif  // SV32_SUPPORTED
+#ifdef SV39_SUPPORTED
+SvH_cg_hgatp_misaligned_superpage_test1_misalign_str: .string "\"test: 639; cg: SvH_cg; cp: hgatp_misaligned_superpage; bin: test1_misalign\""
+SvH_cg_hgatp_root_table_alignment_and_size_test2_ok_str: .string "\"test: 640; cg: SvH_cg; cp: hgatp_root_table_alignment_and_size; bin: test2_ok\""
+#endif  // SV39_SUPPORTED
 
 // End of test data section and model specific data
 RVTEST_DATA_END

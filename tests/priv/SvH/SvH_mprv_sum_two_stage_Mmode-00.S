@@ -64,9 +64,9 @@ RVTEST_BEGIN
   csrw satp, x0
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0c02)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(s0, 0x257a0c02)
+  la a4, test_region
+  sw s0, 0(a4)
   LI(t0, MSTATUS_MPP)
   csrc mstatus, t0
   LI(t0, MPP_SMODE)
@@ -91,10 +91,11 @@ RVTEST_BEGIN
   LI(a3, 0)
   lw a3, 0(a5)
   nop
-  LI(t0, MSTATUS_MPRV)
-  csrc mstatus, t0
-  test1_sum0:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_sum0, test1_sum0_str)
+  LI(s0, MSTATUS_MPRV)
+  csrc mstatus, s0
+SvH_cg_mprv_sum_effect_hs_two_stage_test1_sum0:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_mprv_sum_effect_hs_two_stage_test1_sum0, SvH_cg_mprv_sum_effect_hs_two_stage_test1_sum0_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: MPRV SUM=1 U-page lw | Expected: Successful
@@ -108,10 +109,11 @@ RVTEST_BEGIN
   LI(a5, va_u)
   lw a4, 0(a5)
   nop
-  LI(t0, MSTATUS_MPRV)
-  csrc mstatus, t0
-  test2_sum1:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test2_sum1, test2_sum1_str)
+  LI(s0, MSTATUS_MPRV)
+  csrc mstatus, s0
+SvH_cg_mprv_sum_effect_hs_two_stage_test2_sum1:
+  # Check if x14 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x14, SvH_cg_mprv_sum_effect_hs_two_stage_test2_sum1, SvH_cg_mprv_sum_effect_hs_two_stage_test2_sum1_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 3: MPRV SUM=1 U-page sw+lw | Expected: Successful
@@ -124,10 +126,11 @@ RVTEST_BEGIN
   nop
   lw a6, 0(a5)
   nop
-  LI(t0, MSTATUS_MPRV)
-  csrc mstatus, t0
-  test3_sum1_sw:
-  RVTEST_SIGUPD(x2, x5, x4, a6, test3_sum1_sw, test3_sum1_sw_str)
+  LI(a3, MSTATUS_MPRV)
+  csrc mstatus, a3
+SvH_cg_mprv_sum_effect_hs_two_stage_test3_sum1_sw:
+  # Check if x16 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x16, SvH_cg_mprv_sum_effect_hs_two_stage_test3_sum1_sw, SvH_cg_mprv_sum_effect_hs_two_stage_test3_sum1_sw_str)
 
   .pushsection .data
   .p2align 12
@@ -142,9 +145,6 @@ rvtest_hlvl0_pg_tbl:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_sum0_str: .string "\"Mismatch on MPRV SUM=0 U-page lw\""
-test2_sum1_str: .string "\"Mismatch on MPRV SUM=1 U-page lw\""
-test3_sum1_sw_str: .string "\"Mismatch on MPRV SUM=1 U-page sw+lw\""
   .popsection
 
 #endif  // SV32_SUPPORTED
@@ -177,9 +177,9 @@ test3_sum1_sw_str: .string "\"Mismatch on MPRV SUM=1 U-page sw+lw\""
   csrw satp, x0
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0c02)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a3, 0x257a0c02)
+  la s1, test_region
+  sw a3, 0(s1)
   LI(t0, MSTATUS_MPP)
   csrc mstatus, t0
   LI(t0, MPP_SMODE)
@@ -204,10 +204,11 @@ test3_sum1_sw_str: .string "\"Mismatch on MPRV SUM=1 U-page sw+lw\""
   LI(a3, 0)
   lw a3, 0(a5)
   nop
-  LI(t0, MSTATUS_MPRV)
-  csrc mstatus, t0
-  test1_sum0:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_sum0, test1_sum0_str)
+  LI(a3, MSTATUS_MPRV)
+  csrc mstatus, a3
+SvH_cg_mprv_sum_effect_hs_two_stage_test1_sum0:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_mprv_sum_effect_hs_two_stage_test1_sum0, SvH_cg_mprv_sum_effect_hs_two_stage_test1_sum0_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: MPRV SUM=1 U-page lw | Expected: Successful
@@ -221,10 +222,11 @@ test3_sum1_sw_str: .string "\"Mismatch on MPRV SUM=1 U-page sw+lw\""
   LI(a5, va_u)
   lw a4, 0(a5)
   nop
-  LI(t0, MSTATUS_MPRV)
-  csrc mstatus, t0
-  test2_sum1:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test2_sum1, test2_sum1_str)
+  LI(t1, MSTATUS_MPRV)
+  csrc mstatus, t1
+SvH_cg_mprv_sum_effect_hs_two_stage_test2_sum1:
+  # Check if x14 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x14, SvH_cg_mprv_sum_effect_hs_two_stage_test2_sum1, SvH_cg_mprv_sum_effect_hs_two_stage_test2_sum1_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 3: MPRV SUM=1 U-page sw+lw | Expected: Successful
@@ -237,10 +239,11 @@ test3_sum1_sw_str: .string "\"Mismatch on MPRV SUM=1 U-page sw+lw\""
   nop
   lw a6, 0(a5)
   nop
-  LI(t0, MSTATUS_MPRV)
-  csrc mstatus, t0
-  test3_sum1_sw:
-  RVTEST_SIGUPD(x2, x5, x4, a6, test3_sum1_sw, test3_sum1_sw_str)
+  LI(s0, MSTATUS_MPRV)
+  csrc mstatus, s0
+SvH_cg_mprv_sum_effect_hs_two_stage_test3_sum1_sw:
+  # Check if x16 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x16, SvH_cg_mprv_sum_effect_hs_two_stage_test3_sum1_sw, SvH_cg_mprv_sum_effect_hs_two_stage_test3_sum1_sw_str)
 
   .pushsection .data
   .p2align 12
@@ -261,9 +264,6 @@ rvtest_vlvl1_pg_tbl:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_sum0_str: .string "\"Mismatch on MPRV SUM=0 U-page lw\""
-test2_sum1_str: .string "\"Mismatch on MPRV SUM=1 U-page lw\""
-test3_sum1_sw_str: .string "\"Mismatch on MPRV SUM=1 U-page sw+lw\""
   .popsection
 
 #endif  // SV39_SUPPORTED
@@ -278,7 +278,16 @@ RVTEST_DATA_BEGIN
 
 
 // Testcase strings
-
+#ifdef SV32_SUPPORTED
+SvH_cg_mprv_sum_effect_hs_two_stage_test1_sum0_str: .string "\"test: 674; cg: SvH_cg; cp: mprv_sum_effect_hs_two_stage; bin: test1_sum0\""
+SvH_cg_mprv_sum_effect_hs_two_stage_test2_sum1_str: .string "\"test: 675; cg: SvH_cg; cp: mprv_sum_effect_hs_two_stage; bin: test2_sum1\""
+SvH_cg_mprv_sum_effect_hs_two_stage_test3_sum1_sw_str: .string "\"test: 676; cg: SvH_cg; cp: mprv_sum_effect_hs_two_stage; bin: test3_sum1_sw\""
+#endif  // SV32_SUPPORTED
+#ifdef SV39_SUPPORTED
+SvH_cg_mprv_sum_effect_hs_two_stage_test1_sum0_str: .string "\"test: 677; cg: SvH_cg; cp: mprv_sum_effect_hs_two_stage; bin: test1_sum0\""
+SvH_cg_mprv_sum_effect_hs_two_stage_test2_sum1_str: .string "\"test: 678; cg: SvH_cg; cp: mprv_sum_effect_hs_two_stage; bin: test2_sum1\""
+SvH_cg_mprv_sum_effect_hs_two_stage_test3_sum1_sw_str: .string "\"test: 679; cg: SvH_cg; cp: mprv_sum_effect_hs_two_stage; bin: test3_sum1_sw\""
+#endif  // SV39_SUPPORTED
 
 // End of test data section and model specific data
 RVTEST_DATA_END

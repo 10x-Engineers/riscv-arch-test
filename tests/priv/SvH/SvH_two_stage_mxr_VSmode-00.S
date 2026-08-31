@@ -62,9 +62,9 @@ RVTEST_BEGIN
   HGATP_SETUP(sv32x4)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0101)
+  LI(s1, 0x257a0101)
   la t1, test_region
-  sw t0, 0(t1)
+  sw s1, 0(t1)
   LI(a5, va_data)
   LI(t0, SSTATUS_MXR)
   csrc sstatus, t0
@@ -74,8 +74,9 @@ RVTEST_BEGIN
   lw   a3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test1_mxr0:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_mxr0, test1_mxr0_str)
+SvH_cg_cp_two_stage_mxr_test1_mxr0:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_two_stage_mxr_test1_mxr0, SvH_cg_cp_two_stage_mxr_test1_mxr0_str)
   LI(t0, SSTATUS_MXR)
   csrs sstatus, t0
   csrs vsstatus, t0
@@ -84,8 +85,9 @@ RVTEST_BEGIN
   lw   a4, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test2_mxr1:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test2_mxr1, test2_mxr1_str)
+SvH_cg_cp_two_stage_mxr_test2_mxr1:
+  # Check if x14 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x14, SvH_cg_cp_two_stage_mxr_test2_mxr1, SvH_cg_cp_two_stage_mxr_test2_mxr1_str)
 
   .pushsection .data
   .p2align 12
@@ -100,8 +102,6 @@ rvtest_hlvl0_pg_tbl:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_mxr0_str: .string "\"Mismatch on VS MXR=0 X-only load\""
-test2_mxr1_str: .string "\"Mismatch on VS MXR=1 X-only load\""
   .popsection
 
 #endif  // SV32_SUPPORTED
@@ -132,9 +132,9 @@ test2_mxr1_str: .string "\"Mismatch on VS MXR=1 X-only load\""
   HGATP_SETUP(sv39x4)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0101)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(s0, 0x257a0101)
+  la a3, test_region
+  sw s0, 0(a3)
   LI(a5, va_data)
   LI(t0, SSTATUS_MXR)
   csrc sstatus, t0
@@ -144,8 +144,9 @@ test2_mxr1_str: .string "\"Mismatch on VS MXR=1 X-only load\""
   lw   a3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test1_mxr0:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_mxr0, test1_mxr0_str)
+SvH_cg_cp_two_stage_mxr_test1_mxr0:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_two_stage_mxr_test1_mxr0, SvH_cg_cp_two_stage_mxr_test1_mxr0_str)
   LI(t0, SSTATUS_MXR)
   csrs sstatus, t0
   csrs vsstatus, t0
@@ -154,8 +155,9 @@ test2_mxr1_str: .string "\"Mismatch on VS MXR=1 X-only load\""
   lw   a4, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test2_mxr1:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test2_mxr1, test2_mxr1_str)
+SvH_cg_cp_two_stage_mxr_test2_mxr1:
+  # Check if x14 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x14, SvH_cg_cp_two_stage_mxr_test2_mxr1, SvH_cg_cp_two_stage_mxr_test2_mxr1_str)
 
   .pushsection .data
   .p2align 12
@@ -176,8 +178,6 @@ rvtest_vlvl1_pg_tbl:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_mxr0_str: .string "\"Mismatch on VS MXR=0 X-only load\""
-test2_mxr1_str: .string "\"Mismatch on VS MXR=1 X-only load\""
   .popsection
 
 #endif  // SV39_SUPPORTED
@@ -192,7 +192,14 @@ RVTEST_DATA_BEGIN
 
 
 // Testcase strings
-
+#ifdef SV32_SUPPORTED
+SvH_cg_cp_two_stage_mxr_test1_mxr0_str: .string "\"test: 17; cg: SvH_cg; cp: cp_two_stage_mxr; bin: test1_mxr0\""
+SvH_cg_cp_two_stage_mxr_test2_mxr1_str: .string "\"test: 18; cg: SvH_cg; cp: cp_two_stage_mxr; bin: test2_mxr1\""
+#endif  // SV32_SUPPORTED
+#ifdef SV39_SUPPORTED
+SvH_cg_cp_two_stage_mxr_test1_mxr0_str: .string "\"test: 19; cg: SvH_cg; cp: cp_two_stage_mxr; bin: test1_mxr0\""
+SvH_cg_cp_two_stage_mxr_test2_mxr1_str: .string "\"test: 20; cg: SvH_cg; cp: cp_two_stage_mxr; bin: test2_mxr1\""
+#endif  // SV39_SUPPORTED
 
 // End of test data section and model specific data
 RVTEST_DATA_END

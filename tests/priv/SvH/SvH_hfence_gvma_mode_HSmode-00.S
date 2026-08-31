@@ -49,9 +49,9 @@ RVTEST_BEGIN
   csrw vsatp, x0
   csrw hgatp, x0
   hfence.gvma
-  LI(t0, 0x257a0911)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a3, 0x257a0911)
+  la s1, test_region
+  sw a3, 0(s1)
 
 // --------------------------------------------------------------------------------------------------------------------------------
 // Test Cases Start from here
@@ -73,15 +73,16 @@ RVTEST_BEGIN
   hlv.w a3, (t1)
   nop
   RVTEST_GOTO_MMODE
-  test1_bare_to_paged:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_bare_to_paged, test1_bare_to_paged_str)
+SvH_cg_cp_hgatp_mode_change_hfence_test1_bare_to_paged:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_hgatp_mode_change_hfence_test1_bare_to_paged, SvH_cg_cp_hgatp_mode_change_hfence_test1_bare_to_paged_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: hgatp sv32x4 to Bare plus HFENCE.GVMA; HS HLV of SPA | Expected: Successful
 //--------------------------------------------------------------------------------------------------------------------------------
-  LI(t0, 0x257a0912)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a3, 0x257a0912)
+  la s0, test_region
+  sw a3, 0(s0)
   csrw hgatp, x0
   RVTEST_GOTO_LOWER_MODE HSmode
   hfence.gvma
@@ -89,8 +90,9 @@ RVTEST_BEGIN
   hlv.w a3, (t1)
   nop
   RVTEST_GOTO_MMODE
-  test2_paged_to_bare:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test2_paged_to_bare, test2_paged_to_bare_str)
+SvH_cg_cp_hgatp_mode_change_hfence_test2_paged_to_bare:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_hgatp_mode_change_hfence_test2_paged_to_bare, SvH_cg_cp_hgatp_mode_change_hfence_test2_paged_to_bare_str)
 
   .pushsection .data
   .p2align 12
@@ -105,8 +107,6 @@ rvtest_hlvl0_pg_tbl:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_bare_to_paged_str: .string "\"Mismatch on Bare to Paged HFENCE.GVMA HLV\""
-test2_paged_to_bare_str: .string "\"Mismatch on Paged to Bare HFENCE.GVMA HLV\""
   .popsection
 
 #endif  // SV32_SUPPORTED
@@ -120,9 +120,9 @@ test2_paged_to_bare_str: .string "\"Mismatch on Paged to Bare HFENCE.GVMA HLV\""
   csrw vsatp, x0
   csrw hgatp, x0
   hfence.gvma
-  LI(t0, 0x257a0911)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a4, 0x257a0911)
+  la a3, test_region
+  sw a4, 0(a3)
 
 // --------------------------------------------------------------------------------------------------------------------------------
 // Test Cases Start from here
@@ -144,15 +144,16 @@ test2_paged_to_bare_str: .string "\"Mismatch on Paged to Bare HFENCE.GVMA HLV\""
   hlv.w a3, (t1)
   nop
   RVTEST_GOTO_MMODE
-  test1_bare_to_paged:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_bare_to_paged, test1_bare_to_paged_str)
+SvH_cg_cp_hgatp_mode_change_hfence_test1_bare_to_paged:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_hgatp_mode_change_hfence_test1_bare_to_paged, SvH_cg_cp_hgatp_mode_change_hfence_test1_bare_to_paged_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: hgatp sv39x4 to Bare plus HFENCE.GVMA; HS HLV of SPA | Expected: Successful
 //--------------------------------------------------------------------------------------------------------------------------------
-  LI(t0, 0x257a0912)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(s0, 0x257a0912)
+  la s1, test_region
+  sw s0, 0(s1)
   csrw hgatp, x0
   RVTEST_GOTO_LOWER_MODE HSmode
   hfence.gvma
@@ -160,8 +161,9 @@ test2_paged_to_bare_str: .string "\"Mismatch on Paged to Bare HFENCE.GVMA HLV\""
   hlv.w a3, (t1)
   nop
   RVTEST_GOTO_MMODE
-  test2_paged_to_bare:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test2_paged_to_bare, test2_paged_to_bare_str)
+SvH_cg_cp_hgatp_mode_change_hfence_test2_paged_to_bare:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_hgatp_mode_change_hfence_test2_paged_to_bare, SvH_cg_cp_hgatp_mode_change_hfence_test2_paged_to_bare_str)
 
   .pushsection .data
   .p2align 12
@@ -182,8 +184,6 @@ rvtest_vlvl1_pg_tbl:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_bare_to_paged_str: .string "\"Mismatch on Bare to Paged HFENCE.GVMA HLV\""
-test2_paged_to_bare_str: .string "\"Mismatch on Paged to Bare HFENCE.GVMA HLV\""
   .popsection
 
 #endif  // SV39_SUPPORTED
@@ -198,7 +198,14 @@ RVTEST_DATA_BEGIN
 
 
 // Testcase strings
-
+#ifdef SV32_SUPPORTED
+SvH_cg_cp_hgatp_mode_change_hfence_test1_bare_to_paged_str: .string "\"test: 644; cg: SvH_cg; cp: cp_hgatp_mode_change_hfence; bin: test1_bare_to_paged\""
+SvH_cg_cp_hgatp_mode_change_hfence_test2_paged_to_bare_str: .string "\"test: 645; cg: SvH_cg; cp: cp_hgatp_mode_change_hfence; bin: test2_paged_to_bare\""
+#endif  // SV32_SUPPORTED
+#ifdef SV39_SUPPORTED
+SvH_cg_cp_hgatp_mode_change_hfence_test1_bare_to_paged_str: .string "\"test: 646; cg: SvH_cg; cp: cp_hgatp_mode_change_hfence; bin: test1_bare_to_paged\""
+SvH_cg_cp_hgatp_mode_change_hfence_test2_paged_to_bare_str: .string "\"test: 647; cg: SvH_cg; cp: cp_hgatp_mode_change_hfence; bin: test2_paged_to_bare\""
+#endif  // SV39_SUPPORTED
 
 // End of test data section and model specific data
 RVTEST_DATA_END

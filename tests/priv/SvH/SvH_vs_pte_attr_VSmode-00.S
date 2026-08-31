@@ -15,7 +15,7 @@
 ##### END_TEST_CONFIG #####
 
 // Define the size of the signature region
-#define SIGUPD_COUNT 41
+#define SIGUPD_COUNT 40
 
 // Extra defines (if needed) to enable trap handlers, fpu, vector, etc.
 #define RVTEST_HYPERVISOR
@@ -72,8 +72,9 @@ RVTEST_BEGIN
   RVTEST_GOTO_MMODE
   la t1, test_region
   lw s2, 0(t1)
-  test1_rsw00_sw:
-  RVTEST_SIGUPD(x2, x5, x4, s2, test1_rsw00_sw, test1_rsw00_sw_str)
+SvH_cg_cp_vsatp_pte_rsw_test1_rsw00_sw:
+  # Check if x18 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x18, SvH_cg_cp_vsatp_pte_rsw_test1_rsw00_sw, SvH_cg_cp_vsatp_pte_rsw_test1_rsw00_sw_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: RSW=00 VS lw only | Expected: Successful
@@ -83,8 +84,9 @@ RVTEST_BEGIN
   lw a3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test2_rsw00_lw:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test2_rsw00_lw, test2_rsw00_lw_str)
+SvH_cg_cp_vsatp_pte_rsw_test2_rsw00_lw:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_vsatp_pte_rsw_test2_rsw00_lw, SvH_cg_cp_vsatp_pte_rsw_test2_rsw00_lw_str)
   VS_PTE_SETUP(sv32, PA, test_region, ((PTE_D | PTE_A | PTE_W | PTE_R | PTE_V) | 0x100), va_data, LEVEL0)
   hfence.vvma
 
@@ -98,8 +100,9 @@ RVTEST_BEGIN
   RVTEST_GOTO_MMODE
   la t1, test_region
   lw s3, 0(t1)
-  test3_rsw01_sw:
-  RVTEST_SIGUPD(x2, x5, x4, s3, test3_rsw01_sw, test3_rsw01_sw_str)
+SvH_cg_cp_vsatp_pte_rsw_test3_rsw01_sw:
+  # Check if x19 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x19, SvH_cg_cp_vsatp_pte_rsw_test3_rsw01_sw, SvH_cg_cp_vsatp_pte_rsw_test3_rsw01_sw_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 4: RSW=01 VS lw only | Expected: Successful
@@ -109,8 +112,9 @@ RVTEST_BEGIN
   lw a4, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test4_rsw01_lw:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test4_rsw01_lw, test4_rsw01_lw_str)
+SvH_cg_cp_vsatp_pte_rsw_test4_rsw01_lw:
+  # Check if x14 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x14, SvH_cg_cp_vsatp_pte_rsw_test4_rsw01_lw, SvH_cg_cp_vsatp_pte_rsw_test4_rsw01_lw_str)
   VS_PTE_SETUP(sv32, PA, test_region, ((PTE_D | PTE_A | PTE_W | PTE_R | PTE_V) | 0x200), va_data, LEVEL0)
   hfence.vvma
 
@@ -124,8 +128,9 @@ RVTEST_BEGIN
   RVTEST_GOTO_MMODE
   la t1, test_region
   lw s4, 0(t1)
-  test5_rsw10_sw:
-  RVTEST_SIGUPD(x2, x5, x4, s4, test5_rsw10_sw, test5_rsw10_sw_str)
+SvH_cg_cp_vsatp_pte_rsw_test5_rsw10_sw:
+  # Check if x20 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x20, SvH_cg_cp_vsatp_pte_rsw_test5_rsw10_sw, SvH_cg_cp_vsatp_pte_rsw_test5_rsw10_sw_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 6: RSW=10 VS lw only | Expected: Successful
@@ -135,8 +140,9 @@ RVTEST_BEGIN
   lw a6, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test6_rsw10_lw:
-  RVTEST_SIGUPD(x2, x5, x4, a6, test6_rsw10_lw, test6_rsw10_lw_str)
+SvH_cg_cp_vsatp_pte_rsw_test6_rsw10_lw:
+  # Check if x16 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x16, SvH_cg_cp_vsatp_pte_rsw_test6_rsw10_lw, SvH_cg_cp_vsatp_pte_rsw_test6_rsw10_lw_str)
   VS_PTE_SETUP(sv32, PA, test_region, ((PTE_D | PTE_A | PTE_W | PTE_R | PTE_V) | PTE_SOFT), va_data, LEVEL0)
   hfence.vvma
 
@@ -150,8 +156,9 @@ RVTEST_BEGIN
   RVTEST_GOTO_MMODE
   la t1, test_region
   lw s5, 0(t1)
-  test7_rsw11_sw:
-  RVTEST_SIGUPD(x2, x5, x4, s5, test7_rsw11_sw, test7_rsw11_sw_str)
+SvH_cg_cp_vsatp_pte_rsw_test7_rsw11_sw:
+  # Check if x21 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x21, SvH_cg_cp_vsatp_pte_rsw_test7_rsw11_sw, SvH_cg_cp_vsatp_pte_rsw_test7_rsw11_sw_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 8: RSW=11 VS lw only | Expected: Successful
@@ -161,8 +168,9 @@ RVTEST_BEGIN
   lw a7, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test8_rsw11_lw:
-  RVTEST_SIGUPD(x2, x5, x4, a7, test8_rsw11_lw, test8_rsw11_lw_str)
+SvH_cg_cp_vsatp_pte_rsw_test8_rsw11_lw:
+  # Check if x17 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x17, SvH_cg_cp_vsatp_pte_rsw_test8_rsw11_lw, SvH_cg_cp_vsatp_pte_rsw_test8_rsw11_lw_str)
 
   .pushsection .data
   .p2align 12
@@ -177,14 +185,6 @@ rvtest_hlvl0_pg_tbl:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_rsw00_sw_str: .string "\"Mismatch on RSW=00 VS sw SPA\""
-test2_rsw00_lw_str: .string "\"Mismatch on RSW=00 VS lw\""
-test3_rsw01_sw_str: .string "\"Mismatch on RSW=01 VS sw SPA\""
-test4_rsw01_lw_str: .string "\"Mismatch on RSW=01 VS lw\""
-test5_rsw10_sw_str: .string "\"Mismatch on RSW=10 VS sw SPA\""
-test6_rsw10_lw_str: .string "\"Mismatch on RSW=10 VS lw\""
-test7_rsw11_sw_str: .string "\"Mismatch on RSW=11 VS sw SPA\""
-test8_rsw11_lw_str: .string "\"Mismatch on RSW=11 VS lw\""
   .popsection
 
 #endif  // SV32_SUPPORTED
@@ -233,24 +233,24 @@ test8_rsw11_lw_str: .string "\"Mismatch on RSW=11 VS lw\""
   csrw hgatp, x0
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0301)
-  la t1, test_region0
-  sw t0, 0(t1)
-  LI(t0, 0x257a0302)
-  la t1, test_region1
-  sw t0, 0(t1)
-  LI(t0, 0x257a0303)
+  LI(a3, 0x257a0301)
+  la a4, test_region0
+  sw a3, 0(a4)
+  LI(t1, 0x257a0302)
+  la a4, test_region1
+  sw t1, 0(a4)
+  LI(a5, 0x257a0303)
   la t1, test_region2
-  sw t0, 0(t1)
-  LI(t0, 0x257a0304)
-  la t1, test_region3
-  sw t0, 0(t1)
-  LI(t0, 0x257a0305)
+  sw a5, 0(t1)
+  LI(a3, 0x257a0304)
+  la a5, test_region3
+  sw a3, 0(a5)
+  LI(s1, 0x257a0305)
   la t1, test_region4
-  sw t0, 0(t1)
-  LI(t0, 0x257a0306)
-  la t1, test_region5
-  sw t0, 0(t1)
+  sw s1, 0(t1)
+  LI(s1, 0x257a0306)
+  la a5, test_region5
+  sw s1, 0(a5)
 
 // --------------------------------------------------------------------------------------------------------------------------------
 // Test Cases Start from here
@@ -267,8 +267,9 @@ test8_rsw11_lw_str: .string "\"Mismatch on RSW=11 VS lw\""
   lw a3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test1_rsw00:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_rsw00, test1_rsw00_str)
+SvH_cg_cp_vsatp_pte_rsw_test1_rsw00:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_vsatp_pte_rsw_test1_rsw00, SvH_cg_cp_vsatp_pte_rsw_test1_rsw00_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: RSW=01 VS sw+lw | Expected: Successful
@@ -281,8 +282,9 @@ test8_rsw11_lw_str: .string "\"Mismatch on RSW=11 VS lw\""
   lw a4, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test2_rsw01:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test2_rsw01, test2_rsw01_str)
+SvH_cg_cp_vsatp_pte_rsw_test2_rsw01:
+  # Check if x14 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x14, SvH_cg_cp_vsatp_pte_rsw_test2_rsw01, SvH_cg_cp_vsatp_pte_rsw_test2_rsw01_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 2b: RSW=01 VS lw only | Expected: Successful
@@ -293,8 +295,9 @@ test8_rsw11_lw_str: .string "\"Mismatch on RSW=11 VS lw\""
   lw s2, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test2b_rsw01_lw:
-  RVTEST_SIGUPD(x2, x5, x4, s2, test2b_rsw01_lw, test2b_rsw01_lw_str)
+SvH_cg_cp_vsatp_pte_rsw_test2b_rsw01_lw:
+  # Check if x18 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x18, SvH_cg_cp_vsatp_pte_rsw_test2b_rsw01_lw, SvH_cg_cp_vsatp_pte_rsw_test2b_rsw01_lw_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 3: RSW=10 VS sw+lw | Expected: Successful
@@ -307,8 +310,9 @@ test8_rsw11_lw_str: .string "\"Mismatch on RSW=11 VS lw\""
   lw a6, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test3_rsw10:
-  RVTEST_SIGUPD(x2, x5, x4, a6, test3_rsw10, test3_rsw10_str)
+SvH_cg_cp_vsatp_pte_rsw_test3_rsw10:
+  # Check if x16 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x16, SvH_cg_cp_vsatp_pte_rsw_test3_rsw10, SvH_cg_cp_vsatp_pte_rsw_test3_rsw10_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 3b: RSW=10 VS lw only | Expected: Successful
@@ -319,8 +323,9 @@ test8_rsw11_lw_str: .string "\"Mismatch on RSW=11 VS lw\""
   lw s3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test3b_rsw10_lw:
-  RVTEST_SIGUPD(x2, x5, x4, s3, test3b_rsw10_lw, test3b_rsw10_lw_str)
+SvH_cg_cp_vsatp_pte_rsw_test3b_rsw10_lw:
+  # Check if x19 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x19, SvH_cg_cp_vsatp_pte_rsw_test3b_rsw10_lw, SvH_cg_cp_vsatp_pte_rsw_test3b_rsw10_lw_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 4: RSW=11 VS sw+lw | Expected: Successful
@@ -333,8 +338,9 @@ test8_rsw11_lw_str: .string "\"Mismatch on RSW=11 VS lw\""
   lw a7, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test4_rsw11:
-  RVTEST_SIGUPD(x2, x5, x4, a7, test4_rsw11, test4_rsw11_str)
+SvH_cg_cp_vsatp_pte_rsw_test4_rsw11:
+  # Check if x17 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x17, SvH_cg_cp_vsatp_pte_rsw_test4_rsw11, SvH_cg_cp_vsatp_pte_rsw_test4_rsw11_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 4b: RSW=11 VS lw only | Expected: Successful
@@ -345,8 +351,9 @@ test8_rsw11_lw_str: .string "\"Mismatch on RSW=11 VS lw\""
   lw s4, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test4b_rsw11_lw:
-  RVTEST_SIGUPD(x2, x5, x4, s4, test4b_rsw11_lw, test4b_rsw11_lw_str)
+SvH_cg_cp_vsatp_pte_rsw_test4b_rsw11_lw:
+  # Check if x20 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x20, SvH_cg_cp_vsatp_pte_rsw_test4b_rsw11_lw, SvH_cg_cp_vsatp_pte_rsw_test4b_rsw11_lw_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 5a: Reserved PTE_BIT54 VS lw | Expected: Expected Fault
@@ -359,8 +366,9 @@ test8_rsw11_lw_str: .string "\"Mismatch on RSW=11 VS lw\""
   lw a6, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test5a_pte_bit54:
-  RVTEST_SIGUPD(x2, x5, x4, a6, test5a_pte_bit54, test5a_pte_bit54_str)
+SvH_cg_cp_vsatp_reserved_fields_rw_test5a_pte_bit54:
+  # Check if x16 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x16, SvH_cg_cp_vsatp_reserved_fields_rw_test5a_pte_bit54, SvH_cg_cp_vsatp_reserved_fields_rw_test5a_pte_bit54_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 5b: Reserved PTE_BIT55 VS lw | Expected: Expected Fault
@@ -373,8 +381,9 @@ test8_rsw11_lw_str: .string "\"Mismatch on RSW=11 VS lw\""
   lw a7, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test5b_pte_bit55:
-  RVTEST_SIGUPD(x2, x5, x4, a7, test5b_pte_bit55, test5b_pte_bit55_str)
+SvH_cg_cp_vsatp_reserved_fields_rw_test5b_pte_bit55:
+  # Check if x17 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x17, SvH_cg_cp_vsatp_reserved_fields_rw_test5b_pte_bit55, SvH_cg_cp_vsatp_reserved_fields_rw_test5b_pte_bit55_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 5c: Reserved PTE_BIT56 VS lw | Expected: Expected Fault
@@ -387,8 +396,9 @@ test8_rsw11_lw_str: .string "\"Mismatch on RSW=11 VS lw\""
   lw s2, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test5c_pte_bit56:
-  RVTEST_SIGUPD(x2, x5, x4, s2, test5c_pte_bit56, test5c_pte_bit56_str)
+SvH_cg_cp_vsatp_reserved_fields_rw_test5c_pte_bit56:
+  # Check if x18 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x18, SvH_cg_cp_vsatp_reserved_fields_rw_test5c_pte_bit56, SvH_cg_cp_vsatp_reserved_fields_rw_test5c_pte_bit56_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 5d: Reserved PTE_BIT57 VS lw | Expected: Expected Fault
@@ -401,8 +411,9 @@ test8_rsw11_lw_str: .string "\"Mismatch on RSW=11 VS lw\""
   lw s3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test5d_pte_bit57:
-  RVTEST_SIGUPD(x2, x5, x4, s3, test5d_pte_bit57, test5d_pte_bit57_str)
+SvH_cg_cp_vsatp_reserved_fields_rw_test5d_pte_bit57:
+  # Check if x19 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x19, SvH_cg_cp_vsatp_reserved_fields_rw_test5d_pte_bit57, SvH_cg_cp_vsatp_reserved_fields_rw_test5d_pte_bit57_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 5e: Reserved PTE_BIT58 VS lw | Expected: Expected Fault
@@ -415,8 +426,9 @@ test8_rsw11_lw_str: .string "\"Mismatch on RSW=11 VS lw\""
   lw s4, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test5e_pte_bit58:
-  RVTEST_SIGUPD(x2, x5, x4, s4, test5e_pte_bit58, test5e_pte_bit58_str)
+SvH_cg_cp_vsatp_reserved_fields_rw_test5e_pte_bit58:
+  # Check if x20 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x20, SvH_cg_cp_vsatp_reserved_fields_rw_test5e_pte_bit58, SvH_cg_cp_vsatp_reserved_fields_rw_test5e_pte_bit58_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 5f: Reserved PTE_BIT59 VS lw | Expected: Expected Fault
@@ -429,8 +441,9 @@ test8_rsw11_lw_str: .string "\"Mismatch on RSW=11 VS lw\""
   lw s5, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test5f_pte_bit59:
-  RVTEST_SIGUPD(x2, x5, x4, s5, test5f_pte_bit59, test5f_pte_bit59_str)
+SvH_cg_cp_vsatp_reserved_fields_rw_test5f_pte_bit59:
+  # Check if x21 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x21, SvH_cg_cp_vsatp_reserved_fields_rw_test5f_pte_bit59, SvH_cg_cp_vsatp_reserved_fields_rw_test5f_pte_bit59_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 5g: Reserved PTE_BIT60 VS lw | Expected: Expected Fault
@@ -443,8 +456,9 @@ test8_rsw11_lw_str: .string "\"Mismatch on RSW=11 VS lw\""
   lw s6, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test5g_pte_bit60:
-  RVTEST_SIGUPD(x2, x5, x4, s6, test5g_pte_bit60, test5g_pte_bit60_str)
+SvH_cg_cp_vsatp_reserved_fields_rw_test5g_pte_bit60:
+  # Check if x22 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x22, SvH_cg_cp_vsatp_reserved_fields_rw_test5g_pte_bit60, SvH_cg_cp_vsatp_reserved_fields_rw_test5g_pte_bit60_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 5h: Reserved PTE_RSVD_ALL VS lw | Expected: Expected Fault
@@ -457,8 +471,9 @@ test8_rsw11_lw_str: .string "\"Mismatch on RSW=11 VS lw\""
   lw s7, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test5h_pte_rsvd_all:
-  RVTEST_SIGUPD(x2, x5, x4, s7, test5h_pte_rsvd_all, test5h_pte_rsvd_all_str)
+SvH_cg_cp_vsatp_reserved_fields_rw_test5h_pte_rsvd_all:
+  # Check if x23 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x23, SvH_cg_cp_vsatp_reserved_fields_rw_test5h_pte_rsvd_all, SvH_cg_cp_vsatp_reserved_fields_rw_test5h_pte_rsvd_all_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 6a: Reserved PTE_BIT54 VS sw | Expected: Expected Fault
@@ -473,8 +488,9 @@ test8_rsw11_lw_str: .string "\"Mismatch on RSW=11 VS lw\""
   RVTEST_GOTO_MMODE
   la t1, test_region4
   lw a3, 0(t1)
-  test6a_sw_pte_bit54:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test6a_sw_pte_bit54, test6a_sw_pte_bit54_str)
+SvH_cg_cp_vsatp_reserved_fields_rw_test6a_sw_pte_bit54:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_vsatp_reserved_fields_rw_test6a_sw_pte_bit54, SvH_cg_cp_vsatp_reserved_fields_rw_test6a_sw_pte_bit54_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 6b: Reserved PTE_BIT55 VS sw | Expected: Expected Fault
@@ -489,8 +505,9 @@ test8_rsw11_lw_str: .string "\"Mismatch on RSW=11 VS lw\""
   RVTEST_GOTO_MMODE
   la t1, test_region4
   lw a3, 0(t1)
-  test6b_sw_pte_bit55:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test6b_sw_pte_bit55, test6b_sw_pte_bit55_str)
+SvH_cg_cp_vsatp_reserved_fields_rw_test6b_sw_pte_bit55:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_vsatp_reserved_fields_rw_test6b_sw_pte_bit55, SvH_cg_cp_vsatp_reserved_fields_rw_test6b_sw_pte_bit55_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 6c: Reserved PTE_BIT56 VS sw | Expected: Expected Fault
@@ -505,8 +522,9 @@ test8_rsw11_lw_str: .string "\"Mismatch on RSW=11 VS lw\""
   RVTEST_GOTO_MMODE
   la t1, test_region4
   lw a3, 0(t1)
-  test6c_sw_pte_bit56:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test6c_sw_pte_bit56, test6c_sw_pte_bit56_str)
+SvH_cg_cp_vsatp_reserved_fields_rw_test6c_sw_pte_bit56:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_vsatp_reserved_fields_rw_test6c_sw_pte_bit56, SvH_cg_cp_vsatp_reserved_fields_rw_test6c_sw_pte_bit56_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 6d: Reserved PTE_BIT57 VS sw | Expected: Expected Fault
@@ -521,8 +539,9 @@ test8_rsw11_lw_str: .string "\"Mismatch on RSW=11 VS lw\""
   RVTEST_GOTO_MMODE
   la t1, test_region4
   lw a3, 0(t1)
-  test6d_sw_pte_bit57:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test6d_sw_pte_bit57, test6d_sw_pte_bit57_str)
+SvH_cg_cp_vsatp_reserved_fields_rw_test6d_sw_pte_bit57:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_vsatp_reserved_fields_rw_test6d_sw_pte_bit57, SvH_cg_cp_vsatp_reserved_fields_rw_test6d_sw_pte_bit57_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 6e: Reserved PTE_BIT58 VS sw | Expected: Expected Fault
@@ -537,8 +556,9 @@ test8_rsw11_lw_str: .string "\"Mismatch on RSW=11 VS lw\""
   RVTEST_GOTO_MMODE
   la t1, test_region4
   lw a3, 0(t1)
-  test6e_sw_pte_bit58:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test6e_sw_pte_bit58, test6e_sw_pte_bit58_str)
+SvH_cg_cp_vsatp_reserved_fields_rw_test6e_sw_pte_bit58:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_vsatp_reserved_fields_rw_test6e_sw_pte_bit58, SvH_cg_cp_vsatp_reserved_fields_rw_test6e_sw_pte_bit58_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 6f: Reserved PTE_RSVD_ALL VS sw | Expected: Expected Fault
@@ -553,8 +573,9 @@ test8_rsw11_lw_str: .string "\"Mismatch on RSW=11 VS lw\""
   RVTEST_GOTO_MMODE
   la t1, test_region4
   lw a3, 0(t1)
-  test6f_sw_pte_rsvd_all:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test6f_sw_pte_rsvd_all, test6f_sw_pte_rsvd_all_str)
+SvH_cg_cp_vsatp_reserved_fields_rw_test6f_sw_pte_rsvd_all:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_vsatp_reserved_fields_rw_test6f_sw_pte_rsvd_all, SvH_cg_cp_vsatp_reserved_fields_rw_test6f_sw_pte_rsvd_all_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 6g: Soft-RSW PTE_BIT59 VS sw+lw | Expected: Successful
@@ -569,8 +590,9 @@ test8_rsw11_lw_str: .string "\"Mismatch on RSW=11 VS lw\""
   lw a3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test6g_sw_pte_bit59:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test6g_sw_pte_bit59, test6g_sw_pte_bit59_str)
+SvH_cg_cp_vsatp_reserved_fields_rw_test6g_sw_pte_bit59:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_vsatp_reserved_fields_rw_test6g_sw_pte_bit59, SvH_cg_cp_vsatp_reserved_fields_rw_test6g_sw_pte_bit59_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 6h: Soft-RSW PTE_BIT60 VS sw+lw | Expected: Successful
@@ -585,8 +607,9 @@ test8_rsw11_lw_str: .string "\"Mismatch on RSW=11 VS lw\""
   lw a4, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test6h_sw_pte_bit60:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test6h_sw_pte_bit60, test6h_sw_pte_bit60_str)
+SvH_cg_cp_vsatp_reserved_fields_rw_test6h_sw_pte_bit60:
+  # Check if x14 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x14, SvH_cg_cp_vsatp_reserved_fields_rw_test6h_sw_pte_bit60, SvH_cg_cp_vsatp_reserved_fields_rw_test6h_sw_pte_bit60_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 7: Reserved bit54 X-leaf VS jalr | Expected: Expected Fault
@@ -600,15 +623,16 @@ test8_rsw11_lw_str: .string "\"Mismatch on RSW=11 VS lw\""
   jalr ra, a5, 0
   nop
   RVTEST_GOTO_MMODE
-  test7_rsvd_jalr:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test7_rsvd_jalr, test7_rsvd_jalr_str)
+SvH_cg_cp_vsatp_reserved_fields_x_test7_rsvd_jalr:
+  # Check if x14 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x14, SvH_cg_cp_vsatp_reserved_fields_x_test7_rsvd_jalr, SvH_cg_cp_vsatp_reserved_fields_x_test7_rsvd_jalr_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 7b: Soft-RSW PTE_BIT59 X-leaf VS jalr | Expected: Successful
 //--------------------------------------------------------------------------------------------------------------------------------
-  LI(t0, 0x8067)
-  la t1, test_region4
-  sw t0, 0(t1)
+  LI(s0, 0x8067)
+  la a5, test_region4
+  sw s0, 0(a5)
   VS_PTE_SETUP(sv39, PA, test_region4, ((PTE_D | PTE_A | PTE_X | PTE_R | PTE_V) | PTE_BIT59), va_rsvd, LEVEL0)
   hfence.vvma
   LI(a5, va_rsvd)
@@ -619,15 +643,16 @@ test8_rsw11_lw_str: .string "\"Mismatch on RSW=11 VS lw\""
   LI(s2, 0x257a0759)
   nop
   RVTEST_GOTO_MMODE
-  test7b_jalr_pte_bit59:
-  RVTEST_SIGUPD(x2, x5, x4, s2, test7b_jalr_pte_bit59, test7b_jalr_pte_bit59_str)
+SvH_cg_cp_vsatp_reserved_fields_x_test7b_jalr_pte_bit59:
+  # Check if x18 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x18, SvH_cg_cp_vsatp_reserved_fields_x_test7b_jalr_pte_bit59, SvH_cg_cp_vsatp_reserved_fields_x_test7b_jalr_pte_bit59_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 7c: Soft-RSW PTE_BIT60 X-leaf VS jalr | Expected: Successful
 //--------------------------------------------------------------------------------------------------------------------------------
-  LI(t0, 0x8067)
+  LI(s0, 0x8067)
   la t1, test_region4
-  sw t0, 0(t1)
+  sw s0, 0(t1)
   VS_PTE_SETUP(sv39, PA, test_region4, ((PTE_D | PTE_A | PTE_X | PTE_R | PTE_V) | PTE_BIT60), va_rsvd, LEVEL0)
   hfence.vvma
   LI(a5, va_rsvd)
@@ -638,8 +663,9 @@ test8_rsw11_lw_str: .string "\"Mismatch on RSW=11 VS lw\""
   LI(s3, 0x257a0760)
   nop
   RVTEST_GOTO_MMODE
-  test7c_jalr_pte_bit60:
-  RVTEST_SIGUPD(x2, x5, x4, s3, test7c_jalr_pte_bit60, test7c_jalr_pte_bit60_str)
+SvH_cg_cp_vsatp_reserved_fields_x_test7c_jalr_pte_bit60:
+  # Check if x19 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x19, SvH_cg_cp_vsatp_reserved_fields_x_test7c_jalr_pte_bit60, SvH_cg_cp_vsatp_reserved_fields_x_test7c_jalr_pte_bit60_str)
   LI(t0, MENVCFG_PBMTE)
   csrc menvcfg, t0
   LI(t0, HENVCFG_PBMTE)
@@ -658,8 +684,9 @@ test8_rsw11_lw_str: .string "\"Mismatch on RSW=11 VS lw\""
   sw a6, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test8a_pte_pbmt1_nosup:
-  RVTEST_SIGUPD(x2, x5, x4, a6, test8a_pte_pbmt1_nosup, test8a_pte_pbmt1_nosup_str)
+SvH_cg_cp_vsatp_svpbmt_rw_test8a_pte_pbmt1_nosup:
+  # Check if x16 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x16, SvH_cg_cp_vsatp_svpbmt_rw_test8a_pte_pbmt1_nosup, SvH_cg_cp_vsatp_svpbmt_rw_test8a_pte_pbmt1_nosup_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 8b: PTE_PBMT2 PBMTE=0 VS lw+sw | Expected: Expected Fault
@@ -674,8 +701,9 @@ test8_rsw11_lw_str: .string "\"Mismatch on RSW=11 VS lw\""
   sw a7, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test8b_pte_pbmt2_nosup:
-  RVTEST_SIGUPD(x2, x5, x4, a7, test8b_pte_pbmt2_nosup, test8b_pte_pbmt2_nosup_str)
+SvH_cg_cp_vsatp_svpbmt_rw_test8b_pte_pbmt2_nosup:
+  # Check if x17 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x17, SvH_cg_cp_vsatp_svpbmt_rw_test8b_pte_pbmt2_nosup, SvH_cg_cp_vsatp_svpbmt_rw_test8b_pte_pbmt2_nosup_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 8c: PTE_PBMT3 PBMTE=0 VS lw+sw | Expected: Expected Fault
@@ -690,8 +718,9 @@ test8_rsw11_lw_str: .string "\"Mismatch on RSW=11 VS lw\""
   sw s2, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test8c_pte_pbmt3_nosup:
-  RVTEST_SIGUPD(x2, x5, x4, s2, test8c_pte_pbmt3_nosup, test8c_pte_pbmt3_nosup_str)
+SvH_cg_cp_vsatp_svpbmt_rw_test8c_pte_pbmt3_nosup:
+  # Check if x18 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x18, SvH_cg_cp_vsatp_svpbmt_rw_test8c_pte_pbmt3_nosup, SvH_cg_cp_vsatp_svpbmt_rw_test8c_pte_pbmt3_nosup_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 8d: PBMT=1 X-leaf PBMTE=0 VS jalr | Expected: Expected Fault
@@ -705,8 +734,9 @@ test8_rsw11_lw_str: .string "\"Mismatch on RSW=11 VS lw\""
   jalr ra, a5, 0
   nop
   RVTEST_GOTO_MMODE
-  test8d_pbmt1_nosup_x:
-  RVTEST_SIGUPD(x2, x5, x4, s3, test8d_pbmt1_nosup_x, test8d_pbmt1_nosup_x_str)
+SvH_cg_cp_vsatp_svpbmt_x_test8d_pbmt1_nosup_x:
+  # Check if x19 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x19, SvH_cg_cp_vsatp_svpbmt_x_test8d_pbmt1_nosup_x, SvH_cg_cp_vsatp_svpbmt_x_test8d_pbmt1_nosup_x_str)
 
   .pushsection .data
   .p2align 12
@@ -751,36 +781,6 @@ rvtest_vlvl1_pg_tbl:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_rsw00_str: .string "\"Mismatch on RSW=00 VS sw+lw\""
-test2_rsw01_str: .string "\"Mismatch on RSW=01 VS sw+lw\""
-test2b_rsw01_lw_str: .string "\"Mismatch on RSW=01 VS lw-only\""
-test3_rsw10_str: .string "\"Mismatch on RSW=10 VS sw+lw\""
-test3b_rsw10_lw_str: .string "\"Mismatch on RSW=10 VS lw-only\""
-test4_rsw11_str: .string "\"Mismatch on RSW=11 VS sw+lw\""
-test4b_rsw11_lw_str: .string "\"Mismatch on RSW=11 VS lw-only\""
-test5a_pte_bit54_str: .string "\"Mismatch on reserved PTE_BIT54 VS lw\""
-test5b_pte_bit55_str: .string "\"Mismatch on reserved PTE_BIT55 VS lw\""
-test5c_pte_bit56_str: .string "\"Mismatch on reserved PTE_BIT56 VS lw\""
-test5d_pte_bit57_str: .string "\"Mismatch on reserved PTE_BIT57 VS lw\""
-test5e_pte_bit58_str: .string "\"Mismatch on reserved PTE_BIT58 VS lw\""
-test5f_pte_bit59_str: .string "\"Mismatch on reserved PTE_BIT59 VS lw\""
-test5g_pte_bit60_str: .string "\"Mismatch on reserved PTE_BIT60 VS lw\""
-test5h_pte_rsvd_all_str: .string "\"Mismatch on reserved PTE_RSVD_ALL VS lw\""
-test6a_sw_pte_bit54_str: .string "\"Mismatch on reserved PTE_BIT54 VS sw\""
-test6b_sw_pte_bit55_str: .string "\"Mismatch on reserved PTE_BIT55 VS sw\""
-test6c_sw_pte_bit56_str: .string "\"Mismatch on reserved PTE_BIT56 VS sw\""
-test6d_sw_pte_bit57_str: .string "\"Mismatch on reserved PTE_BIT57 VS sw\""
-test6e_sw_pte_bit58_str: .string "\"Mismatch on reserved PTE_BIT58 VS sw\""
-test6f_sw_pte_rsvd_all_str: .string "\"Mismatch on reserved PTE_RSVD_ALL VS sw\""
-test6g_sw_pte_bit59_str: .string "\"Mismatch on soft-RSW PTE_BIT59 VS sw\""
-test6h_sw_pte_bit60_str: .string "\"Mismatch on soft-RSW PTE_BIT60 VS sw\""
-test7_rsvd_jalr_str: .string "\"Mismatch on reserved bit54 VS jalr\""
-test7b_jalr_pte_bit59_str: .string "\"Mismatch on soft-RSW PTE_BIT59 VS jalr\""
-test7c_jalr_pte_bit60_str: .string "\"Mismatch on soft-RSW PTE_BIT60 VS jalr\""
-test8a_pte_pbmt1_nosup_str: .string "\"Mismatch on PTE_PBMT1 PBMTE=0 VS\""
-test8b_pte_pbmt2_nosup_str: .string "\"Mismatch on PTE_PBMT2 PBMTE=0 VS\""
-test8c_pte_pbmt3_nosup_str: .string "\"Mismatch on PTE_PBMT3 PBMTE=0 VS\""
-test8d_pbmt1_nosup_x_str: .string "\"Mismatch on PBMT=1 PBMTE=0 VS jalr\""
   .popsection
 
 #endif  // SV39_SUPPORTED
@@ -795,7 +795,48 @@ RVTEST_DATA_BEGIN
 
 
 // Testcase strings
-
+#ifdef SV32_SUPPORTED
+SvH_cg_cp_vsatp_pte_rsw_test1_rsw00_sw_str: .string "\"test: 690; cg: SvH_cg; cp: cp_vsatp_pte_rsw; bin: test1_rsw00_sw\""
+SvH_cg_cp_vsatp_pte_rsw_test2_rsw00_lw_str: .string "\"test: 691; cg: SvH_cg; cp: cp_vsatp_pte_rsw; bin: test2_rsw00_lw\""
+SvH_cg_cp_vsatp_pte_rsw_test3_rsw01_sw_str: .string "\"test: 692; cg: SvH_cg; cp: cp_vsatp_pte_rsw; bin: test3_rsw01_sw\""
+SvH_cg_cp_vsatp_pte_rsw_test4_rsw01_lw_str: .string "\"test: 693; cg: SvH_cg; cp: cp_vsatp_pte_rsw; bin: test4_rsw01_lw\""
+SvH_cg_cp_vsatp_pte_rsw_test5_rsw10_sw_str: .string "\"test: 694; cg: SvH_cg; cp: cp_vsatp_pte_rsw; bin: test5_rsw10_sw\""
+SvH_cg_cp_vsatp_pte_rsw_test6_rsw10_lw_str: .string "\"test: 695; cg: SvH_cg; cp: cp_vsatp_pte_rsw; bin: test6_rsw10_lw\""
+SvH_cg_cp_vsatp_pte_rsw_test7_rsw11_sw_str: .string "\"test: 696; cg: SvH_cg; cp: cp_vsatp_pte_rsw; bin: test7_rsw11_sw\""
+SvH_cg_cp_vsatp_pte_rsw_test8_rsw11_lw_str: .string "\"test: 697; cg: SvH_cg; cp: cp_vsatp_pte_rsw; bin: test8_rsw11_lw\""
+#endif  // SV32_SUPPORTED
+#ifdef SV39_SUPPORTED
+SvH_cg_cp_vsatp_pte_rsw_test1_rsw00_str: .string "\"test: 698; cg: SvH_cg; cp: cp_vsatp_pte_rsw; bin: test1_rsw00\""
+SvH_cg_cp_vsatp_pte_rsw_test2_rsw01_str: .string "\"test: 699; cg: SvH_cg; cp: cp_vsatp_pte_rsw; bin: test2_rsw01\""
+SvH_cg_cp_vsatp_pte_rsw_test2b_rsw01_lw_str: .string "\"test: 700; cg: SvH_cg; cp: cp_vsatp_pte_rsw; bin: test2b_rsw01_lw\""
+SvH_cg_cp_vsatp_pte_rsw_test3_rsw10_str: .string "\"test: 701; cg: SvH_cg; cp: cp_vsatp_pte_rsw; bin: test3_rsw10\""
+SvH_cg_cp_vsatp_pte_rsw_test3b_rsw10_lw_str: .string "\"test: 702; cg: SvH_cg; cp: cp_vsatp_pte_rsw; bin: test3b_rsw10_lw\""
+SvH_cg_cp_vsatp_pte_rsw_test4_rsw11_str: .string "\"test: 703; cg: SvH_cg; cp: cp_vsatp_pte_rsw; bin: test4_rsw11\""
+SvH_cg_cp_vsatp_pte_rsw_test4b_rsw11_lw_str: .string "\"test: 704; cg: SvH_cg; cp: cp_vsatp_pte_rsw; bin: test4b_rsw11_lw\""
+SvH_cg_cp_vsatp_reserved_fields_rw_test5a_pte_bit54_str: .string "\"test: 705; cg: SvH_cg; cp: cp_vsatp_reserved_fields_rw; bin: test5a_pte_bit54\""
+SvH_cg_cp_vsatp_reserved_fields_rw_test5b_pte_bit55_str: .string "\"test: 706; cg: SvH_cg; cp: cp_vsatp_reserved_fields_rw; bin: test5b_pte_bit55\""
+SvH_cg_cp_vsatp_reserved_fields_rw_test5c_pte_bit56_str: .string "\"test: 707; cg: SvH_cg; cp: cp_vsatp_reserved_fields_rw; bin: test5c_pte_bit56\""
+SvH_cg_cp_vsatp_reserved_fields_rw_test5d_pte_bit57_str: .string "\"test: 708; cg: SvH_cg; cp: cp_vsatp_reserved_fields_rw; bin: test5d_pte_bit57\""
+SvH_cg_cp_vsatp_reserved_fields_rw_test5e_pte_bit58_str: .string "\"test: 709; cg: SvH_cg; cp: cp_vsatp_reserved_fields_rw; bin: test5e_pte_bit58\""
+SvH_cg_cp_vsatp_reserved_fields_rw_test5f_pte_bit59_str: .string "\"test: 710; cg: SvH_cg; cp: cp_vsatp_reserved_fields_rw; bin: test5f_pte_bit59\""
+SvH_cg_cp_vsatp_reserved_fields_rw_test5g_pte_bit60_str: .string "\"test: 711; cg: SvH_cg; cp: cp_vsatp_reserved_fields_rw; bin: test5g_pte_bit60\""
+SvH_cg_cp_vsatp_reserved_fields_rw_test5h_pte_rsvd_all_str: .string "\"test: 712; cg: SvH_cg; cp: cp_vsatp_reserved_fields_rw; bin: test5h_pte_rsvd_all\""
+SvH_cg_cp_vsatp_reserved_fields_rw_test6a_sw_pte_bit54_str: .string "\"test: 713; cg: SvH_cg; cp: cp_vsatp_reserved_fields_rw; bin: test6a_sw_pte_bit54\""
+SvH_cg_cp_vsatp_reserved_fields_rw_test6b_sw_pte_bit55_str: .string "\"test: 714; cg: SvH_cg; cp: cp_vsatp_reserved_fields_rw; bin: test6b_sw_pte_bit55\""
+SvH_cg_cp_vsatp_reserved_fields_rw_test6c_sw_pte_bit56_str: .string "\"test: 715; cg: SvH_cg; cp: cp_vsatp_reserved_fields_rw; bin: test6c_sw_pte_bit56\""
+SvH_cg_cp_vsatp_reserved_fields_rw_test6d_sw_pte_bit57_str: .string "\"test: 716; cg: SvH_cg; cp: cp_vsatp_reserved_fields_rw; bin: test6d_sw_pte_bit57\""
+SvH_cg_cp_vsatp_reserved_fields_rw_test6e_sw_pte_bit58_str: .string "\"test: 717; cg: SvH_cg; cp: cp_vsatp_reserved_fields_rw; bin: test6e_sw_pte_bit58\""
+SvH_cg_cp_vsatp_reserved_fields_rw_test6f_sw_pte_rsvd_all_str: .string "\"test: 718; cg: SvH_cg; cp: cp_vsatp_reserved_fields_rw; bin: test6f_sw_pte_rsvd_all\""
+SvH_cg_cp_vsatp_reserved_fields_rw_test6g_sw_pte_bit59_str: .string "\"test: 719; cg: SvH_cg; cp: cp_vsatp_reserved_fields_rw; bin: test6g_sw_pte_bit59\""
+SvH_cg_cp_vsatp_reserved_fields_rw_test6h_sw_pte_bit60_str: .string "\"test: 720; cg: SvH_cg; cp: cp_vsatp_reserved_fields_rw; bin: test6h_sw_pte_bit60\""
+SvH_cg_cp_vsatp_reserved_fields_x_test7_rsvd_jalr_str: .string "\"test: 721; cg: SvH_cg; cp: cp_vsatp_reserved_fields_x; bin: test7_rsvd_jalr\""
+SvH_cg_cp_vsatp_reserved_fields_x_test7b_jalr_pte_bit59_str: .string "\"test: 722; cg: SvH_cg; cp: cp_vsatp_reserved_fields_x; bin: test7b_jalr_pte_bit59\""
+SvH_cg_cp_vsatp_reserved_fields_x_test7c_jalr_pte_bit60_str: .string "\"test: 723; cg: SvH_cg; cp: cp_vsatp_reserved_fields_x; bin: test7c_jalr_pte_bit60\""
+SvH_cg_cp_vsatp_svpbmt_rw_test8a_pte_pbmt1_nosup_str: .string "\"test: 724; cg: SvH_cg; cp: cp_vsatp_svpbmt_rw; bin: test8a_pte_pbmt1_nosup\""
+SvH_cg_cp_vsatp_svpbmt_rw_test8b_pte_pbmt2_nosup_str: .string "\"test: 725; cg: SvH_cg; cp: cp_vsatp_svpbmt_rw; bin: test8b_pte_pbmt2_nosup\""
+SvH_cg_cp_vsatp_svpbmt_rw_test8c_pte_pbmt3_nosup_str: .string "\"test: 726; cg: SvH_cg; cp: cp_vsatp_svpbmt_rw; bin: test8c_pte_pbmt3_nosup\""
+SvH_cg_cp_vsatp_svpbmt_x_test8d_pbmt1_nosup_x_str: .string "\"test: 727; cg: SvH_cg; cp: cp_vsatp_svpbmt_x; bin: test8d_pbmt1_nosup_x\""
+#endif  // SV39_SUPPORTED
 
 // End of test data section and model specific data
 RVTEST_DATA_END

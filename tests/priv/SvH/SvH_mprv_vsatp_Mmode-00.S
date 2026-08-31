@@ -52,12 +52,12 @@ RVTEST_BEGIN
   csrw satp, x0
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0141)
+  LI(a5, 0x257a0141)
   la t1, test_region_s
-  sw t0, 0(t1)
-  LI(t0, 0x257a0142)
-  la t1, test_region_u
-  sw t0, 0(t1)
+  sw a5, 0(t1)
+  LI(t1, 0x257a0142)
+  la a3, test_region_u
+  sw t1, 0(a3)
 
 // --------------------------------------------------------------------------------------------------------------------------------
 // Test Cases Start from here
@@ -66,18 +66,19 @@ RVTEST_BEGIN
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 1: MPRV=0 raw M-mode load | Expected: Expected Fault
 //--------------------------------------------------------------------------------------------------------------------------------
-  LI(t0, MSTATUS_MPRV)
-  csrc mstatus, t0
+  LI(a3, MSTATUS_MPRV)
+  csrc mstatus, a3
   LI(t0, MSTATUSH_MPV)
   csrc mstatush, t0
   LI(a3, 0)
   LI(a5, va_s)
   lw a3, 0(a5)
   nop
-  LI(t0, MSTATUS_MPRV)
-  csrc mstatus, t0
-  test1_mprv0:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_mprv0, test1_mprv0_str)
+  LI(a5, MSTATUS_MPRV)
+  csrc mstatus, a5
+SvH_cg_cp_vsatp_mprv_effects_off_test1_mprv0:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_vsatp_mprv_effects_off_test1_mprv0, SvH_cg_cp_vsatp_mprv_effects_off_test1_mprv0_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: MPRV=1 MPP=S MPV=1 load S-page | Expected: Successful
@@ -94,10 +95,11 @@ RVTEST_BEGIN
   LI(a5, va_s)
   lw a4, 0(a5)
   nop
-  LI(t0, MSTATUS_MPRV)
-  csrc mstatus, t0
-  test2_mprv_s:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test2_mprv_s, test2_mprv_s_str)
+  LI(t1, MSTATUS_MPRV)
+  csrc mstatus, t1
+SvH_cg_cp_vsatp_mprv_effects_s_test2_mprv_s:
+  # Check if x14 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x14, SvH_cg_cp_vsatp_mprv_effects_s_test2_mprv_s, SvH_cg_cp_vsatp_mprv_effects_s_test2_mprv_s_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 3: MPRV=1 MPP=U MPV=1 load U-page | Expected: Successful
@@ -110,12 +112,13 @@ RVTEST_BEGIN
   LI(a5, va_u)
   lw a6, 0(a5)
   nop
-  LI(t0, MSTATUS_MPRV)
-  csrc mstatus, t0
+  LI(a3, MSTATUS_MPRV)
+  csrc mstatus, a3
   LI(t0, MSTATUSH_MPV)
   csrc mstatush, t0
-  test3_mprv_u:
-  RVTEST_SIGUPD(x2, x5, x4, a6, test3_mprv_u, test3_mprv_u_str)
+SvH_cg_cp_vsatp_mprv_effects_u_test3_mprv_u:
+  # Check if x16 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x16, SvH_cg_cp_vsatp_mprv_effects_u_test3_mprv_u, SvH_cg_cp_vsatp_mprv_effects_u_test3_mprv_u_str)
 
   .pushsection .data
   .p2align 12
@@ -133,9 +136,6 @@ test_region_u:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_mprv0_str: .string "\"Mismatch on MPRV=0 raw M-mode load\""
-test2_mprv_s_str: .string "\"Mismatch on MPRV=1 MPP=S MPV=1 load S-page\""
-test3_mprv_u_str: .string "\"Mismatch on MPRV=1 MPP=U MPV=1 load U-page\""
   .popsection
 
 #endif  // SV32_SUPPORTED
@@ -153,12 +153,12 @@ test3_mprv_u_str: .string "\"Mismatch on MPRV=1 MPP=U MPV=1 load U-page\""
   csrw satp, x0
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0141)
-  la t1, test_region_s
-  sw t0, 0(t1)
-  LI(t0, 0x257a0142)
-  la t1, test_region_u
-  sw t0, 0(t1)
+  LI(s1, 0x257a0141)
+  la s0, test_region_s
+  sw s1, 0(s0)
+  LI(a3, 0x257a0142)
+  la s1, test_region_u
+  sw a3, 0(s1)
 
 // --------------------------------------------------------------------------------------------------------------------------------
 // Test Cases Start from here
@@ -167,18 +167,19 @@ test3_mprv_u_str: .string "\"Mismatch on MPRV=1 MPP=U MPV=1 load U-page\""
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 1: MPRV=0 raw M-mode load | Expected: Expected Fault
 //--------------------------------------------------------------------------------------------------------------------------------
-  LI(t0, MSTATUS_MPRV)
-  csrc mstatus, t0
+  LI(a4, MSTATUS_MPRV)
+  csrc mstatus, a4
   LI(t0, MSTATUS_MPV)
   csrc mstatus, t0
   LI(a3, 0)
   LI(a5, va_s)
   lw a3, 0(a5)
   nop
-  LI(t0, MSTATUS_MPRV)
-  csrc mstatus, t0
-  test1_mprv0:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_mprv0, test1_mprv0_str)
+  LI(a3, MSTATUS_MPRV)
+  csrc mstatus, a3
+SvH_cg_cp_vsatp_mprv_effects_off_test1_mprv0:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_vsatp_mprv_effects_off_test1_mprv0, SvH_cg_cp_vsatp_mprv_effects_off_test1_mprv0_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: MPRV=1 MPP=S MPV=1 load S-page | Expected: Successful
@@ -195,10 +196,11 @@ test3_mprv_u_str: .string "\"Mismatch on MPRV=1 MPP=U MPV=1 load U-page\""
   LI(a5, va_s)
   lw a4, 0(a5)
   nop
-  LI(t0, MSTATUS_MPRV)
-  csrc mstatus, t0
-  test2_mprv_s:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test2_mprv_s, test2_mprv_s_str)
+  LI(a4, MSTATUS_MPRV)
+  csrc mstatus, a4
+SvH_cg_cp_vsatp_mprv_effects_s_test2_mprv_s:
+  # Check if x14 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x14, SvH_cg_cp_vsatp_mprv_effects_s_test2_mprv_s, SvH_cg_cp_vsatp_mprv_effects_s_test2_mprv_s_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 3: MPRV=1 MPP=U MPV=1 load U-page | Expected: Successful
@@ -211,12 +213,13 @@ test3_mprv_u_str: .string "\"Mismatch on MPRV=1 MPP=U MPV=1 load U-page\""
   LI(a5, va_u)
   lw a6, 0(a5)
   nop
-  LI(t0, MSTATUS_MPRV)
-  csrc mstatus, t0
+  LI(a3, MSTATUS_MPRV)
+  csrc mstatus, a3
   LI(t0, MSTATUS_MPV)
   csrc mstatus, t0
-  test3_mprv_u:
-  RVTEST_SIGUPD(x2, x5, x4, a6, test3_mprv_u, test3_mprv_u_str)
+SvH_cg_cp_vsatp_mprv_effects_u_test3_mprv_u:
+  # Check if x16 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x16, SvH_cg_cp_vsatp_mprv_effects_u_test3_mprv_u, SvH_cg_cp_vsatp_mprv_effects_u_test3_mprv_u_str)
 
   .pushsection .data
   .p2align 12
@@ -237,9 +240,6 @@ rvtest_vlvl1_pg_tbl:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_mprv0_str: .string "\"Mismatch on MPRV=0 raw M-mode load\""
-test2_mprv_s_str: .string "\"Mismatch on MPRV=1 MPP=S MPV=1 load S-page\""
-test3_mprv_u_str: .string "\"Mismatch on MPRV=1 MPP=U MPV=1 load U-page\""
   .popsection
 
 #endif  // SV39_SUPPORTED
@@ -254,7 +254,16 @@ RVTEST_DATA_BEGIN
 
 
 // Testcase strings
-
+#ifdef SV32_SUPPORTED
+SvH_cg_cp_vsatp_mprv_effects_off_test1_mprv0_str: .string "\"test: 680; cg: SvH_cg; cp: cp_vsatp_mprv_effects_off; bin: test1_mprv0\""
+SvH_cg_cp_vsatp_mprv_effects_s_test2_mprv_s_str: .string "\"test: 681; cg: SvH_cg; cp: cp_vsatp_mprv_effects_s; bin: test2_mprv_s\""
+SvH_cg_cp_vsatp_mprv_effects_u_test3_mprv_u_str: .string "\"test: 682; cg: SvH_cg; cp: cp_vsatp_mprv_effects_u; bin: test3_mprv_u\""
+#endif  // SV32_SUPPORTED
+#ifdef SV39_SUPPORTED
+SvH_cg_cp_vsatp_mprv_effects_off_test1_mprv0_str: .string "\"test: 683; cg: SvH_cg; cp: cp_vsatp_mprv_effects_off; bin: test1_mprv0\""
+SvH_cg_cp_vsatp_mprv_effects_s_test2_mprv_s_str: .string "\"test: 684; cg: SvH_cg; cp: cp_vsatp_mprv_effects_s; bin: test2_mprv_s\""
+SvH_cg_cp_vsatp_mprv_effects_u_test3_mprv_u_str: .string "\"test: 685; cg: SvH_cg; cp: cp_vsatp_mprv_effects_u; bin: test3_mprv_u\""
+#endif  // SV39_SUPPORTED
 
 // End of test data section and model specific data
 RVTEST_DATA_END

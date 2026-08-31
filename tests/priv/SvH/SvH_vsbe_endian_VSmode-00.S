@@ -79,24 +79,27 @@ RVTEST_BEGIN
   lw a3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test1_vsbe0_lw:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_vsbe0_lw, test1_vsbe0_lw_str)
+SvH_cg_cp_vsatp_endianess_test1_vsbe0_lw:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_vsatp_endianess_test1_vsbe0_lw, SvH_cg_cp_vsatp_endianess_test1_vsbe0_lw_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: VSBE=0 M-mode SPA readback | Expected: Successful
 //--------------------------------------------------------------------------------------------------------------------------------
   la t1, test_region
   lw t2, 0(t1)
-  test2_vsbe0_spa:
-  RVTEST_SIGUPD(x2, x5, x4, t2, test2_vsbe0_spa, test2_vsbe0_spa_str)
+SvH_cg_cp_vsatp_endianess_test2_vsbe0_spa:
+  # Check if x7 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x7, SvH_cg_cp_vsatp_endianess_test2_vsbe0_spa, SvH_cg_cp_vsatp_endianess_test2_vsbe0_spa_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 3: VSBE=1 hstatus readback | Expected: Successful
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(t0, HSTATUS_VSBE)
   csrs hstatus, t0
-  test3_vsbe1_hstatus:
-  RVTEST_SIGUPD_CSR_READ(hstatus, a4, test3_vsbe1_hstatus, test3_vsbe1_hstatus_str)
+SvH_cg_cp_vsatp_endianess_test3_vsbe1_hstatus:
+  # Read hstatus into x14 and check against expected.
+  RVTEST_SIGUPD_CSR_READ(hstatus, x14, SvH_cg_cp_vsatp_endianess_test3_vsbe1_hstatus, SvH_cg_cp_vsatp_endianess_test3_vsbe1_hstatus_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 4: VSBE=1 attempt VS lw after sw | Expected: Successful
@@ -112,16 +115,18 @@ RVTEST_BEGIN
   lw a4, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test4_vsbe1_lw:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test4_vsbe1_lw, test4_vsbe1_lw_str)
+SvH_cg_cp_vsatp_endianess_test4_vsbe1_lw:
+  # Check if x14 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x14, SvH_cg_cp_vsatp_endianess_test4_vsbe1_lw, SvH_cg_cp_vsatp_endianess_test4_vsbe1_lw_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 5: VSBE=1 attempt M-mode SPA byte view | Expected: Successful
 //--------------------------------------------------------------------------------------------------------------------------------
   la t1, test_region
   lw t3, 0(t1)
-  test5_vsbe1_spa:
-  RVTEST_SIGUPD(x2, x5, x4, t3, test5_vsbe1_spa, test5_vsbe1_spa_str)
+SvH_cg_cp_vsatp_endianess_test5_vsbe1_spa:
+  # Check if x28 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x28, SvH_cg_cp_vsatp_endianess_test5_vsbe1_spa, SvH_cg_cp_vsatp_endianess_test5_vsbe1_spa_str)
   LI(t0, HSTATUS_VSBE)
   csrc hstatus, t0
 
@@ -138,11 +143,6 @@ rvtest_hlvl0_pg_tbl:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_vsbe0_lw_str: .string "\"Mismatch on VSBE=0 VS lw\""
-test2_vsbe0_spa_str: .string "\"Mismatch on VSBE=0 SPA LE readback\""
-test3_vsbe1_hstatus_str: .string "\"Mismatch on hstatus after VSBE set attempt\""
-test4_vsbe1_lw_str: .string "\"Mismatch on VSBE=1 attempt VS lw\""
-test5_vsbe1_spa_str: .string "\"Mismatch on VSBE=1 attempt SPA byte view\""
   .popsection
 
 #endif  // SV32_SUPPORTED
@@ -188,24 +188,27 @@ test5_vsbe1_spa_str: .string "\"Mismatch on VSBE=1 attempt SPA byte view\""
   lw a3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test1_vsbe0_lw:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_vsbe0_lw, test1_vsbe0_lw_str)
+SvH_cg_cp_vsatp_endianess_test1_vsbe0_lw:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_vsatp_endianess_test1_vsbe0_lw, SvH_cg_cp_vsatp_endianess_test1_vsbe0_lw_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: VSBE=0 M-mode SPA readback | Expected: Successful
 //--------------------------------------------------------------------------------------------------------------------------------
   la t1, test_region
   lw t2, 0(t1)
-  test2_vsbe0_spa:
-  RVTEST_SIGUPD(x2, x5, x4, t2, test2_vsbe0_spa, test2_vsbe0_spa_str)
+SvH_cg_cp_vsatp_endianess_test2_vsbe0_spa:
+  # Check if x7 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x7, SvH_cg_cp_vsatp_endianess_test2_vsbe0_spa, SvH_cg_cp_vsatp_endianess_test2_vsbe0_spa_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 3: VSBE=1 hstatus readback | Expected: Successful
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(t0, HSTATUS_VSBE)
   csrs hstatus, t0
-  test3_vsbe1_hstatus:
-  RVTEST_SIGUPD_CSR_READ(hstatus, a4, test3_vsbe1_hstatus, test3_vsbe1_hstatus_str)
+SvH_cg_cp_vsatp_endianess_test3_vsbe1_hstatus:
+  # Read hstatus into x14 and check against expected.
+  RVTEST_SIGUPD_CSR_READ(hstatus, x14, SvH_cg_cp_vsatp_endianess_test3_vsbe1_hstatus, SvH_cg_cp_vsatp_endianess_test3_vsbe1_hstatus_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 4: VSBE=1 attempt VS lw after sw | Expected: Successful
@@ -221,16 +224,18 @@ test5_vsbe1_spa_str: .string "\"Mismatch on VSBE=1 attempt SPA byte view\""
   lw a4, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test4_vsbe1_lw:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test4_vsbe1_lw, test4_vsbe1_lw_str)
+SvH_cg_cp_vsatp_endianess_test4_vsbe1_lw:
+  # Check if x14 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x14, SvH_cg_cp_vsatp_endianess_test4_vsbe1_lw, SvH_cg_cp_vsatp_endianess_test4_vsbe1_lw_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 5: VSBE=1 attempt M-mode SPA byte view | Expected: Successful
 //--------------------------------------------------------------------------------------------------------------------------------
   la t1, test_region
   lw t3, 0(t1)
-  test5_vsbe1_spa:
-  RVTEST_SIGUPD(x2, x5, x4, t3, test5_vsbe1_spa, test5_vsbe1_spa_str)
+SvH_cg_cp_vsatp_endianess_test5_vsbe1_spa:
+  # Check if x28 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x28, SvH_cg_cp_vsatp_endianess_test5_vsbe1_spa, SvH_cg_cp_vsatp_endianess_test5_vsbe1_spa_str)
   LI(t0, HSTATUS_VSBE)
   csrc hstatus, t0
 
@@ -253,11 +258,6 @@ rvtest_vlvl1_pg_tbl:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_vsbe0_lw_str: .string "\"Mismatch on VSBE=0 VS lw\""
-test2_vsbe0_spa_str: .string "\"Mismatch on VSBE=0 SPA LE readback\""
-test3_vsbe1_hstatus_str: .string "\"Mismatch on hstatus after VSBE set attempt\""
-test4_vsbe1_lw_str: .string "\"Mismatch on VSBE=1 attempt VS lw\""
-test5_vsbe1_spa_str: .string "\"Mismatch on VSBE=1 attempt SPA byte view\""
   .popsection
 
 #endif  // SV39_SUPPORTED
@@ -272,7 +272,20 @@ RVTEST_DATA_BEGIN
 
 
 // Testcase strings
-
+#ifdef SV32_SUPPORTED
+SvH_cg_cp_vsatp_endianess_test1_vsbe0_lw_str: .string "\"test: 728; cg: SvH_cg; cp: cp_vsatp_endianess; bin: test1_vsbe0_lw\""
+SvH_cg_cp_vsatp_endianess_test2_vsbe0_spa_str: .string "\"test: 729; cg: SvH_cg; cp: cp_vsatp_endianess; bin: test2_vsbe0_spa\""
+SvH_cg_cp_vsatp_endianess_test3_vsbe1_hstatus_str: .string "\"test: 730; cg: SvH_cg; cp: cp_vsatp_endianess; bin: test3_vsbe1_hstatus\""
+SvH_cg_cp_vsatp_endianess_test4_vsbe1_lw_str: .string "\"test: 731; cg: SvH_cg; cp: cp_vsatp_endianess; bin: test4_vsbe1_lw\""
+SvH_cg_cp_vsatp_endianess_test5_vsbe1_spa_str: .string "\"test: 732; cg: SvH_cg; cp: cp_vsatp_endianess; bin: test5_vsbe1_spa\""
+#endif  // SV32_SUPPORTED
+#ifdef SV39_SUPPORTED
+SvH_cg_cp_vsatp_endianess_test1_vsbe0_lw_str: .string "\"test: 733; cg: SvH_cg; cp: cp_vsatp_endianess; bin: test1_vsbe0_lw\""
+SvH_cg_cp_vsatp_endianess_test2_vsbe0_spa_str: .string "\"test: 734; cg: SvH_cg; cp: cp_vsatp_endianess; bin: test2_vsbe0_spa\""
+SvH_cg_cp_vsatp_endianess_test3_vsbe1_hstatus_str: .string "\"test: 735; cg: SvH_cg; cp: cp_vsatp_endianess; bin: test3_vsbe1_hstatus\""
+SvH_cg_cp_vsatp_endianess_test4_vsbe1_lw_str: .string "\"test: 736; cg: SvH_cg; cp: cp_vsatp_endianess; bin: test4_vsbe1_lw\""
+SvH_cg_cp_vsatp_endianess_test5_vsbe1_spa_str: .string "\"test: 737; cg: SvH_cg; cp: cp_vsatp_endianess; bin: test5_vsbe1_spa\""
+#endif  // SV39_SUPPORTED
 
 // End of test data section and model specific data
 RVTEST_DATA_END

@@ -52,12 +52,12 @@ RVTEST_BEGIN
   HGATP_SETUP(sv32x4)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0151)
-  la t1, test_region_x
-  sw t0, 0(t1)
-  LI(t0, 0x257a0152)
-  la t1, test_region_rw
-  sw t0, 0(t1)
+  LI(t1, 0x257a0151)
+  la a3, test_region_x
+  sw t1, 0(a3)
+  LI(s0, 0x257a0152)
+  la a5, test_region_rw
+  sw s0, 0(a5)
 
 // --------------------------------------------------------------------------------------------------------------------------------
 // Test Cases Start from here
@@ -68,8 +68,9 @@ RVTEST_BEGIN
 //--------------------------------------------------------------------------------------------------------------------------------
   la t1, test_region_x
   lw a3, 0(t1)
-  test1_spa:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_spa, test1_spa_str)
+SvH_cg_cp_hgatp_mprv_effects_m_test1_spa:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_hgatp_mprv_effects_m_test1_spa, SvH_cg_cp_hgatp_mprv_effects_m_test1_spa_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: MPRV=1 MPP=M lw of SPA | Expected: Successful
@@ -86,8 +87,9 @@ RVTEST_BEGIN
   la t1, test_region_x
   lw a4, 0(t1)
   nop
-  test2_m:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test2_m, test2_m_str)
+SvH_cg_cp_hgatp_mprv_effects_m_test2_m:
+  # Check if x14 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x14, SvH_cg_cp_hgatp_mprv_effects_m_test2_m, SvH_cg_cp_hgatp_mprv_effects_m_test2_m_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 3: MPRV=1 MPP=S MPV=0 lw of SPA | Expected: Successful
@@ -100,8 +102,9 @@ RVTEST_BEGIN
   la t1, test_region_x
   lw a5, 0(t1)
   nop
-  test3_hs:
-  RVTEST_SIGUPD(x2, x5, x4, a5, test3_hs, test3_hs_str)
+SvH_cg_cp_hgatp_mprv_effects_hs_test3_hs:
+  # Check if x15 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x15, SvH_cg_cp_hgatp_mprv_effects_hs_test3_hs, SvH_cg_cp_hgatp_mprv_effects_hs_test3_hs_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 4: MPRV=1 MPP=S MPV=1 lw of X-only GPA | Expected: Expected Fault
@@ -112,8 +115,9 @@ RVTEST_BEGIN
   LI(t1, gpa_xonly)
   lw a6, 0(t1)
   nop
-  test4_vs:
-  RVTEST_SIGUPD(x2, x5, x4, a6, test4_vs, test4_vs_str)
+SvH_cg_cp_hgatp_mprv_effects_vs_test4_vs:
+  # Check if x16 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x16, SvH_cg_cp_hgatp_mprv_effects_vs_test4_vs, SvH_cg_cp_hgatp_mprv_effects_vs_test4_vs_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 5: MPRV=1 MPP=U MPV=0 lw of SPA | Expected: Successful
@@ -126,8 +130,9 @@ RVTEST_BEGIN
   la t1, test_region_x
   lw a7, 0(t1)
   nop
-  test5_u:
-  RVTEST_SIGUPD(x2, x5, x4, a7, test5_u, test5_u_str)
+SvH_cg_cp_hgatp_mprv_effects_u_test5_u:
+  # Check if x17 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x17, SvH_cg_cp_hgatp_mprv_effects_u_test5_u, SvH_cg_cp_hgatp_mprv_effects_u_test5_u_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 6: MPRV=1 MPP=U MPV=1 lw of X-only GPA | Expected: Expected Fault
@@ -138,8 +143,9 @@ RVTEST_BEGIN
   LI(t1, gpa_xonly)
   lw s1, 0(t1)
   nop
-  test6_vu:
-  RVTEST_SIGUPD(x2, x5, x4, s1, test6_vu, test6_vu_str)
+SvH_cg_cp_hgatp_mprv_effects_vu_test6_vu:
+  # Check if x9 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x9, SvH_cg_cp_hgatp_mprv_effects_vu_test6_vu, SvH_cg_cp_hgatp_mprv_effects_vu_test6_vu_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 7: HLV of R/W GPA ignores MPRV | Expected: Successful
@@ -148,12 +154,13 @@ RVTEST_BEGIN
   LI(t1, gpa_rw)
   hlv.w s2, (t1)
   nop
-  LI(t0, MSTATUS_MPRV)
-  csrc mstatus, t0
+  LI(a5, MSTATUS_MPRV)
+  csrc mstatus, a5
   LI(t0, MSTATUSH_MPV)
   csrc mstatush, t0
-  test7_hlv:
-  RVTEST_SIGUPD(x2, x5, x4, s2, test7_hlv, test7_hlv_str)
+SvH_cg_cp_hgatp_mprv_effects_hlv_test7_hlv:
+  # Check if x18 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x18, SvH_cg_cp_hgatp_mprv_effects_hlv_test7_hlv, SvH_cg_cp_hgatp_mprv_effects_hlv_test7_hlv_str)
 
   .pushsection .data
   .p2align 12
@@ -171,13 +178,6 @@ test_region_rw:
   .p2align 12
 rvtest_hlvl0_pg_tbl:
   .zero 4096
-test1_spa_str: .string "\"Mismatch on Direct SPA lw baseline\""
-test2_m_str: .string "\"Mismatch on MPRV=1 MPP=M lw of SPA\""
-test3_hs_str: .string "\"Mismatch on MPRV=1 MPP=S MPV=0 lw of SPA\""
-test4_vs_str: .string "\"Mismatch on MPRV=1 MPP=S MPV=1 lw of X-only GPA\""
-test5_u_str: .string "\"Mismatch on MPRV=1 MPP=U MPV=0 lw of SPA\""
-test6_vu_str: .string "\"Mismatch on MPRV=1 MPP=U MPV=1 lw of X-only GPA\""
-test7_hlv_str: .string "\"Mismatch on HLV of R/W GPA ignores MPRV\""
   .popsection
 
 #endif  // SV32_SUPPORTED
@@ -195,12 +195,12 @@ test7_hlv_str: .string "\"Mismatch on HLV of R/W GPA ignores MPRV\""
   HGATP_SETUP(sv39x4)
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0151)
-  la t1, test_region_x
-  sw t0, 0(t1)
-  LI(t0, 0x257a0152)
-  la t1, test_region_rw
-  sw t0, 0(t1)
+  LI(a5, 0x257a0151)
+  la s1, test_region_x
+  sw a5, 0(s1)
+  LI(s0, 0x257a0152)
+  la a4, test_region_rw
+  sw s0, 0(a4)
 
 // --------------------------------------------------------------------------------------------------------------------------------
 // Test Cases Start from here
@@ -211,8 +211,9 @@ test7_hlv_str: .string "\"Mismatch on HLV of R/W GPA ignores MPRV\""
 //--------------------------------------------------------------------------------------------------------------------------------
   la t1, test_region_x
   lw a3, 0(t1)
-  test1_spa:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_spa, test1_spa_str)
+SvH_cg_cp_hgatp_mprv_effects_m_test1_spa:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_hgatp_mprv_effects_m_test1_spa, SvH_cg_cp_hgatp_mprv_effects_m_test1_spa_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: MPRV=1 MPP=M lw of SPA | Expected: Successful
@@ -229,8 +230,9 @@ test7_hlv_str: .string "\"Mismatch on HLV of R/W GPA ignores MPRV\""
   la t1, test_region_x
   lw a4, 0(t1)
   nop
-  test2_m:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test2_m, test2_m_str)
+SvH_cg_cp_hgatp_mprv_effects_m_test2_m:
+  # Check if x14 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x14, SvH_cg_cp_hgatp_mprv_effects_m_test2_m, SvH_cg_cp_hgatp_mprv_effects_m_test2_m_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 3: MPRV=1 MPP=S MPV=0 lw of SPA | Expected: Successful
@@ -243,8 +245,9 @@ test7_hlv_str: .string "\"Mismatch on HLV of R/W GPA ignores MPRV\""
   la t1, test_region_x
   lw a5, 0(t1)
   nop
-  test3_hs:
-  RVTEST_SIGUPD(x2, x5, x4, a5, test3_hs, test3_hs_str)
+SvH_cg_cp_hgatp_mprv_effects_hs_test3_hs:
+  # Check if x15 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x15, SvH_cg_cp_hgatp_mprv_effects_hs_test3_hs, SvH_cg_cp_hgatp_mprv_effects_hs_test3_hs_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 4: MPRV=1 MPP=S MPV=1 lw of X-only GPA | Expected: Expected Fault
@@ -255,8 +258,9 @@ test7_hlv_str: .string "\"Mismatch on HLV of R/W GPA ignores MPRV\""
   LI(t1, gpa_xonly)
   lw a6, 0(t1)
   nop
-  test4_vs:
-  RVTEST_SIGUPD(x2, x5, x4, a6, test4_vs, test4_vs_str)
+SvH_cg_cp_hgatp_mprv_effects_vs_test4_vs:
+  # Check if x16 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x16, SvH_cg_cp_hgatp_mprv_effects_vs_test4_vs, SvH_cg_cp_hgatp_mprv_effects_vs_test4_vs_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 5: MPRV=1 MPP=U MPV=0 lw of SPA | Expected: Successful
@@ -269,8 +273,9 @@ test7_hlv_str: .string "\"Mismatch on HLV of R/W GPA ignores MPRV\""
   la t1, test_region_x
   lw a7, 0(t1)
   nop
-  test5_u:
-  RVTEST_SIGUPD(x2, x5, x4, a7, test5_u, test5_u_str)
+SvH_cg_cp_hgatp_mprv_effects_u_test5_u:
+  # Check if x17 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x17, SvH_cg_cp_hgatp_mprv_effects_u_test5_u, SvH_cg_cp_hgatp_mprv_effects_u_test5_u_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 6: MPRV=1 MPP=U MPV=1 lw of X-only GPA | Expected: Expected Fault
@@ -281,8 +286,9 @@ test7_hlv_str: .string "\"Mismatch on HLV of R/W GPA ignores MPRV\""
   LI(t1, gpa_xonly)
   lw s1, 0(t1)
   nop
-  test6_vu:
-  RVTEST_SIGUPD(x2, x5, x4, s1, test6_vu, test6_vu_str)
+SvH_cg_cp_hgatp_mprv_effects_vu_test6_vu:
+  # Check if x9 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x9, SvH_cg_cp_hgatp_mprv_effects_vu_test6_vu, SvH_cg_cp_hgatp_mprv_effects_vu_test6_vu_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 7: HLV of R/W GPA ignores MPRV | Expected: Successful
@@ -291,12 +297,13 @@ test7_hlv_str: .string "\"Mismatch on HLV of R/W GPA ignores MPRV\""
   LI(t1, gpa_rw)
   hlv.w s2, (t1)
   nop
-  LI(t0, MSTATUS_MPRV)
-  csrc mstatus, t0
+  LI(s0, MSTATUS_MPRV)
+  csrc mstatus, s0
   LI(t0, MSTATUS_MPV)
   csrc mstatus, t0
-  test7_hlv:
-  RVTEST_SIGUPD(x2, x5, x4, s2, test7_hlv, test7_hlv_str)
+SvH_cg_cp_hgatp_mprv_effects_hlv_test7_hlv:
+  # Check if x18 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x18, SvH_cg_cp_hgatp_mprv_effects_hlv_test7_hlv, SvH_cg_cp_hgatp_mprv_effects_hlv_test7_hlv_str)
 
   .pushsection .data
   .p2align 12
@@ -317,13 +324,6 @@ rvtest_hlvl1_pg_tbl:
   .p2align 12
 rvtest_hlvl0_pg_tbl:
   .zero 4096
-test1_spa_str: .string "\"Mismatch on Direct SPA lw baseline\""
-test2_m_str: .string "\"Mismatch on MPRV=1 MPP=M lw of SPA\""
-test3_hs_str: .string "\"Mismatch on MPRV=1 MPP=S MPV=0 lw of SPA\""
-test4_vs_str: .string "\"Mismatch on MPRV=1 MPP=S MPV=1 lw of X-only GPA\""
-test5_u_str: .string "\"Mismatch on MPRV=1 MPP=U MPV=0 lw of SPA\""
-test6_vu_str: .string "\"Mismatch on MPRV=1 MPP=U MPV=1 lw of X-only GPA\""
-test7_hlv_str: .string "\"Mismatch on HLV of R/W GPA ignores MPRV\""
   .popsection
 
 #endif  // SV39_SUPPORTED
@@ -338,7 +338,24 @@ RVTEST_DATA_BEGIN
 
 
 // Testcase strings
-
+#ifdef SV32_SUPPORTED
+SvH_cg_cp_hgatp_mprv_effects_m_test1_spa_str: .string "\"test: 660; cg: SvH_cg; cp: cp_hgatp_mprv_effects_m; bin: test1_spa\""
+SvH_cg_cp_hgatp_mprv_effects_m_test2_m_str: .string "\"test: 661; cg: SvH_cg; cp: cp_hgatp_mprv_effects_m; bin: test2_m\""
+SvH_cg_cp_hgatp_mprv_effects_hs_test3_hs_str: .string "\"test: 662; cg: SvH_cg; cp: cp_hgatp_mprv_effects_hs; bin: test3_hs\""
+SvH_cg_cp_hgatp_mprv_effects_vs_test4_vs_str: .string "\"test: 663; cg: SvH_cg; cp: cp_hgatp_mprv_effects_vs; bin: test4_vs\""
+SvH_cg_cp_hgatp_mprv_effects_u_test5_u_str: .string "\"test: 664; cg: SvH_cg; cp: cp_hgatp_mprv_effects_u; bin: test5_u\""
+SvH_cg_cp_hgatp_mprv_effects_vu_test6_vu_str: .string "\"test: 665; cg: SvH_cg; cp: cp_hgatp_mprv_effects_vu; bin: test6_vu\""
+SvH_cg_cp_hgatp_mprv_effects_hlv_test7_hlv_str: .string "\"test: 666; cg: SvH_cg; cp: cp_hgatp_mprv_effects_hlv; bin: test7_hlv\""
+#endif  // SV32_SUPPORTED
+#ifdef SV39_SUPPORTED
+SvH_cg_cp_hgatp_mprv_effects_m_test1_spa_str: .string "\"test: 667; cg: SvH_cg; cp: cp_hgatp_mprv_effects_m; bin: test1_spa\""
+SvH_cg_cp_hgatp_mprv_effects_m_test2_m_str: .string "\"test: 668; cg: SvH_cg; cp: cp_hgatp_mprv_effects_m; bin: test2_m\""
+SvH_cg_cp_hgatp_mprv_effects_hs_test3_hs_str: .string "\"test: 669; cg: SvH_cg; cp: cp_hgatp_mprv_effects_hs; bin: test3_hs\""
+SvH_cg_cp_hgatp_mprv_effects_vs_test4_vs_str: .string "\"test: 670; cg: SvH_cg; cp: cp_hgatp_mprv_effects_vs; bin: test4_vs\""
+SvH_cg_cp_hgatp_mprv_effects_u_test5_u_str: .string "\"test: 671; cg: SvH_cg; cp: cp_hgatp_mprv_effects_u; bin: test5_u\""
+SvH_cg_cp_hgatp_mprv_effects_vu_test6_vu_str: .string "\"test: 672; cg: SvH_cg; cp: cp_hgatp_mprv_effects_vu; bin: test6_vu\""
+SvH_cg_cp_hgatp_mprv_effects_hlv_test7_hlv_str: .string "\"test: 673; cg: SvH_cg; cp: cp_hgatp_mprv_effects_hlv; bin: test7_hlv\""
+#endif  // SV39_SUPPORTED
 
 // End of test data section and model specific data
 RVTEST_DATA_END

@@ -52,9 +52,9 @@ RVTEST_BEGIN
   csrw hgatp, x0
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0801)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(s0, 0x257a0801)
+  la s1, test_region
+  sw s0, 0(s1)
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
   csrc vsstatus, t0
@@ -69,8 +69,9 @@ RVTEST_BEGIN
   lw a3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test1_mxr0_vs:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_mxr0_vs, test1_mxr0_vs_str)
+SvH_cg_xonly_mxr0_vs_vs_test1_mxr0_vs:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_xonly_mxr0_vs_vs_test1_mxr0_vs, SvH_cg_xonly_mxr0_vs_vs_test1_mxr0_vs_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: Control addi after VS ifetch | Expected: Successful
@@ -78,8 +79,9 @@ RVTEST_BEGIN
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a4, 0x257A0801)
   addi a4, a4, 1
-  test2_ctrl:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test2_ctrl, test2_ctrl_str)
+SvH_cg_xonly_mxr0_vs_vs_test2_ctrl:
+  # Check if x14 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x14, SvH_cg_xonly_mxr0_vs_vs_test2_ctrl, SvH_cg_xonly_mxr0_vs_vs_test2_ctrl_str)
 
   .pushsection .data
   .p2align 12
@@ -94,8 +96,6 @@ rvtest_hlvl0_pg_tbl:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_mxr0_vs_str: .string "\"Mismatch on VS X-only MXR=0 load!\""
-test2_ctrl_str: .string "\"Mismatch on VS control addi!\""
   .popsection
 
 #endif  // SV32_SUPPORTED
@@ -113,9 +113,9 @@ test2_ctrl_str: .string "\"Mismatch on VS control addi!\""
   csrw hgatp, x0
   hfence.vvma
   hfence.gvma
-  LI(t0, 0x257a0801)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(t1, 0x257a0801)
+  la a3, test_region
+  sw t1, 0(a3)
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
   csrc vsstatus, t0
@@ -130,8 +130,9 @@ test2_ctrl_str: .string "\"Mismatch on VS control addi!\""
   lw a3, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test1_mxr0_vs:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_mxr0_vs, test1_mxr0_vs_str)
+SvH_cg_xonly_mxr0_vs_vs_test1_mxr0_vs:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_xonly_mxr0_vs_vs_test1_mxr0_vs, SvH_cg_xonly_mxr0_vs_vs_test1_mxr0_vs_str)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: Control addi after VS ifetch | Expected: Successful
@@ -139,8 +140,9 @@ test2_ctrl_str: .string "\"Mismatch on VS control addi!\""
 //--------------------------------------------------------------------------------------------------------------------------------
   LI(a4, 0x257A0801)
   addi a4, a4, 1
-  test2_ctrl:
-  RVTEST_SIGUPD(x2, x5, x4, a4, test2_ctrl, test2_ctrl_str)
+SvH_cg_xonly_mxr0_vs_vs_test2_ctrl:
+  # Check if x14 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x14, SvH_cg_xonly_mxr0_vs_vs_test2_ctrl, SvH_cg_xonly_mxr0_vs_vs_test2_ctrl_str)
 
   .pushsection .data
   .p2align 12
@@ -161,8 +163,6 @@ rvtest_vlvl1_pg_tbl:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_mxr0_vs_str: .string "\"Mismatch on VS X-only MXR=0 load!\""
-test2_ctrl_str: .string "\"Mismatch on VS control addi!\""
   .popsection
 
 #endif  // SV39_SUPPORTED
@@ -177,7 +177,14 @@ RVTEST_DATA_BEGIN
 
 
 // Testcase strings
-
+#ifdef SV32_SUPPORTED
+SvH_cg_xonly_mxr0_vs_vs_test1_mxr0_vs_str: .string "\"test: 548; cg: SvH_cg; cp: xonly_mxr0_vs_vs; bin: test1_mxr0_vs\""
+SvH_cg_xonly_mxr0_vs_vs_test2_ctrl_str: .string "\"test: 549; cg: SvH_cg; cp: xonly_mxr0_vs_vs; bin: test2_ctrl\""
+#endif  // SV32_SUPPORTED
+#ifdef SV39_SUPPORTED
+SvH_cg_xonly_mxr0_vs_vs_test1_mxr0_vs_str: .string "\"test: 550; cg: SvH_cg; cp: xonly_mxr0_vs_vs; bin: test1_mxr0_vs\""
+SvH_cg_xonly_mxr0_vs_vs_test2_ctrl_str: .string "\"test: 551; cg: SvH_cg; cp: xonly_mxr0_vs_vs; bin: test2_ctrl\""
+#endif  // SV39_SUPPORTED
 
 // End of test data section and model specific data
 RVTEST_DATA_END

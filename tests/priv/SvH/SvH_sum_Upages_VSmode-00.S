@@ -52,9 +52,9 @@ RVTEST_BEGIN
   csrw hgatp, x0
   hfence.vvma
   hfence.gvma
-  LI(t0, 0xdeadbeef)
+  LI(a5, 0xdeadbeef)
   la t1, test_region
-  sw t0, 0(t1)
+  sw a5, 0(t1)
   LI(a5, va_data)
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -72,16 +72,18 @@ RVTEST_BEGIN
   sw a4, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test1_sum0_lw:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_sum0_lw, test1_sum0_lw_str)
+SvH_cg_cp_vsatp_sum_effects_rw_test1_sum0_lw:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_vsatp_sum_effects_rw_test1_sum0_lw, SvH_cg_cp_vsatp_sum_effects_rw_test1_sum0_lw_str)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: SUM=0 SPA unchanged | Expected: Successful
 // Coverpoints: cp_vsatp_sum_effects_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   la t1, test_region
   lw t2, 0(t1)
-  test2_sum0_spa:
-  RVTEST_SIGUPD(x2, x5, x4, t2, test2_sum0_spa, test2_sum0_spa_str)
+SvH_cg_cp_vsatp_sum_effects_rw_test2_sum0_spa:
+  # Check if x7 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x7, SvH_cg_cp_vsatp_sum_effects_rw_test2_sum0_spa, SvH_cg_cp_vsatp_sum_effects_rw_test2_sum0_spa_str)
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
   csrc vsstatus, t0
@@ -104,16 +106,18 @@ RVTEST_BEGIN
   lw a7, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test3_sum1_lw:
-  RVTEST_SIGUPD(x2, x5, x4, a7, test3_sum1_lw, test3_sum1_lw_str)
+SvH_cg_cp_vsatp_sum_effects_rw_test3_sum1_lw:
+  # Check if x17 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x17, SvH_cg_cp_vsatp_sum_effects_rw_test3_sum1_lw, SvH_cg_cp_vsatp_sum_effects_rw_test3_sum1_lw_str)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 4: SUM=1 SPA readback | Expected: Successful
-// Coverpoints: vsatp_sum_set
+// Coverpoints: cp_vsatp_sum_effects_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   la t1, test_region
   lw t3, 0(t1)
-  test4_sum1_spa:
-  RVTEST_SIGUPD(x2, x5, x4, t3, test4_sum1_spa, test4_sum1_spa_str)
+SvH_cg_cp_vsatp_sum_effects_rw_test4_sum1_spa:
+  # Check if x28 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x28, SvH_cg_cp_vsatp_sum_effects_rw_test4_sum1_spa, SvH_cg_cp_vsatp_sum_effects_rw_test4_sum1_spa_str)
 
   .pushsection .data
   .p2align 12
@@ -128,10 +132,6 @@ rvtest_hlvl0_pg_tbl:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_sum0_lw_str: .string "\"Mismatch on SUM=0 U-page load!\""
-test2_sum0_spa_str: .string "\"Mismatch on SUM=0 SPA readback!\""
-test3_sum1_lw_str: .string "\"Mismatch on SUM=1 U-page load!\""
-test4_sum1_spa_str: .string "\"Mismatch on SUM=1 SPA readback!\""
   .popsection
 
 #endif  // SV32_SUPPORTED
@@ -149,9 +149,9 @@ test4_sum1_spa_str: .string "\"Mismatch on SUM=1 SPA readback!\""
   csrw hgatp, x0
   hfence.vvma
   hfence.gvma
-  LI(t0, 0xdeadbeef)
-  la t1, test_region
-  sw t0, 0(t1)
+  LI(a4, 0xdeadbeef)
+  la s1, test_region
+  sw a4, 0(s1)
   LI(a5, va_data)
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
@@ -169,16 +169,18 @@ test4_sum1_spa_str: .string "\"Mismatch on SUM=1 SPA readback!\""
   sw a4, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test1_sum0_lw:
-  RVTEST_SIGUPD(x2, x5, x4, a3, test1_sum0_lw, test1_sum0_lw_str)
+SvH_cg_cp_vsatp_sum_effects_rw_test1_sum0_lw:
+  # Check if x13 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x13, SvH_cg_cp_vsatp_sum_effects_rw_test1_sum0_lw, SvH_cg_cp_vsatp_sum_effects_rw_test1_sum0_lw_str)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 2: SUM=0 SPA unchanged | Expected: Successful
 // Coverpoints: cp_vsatp_sum_effects_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   la t1, test_region
   lw t2, 0(t1)
-  test2_sum0_spa:
-  RVTEST_SIGUPD(x2, x5, x4, t2, test2_sum0_spa, test2_sum0_spa_str)
+SvH_cg_cp_vsatp_sum_effects_rw_test2_sum0_spa:
+  # Check if x7 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x7, SvH_cg_cp_vsatp_sum_effects_rw_test2_sum0_spa, SvH_cg_cp_vsatp_sum_effects_rw_test2_sum0_spa_str)
   LI(t0, SSTATUS_MXR | SSTATUS_SUM)
   csrc sstatus, t0
   csrc vsstatus, t0
@@ -201,16 +203,18 @@ test4_sum1_spa_str: .string "\"Mismatch on SUM=1 SPA readback!\""
   lw a7, 0(a5)
   nop
   RVTEST_GOTO_MMODE
-  test3_sum1_lw:
-  RVTEST_SIGUPD(x2, x5, x4, a7, test3_sum1_lw, test3_sum1_lw_str)
+SvH_cg_cp_vsatp_sum_effects_rw_test3_sum1_lw:
+  # Check if x17 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x17, SvH_cg_cp_vsatp_sum_effects_rw_test3_sum1_lw, SvH_cg_cp_vsatp_sum_effects_rw_test3_sum1_lw_str)
 //--------------------------------------------------------------------------------------------------------------------------------
 // Test case 4: SUM=1 SPA readback | Expected: Successful
-// Coverpoints: vsatp_sum_set
+// Coverpoints: cp_vsatp_sum_effects_rw
 //--------------------------------------------------------------------------------------------------------------------------------
   la t1, test_region
   lw t3, 0(t1)
-  test4_sum1_spa:
-  RVTEST_SIGUPD(x2, x5, x4, t3, test4_sum1_spa, test4_sum1_spa_str)
+SvH_cg_cp_vsatp_sum_effects_rw_test4_sum1_spa:
+  # Check if x28 contains the expected result. x2 is the signature ptr, x5 is the link ptr, x4 is a temp reg.
+  RVTEST_SIGUPD(x2, x5, x4, x28, SvH_cg_cp_vsatp_sum_effects_rw_test4_sum1_spa, SvH_cg_cp_vsatp_sum_effects_rw_test4_sum1_spa_str)
 
   .pushsection .data
   .p2align 12
@@ -231,10 +235,6 @@ rvtest_vlvl1_pg_tbl:
   .p2align 12
 rvtest_vlvl0_pg_tbl:
   .zero 4096
-test1_sum0_lw_str: .string "\"Mismatch on SUM=0 U-page load!\""
-test2_sum0_spa_str: .string "\"Mismatch on SUM=0 SPA readback!\""
-test3_sum1_lw_str: .string "\"Mismatch on SUM=1 U-page load!\""
-test4_sum1_spa_str: .string "\"Mismatch on SUM=1 SPA readback!\""
   .popsection
 
 #endif  // SV39_SUPPORTED
@@ -249,7 +249,18 @@ RVTEST_DATA_BEGIN
 
 
 // Testcase strings
-
+#ifdef SV32_SUPPORTED
+SvH_cg_cp_vsatp_sum_effects_rw_test1_sum0_lw_str: .string "\"test: 321; cg: SvH_cg; cp: cp_vsatp_sum_effects_rw; bin: test1_sum0_lw\""
+SvH_cg_cp_vsatp_sum_effects_rw_test2_sum0_spa_str: .string "\"test: 322; cg: SvH_cg; cp: cp_vsatp_sum_effects_rw; bin: test2_sum0_spa\""
+SvH_cg_cp_vsatp_sum_effects_rw_test3_sum1_lw_str: .string "\"test: 323; cg: SvH_cg; cp: cp_vsatp_sum_effects_rw; bin: test3_sum1_lw\""
+SvH_cg_cp_vsatp_sum_effects_rw_test4_sum1_spa_str: .string "\"test: 324; cg: SvH_cg; cp: cp_vsatp_sum_effects_rw; bin: test4_sum1_spa\""
+#endif  // SV32_SUPPORTED
+#ifdef SV39_SUPPORTED
+SvH_cg_cp_vsatp_sum_effects_rw_test1_sum0_lw_str: .string "\"test: 325; cg: SvH_cg; cp: cp_vsatp_sum_effects_rw; bin: test1_sum0_lw\""
+SvH_cg_cp_vsatp_sum_effects_rw_test2_sum0_spa_str: .string "\"test: 326; cg: SvH_cg; cp: cp_vsatp_sum_effects_rw; bin: test2_sum0_spa\""
+SvH_cg_cp_vsatp_sum_effects_rw_test3_sum1_lw_str: .string "\"test: 327; cg: SvH_cg; cp: cp_vsatp_sum_effects_rw; bin: test3_sum1_lw\""
+SvH_cg_cp_vsatp_sum_effects_rw_test4_sum1_spa_str: .string "\"test: 328; cg: SvH_cg; cp: cp_vsatp_sum_effects_rw; bin: test4_sum1_spa\""
+#endif  // SV39_SUPPORTED
 
 // End of test data section and model specific data
 RVTEST_DATA_END

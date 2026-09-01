@@ -1,0 +1,50 @@
+---
+alwaysApply: true
+---
+# riscv-arch-test (ACT4) — Agent Bootstrap
+
+**Tree:** `riscv-arch-test/`
+**Skill (required):** `act4-riscv-arch-test` (run/coverage). For new/extended tests: also **`act4-testgen`**.
+**Vault (memory):** `obsidian-vault/ACT4-riscv-arch-test/00-MOC-Index.md`
+**Handoff:** `riscv-arch-test/AI_CONTEXT_SUMMARY.md`
+**Flow doc:** `riscv-arch-test/readme_coverpoint_flow.md`
+
+## Before acting
+1. Read the skill + vault MOC / `07-Known-Facts-Do-Not-Invent.md`.
+2. Do not invent Tracefile keys, Make knobs, or “coverage passed” from memory.
+3. Orthogonal workstream: Hypervisor xlsx → skill `act4-hypervisor` (different vault).
+
+## After acting — auto-update memory (no asking)
+If this turn changed durable facts, **silently** update before ending:
+- `obsidian-vault/ACT4-riscv-arch-test/` (esp. `07`, `06`, workflows as needed)
+- `riscv-arch-test/AI_CONTEXT_SUMMARY.md` (bump date)
+- Skill files if commands/paths changed (mirror to all skill copies)
+- Append-only notes in `readme_coverpoint_flow.md` when user-facing flow clarified
+
+Do not ask “should I update the vault?” — just update. Full protocol: vault `08-Agent-Memory-Protocol.md`.
+
+## Pipeline (fixed)
+```
+.S → ELF → Sail --trace → *.trace → sail_to_rvvi.py → *.rvvi
+  → tracelist → vsim TB → covergroups → UCDB/reports
+```
+TB reads **`*.rvvi` only**, not Sail `*.trace`.
+
+## Env
+```bash
+cd riscv-arch-test && source .localenv/bin/activate && source env_questa.sh
+```
+
+## Coverpoints
+- Real bins: `coverpoints/priv/` (hand) / `coverpoints/unpriv/` (generated)
+- Glue only: `coverpoints/coverage/` — **do not hand-edit**
+- `EXTENSIONS=<Suite>` enables suite define; not a single bin
+
+## This host
+- Sail: `sail_riscv_sim` v0.13 (nadime15 hypervisor branch)
+- Questa: Starter FPGA Edition via `env_questa.sh` — **no covergroup/`svverification` license**
+- Refuse cracked/pirate Questa
+
+## Keep fixed
+- `tests/env/riscv_arch_test.h`: `#undef H_SUPPORTED` stays commented
+- Smoke: `tests/priv/Hact4/cp_smoke.S`; VS hangers in `_park/`

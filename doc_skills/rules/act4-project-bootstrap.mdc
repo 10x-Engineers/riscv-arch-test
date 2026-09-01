@@ -1,0 +1,52 @@
+---
+description: ACT4 project bootstrap — workstreams, vaults, skills (never mix xlsx vs Make pipelines)
+alwaysApply: true
+---
+
+# ACT4 — Agent Bootstrap (both workstreams)
+
+**Repo root:** `/home/ahsan-10xe/Downloads/ACT4-20260706T103524Z-3-001`
+
+Superpowers is the default process methodology; **unlazy** (`.cursor/skills/unlazy/`) is the default **completion discipline** for substantial / multi-part work (gates + Depth Tree + reverify). **ACT4 domain skills and this file still win** for hypervisor/xlsx and riscv-arch-test paths/commands.
+
+Read root `AGENTS.md`. Pick **one** workstream — do not mix Make coverage commands with xlsx norm scripts. For non-trivial work: read skill `unlazy` and write acceptance gates before claiming done.
+
+| Workstream | Skill | Vault |
+|------------|-------|-------|
+| Hypervisor xlsx / norms | `act4-hypervisor` | `obsidian-vault/ACT4-Hypervisor/` |
+| Test generation (SvH / priv / unpriv) | `act4-testgen` | `obsidian-vault/ACT4-riscv-arch-test/` |
+| Sail run + coverpoints | `act4-riscv-arch-test` | `obsidian-vault/ACT4-riscv-arch-test/` |
+
+---
+
+## A) Hypervisor / norm / xlsx
+
+Before work: skill `act4-hypervisor`.
+
+### Pipeline (run in order)
+```bash
+pdf-env/bin/python3 generate_hypervisor_norm_gaps.py
+pdf-env/bin/python3 generate_consolidated_updates.py
+pdf-env/bin/python3 generate_highlighted_xlsx.py
+pdf-env/bin/python3 fill_norm_rules_xlsx.py
+```
+
+### Curated dicts (edit together)
+- `GOLDEN` in `generate_hypervisor_norm_gaps.py`
+- `PLACEMENT` in `generate_consolidated_updates.py`
+- `CP_NORMS` / `NORM_ALIASES` in `fill_norm_rules_xlsx.py`
+
+### Norm ID rule
+Use canonical IDs from `norm-rules.html` only. Legacy `norm:csr:*:reg` → alias via `NORM_ALIASES`.
+
+---
+
+## B) riscv-arch-test
+
+Before work: skill `act4-riscv-arch-test` + vault `00-MOC-Index.md` + `riscv-arch-test/AI_CONTEXT_SUMMARY.md`.  
+Rule: `.cursor/rules/riscv-arch-test-act4.mdc`
+
+- TB reads `*.rvvi` not `*.trace`
+- Never hand-edit `coverpoints/coverage/*`
+- Starter Questa here: no covergroup sampling; refuse cracked licenses
+- **Auto-update vault/handoff without asking** after durable chat work (`08-Agent-Memory-Protocol.md`)

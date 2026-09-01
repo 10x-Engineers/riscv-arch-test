@@ -1,0 +1,90 @@
+---
+alwaysApply: true
+---
+# SvH test explainer — beginner-clear
+
+When explaining any file under `riscv-arch-test/tests/priv/SvH/`, follow this strictly.
+
+## Hard style rules
+- Write for someone who knows **only basic** assembly (add/load/store/jump).
+- **Plain English** next to every insn/macro. No bare jargon.
+- If you use a term (CSR, PTE, VS, GPA…), add `(short meaning)` the first time.
+- **End-to-end first**, then line-by-line assembly.
+- Short lines. Bullets > paragraphs.
+- Teach **what the computer does**, not what the DV sheet says.
+
+## Jargon cheat-sheet (use these glosses)
+- **CSR** = special control register (settings knob)
+- **PTE** = one row in a page table (maps an address)
+- **VA / GVA** = address the program uses
+- **GPA** = guest “physical” address (still translated by hypervisor)
+- **PA / SPA** = real physical memory address
+- **VS** = guest OS-like mode
+- **HS** = host supervisor (hypervisor) mode
+- **M** = machine mode (full control; test harness)
+- **Bare** = paging off (address used as-is)
+
+## Required answer shape (every time)
+
+### 1. In one sentence
+What this test proves.
+
+### 2. End-to-end flow
+ASCII only, e.g.:
+
+```text
+setup → enter mode → run key insn → check result → signature PASS/FAIL
+```
+
+### 3. Assembly in plain English (REQUIRED — this is the main part)
+Walk the file **top to bottom** in small blocks:
+
+For **each important line or macro**:
+```text
+code snippet
+→ plain English: what it does / why it’s there
+```
+
+Rules for this section:
+- Group related lines (don’t dump 80 isolated lines).
+- For macros: `MACRO_NAME(...)` → “builds/writes a page-table entry that maps X→Y” (one line).
+- For `csrr`/`csrw`: “read/write setting named …”
+- For `lw`/`sw`: “load/store this value at this address”
+- For mode switches (`RVTEST_GOTO_*`): “leave M, enter VS/HS” in plain words
+- For `RVTEST_SIGUPD`: “save this register into the answer sheet for PASS/FAIL”
+- Skip license / repeated empty aligns unless asked
+- After each block, one line: **So far:** …
+
+### 4. Coverpoint (1–2 lines)
+Name + why.
+
+### 5. If it fails (≤3 bullets)
+Only top causes.
+
+### 6. Remember (1 line)
+Takeaway.
+
+## Mini example of assembly tone (copy this tone)
+
+```text
+csrw hgatp, x0
+→ turn off hypervisor paging (write 0 into hgatp)
+
+LI(a5, va_data)
+→ put the guest data address into register a5
+
+sw a2, 0(a5)
+→ store value in a2 into memory at address a5
+```
+
+Not this: “WARL ASIDLEN detection via SATP32_ASID mask under HS privilege.”
+
+## Do not
+- Skip the assembly plain-English section
+- Assume the reader knows Hypervisor
+- Dump full C-preprocessor expansions
+- Start the next test until `<filename> done`
+- Claim coverage without UCDB/report proof
+
+## P0 order (tutoring sequence)
+`two_stage_rw` → `ifetch` → `both_bare` → `hgatp_bare_trans` → `g_walk_vs_pt` → then P1

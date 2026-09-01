@@ -1,0 +1,558 @@
+# Hypervisor (10x) — ACT4 Test Plan Reference
+
+**Source:** `Hypervisor (10x).xlsx`
+**Sheets:** 31
+
+## Sheet Index
+
+1. **ExceptionsH-SN** — 29 non-empty rows
+2. **ExceptionsHF-SN** — 2 non-empty rows
+3. **ExceptionsHV-SN** — 3 non-empty rows
+4. **InterruptsH-NC** — 68 non-empty rows
+5. **SstcH** — 18 non-empty rows
+6. **EndianH-JG** — 5 non-empty rows
+7. **ZicntrH-JG** — 20 non-empty rows
+8. **SvinvalH-JG** — 2 non-empty rows
+9. **H - US** — 46 non-empty rows
+10. **SvH-US** — 55 non-empty rows
+11. **PMPH-US** — 51 non-empty rows
+12. **SvnapotH-US** — 7 non-empty rows
+13. **SvHCBO-US** — 27 non-empty rows
+14. **Shcounterenw** — 4 non-empty rows
+15. **Shvsatpa** — 3 non-empty rows
+16. **Shgatpa** — 3 non-empty rows
+17. **Shvstvecd** — 3 non-empty rows
+18. **Shvstvala** — 15 non-empty rows
+19. **Shtvala** — 6 non-empty rows
+20. **Shlcofideleg** — 2 non-empty rows
+21. **ZkrH** — 3 non-empty rows
+22. **SsstateenH** — 2 non-empty rows
+23. **SscrindH** — 2 non-empty rows
+24. **SscfgH** — 2 non-empty rows
+25. **SmctrH** — 2 non-empty rows
+26. **SvaduH - US** — 3 non-empty rows
+27. **ZicfilpH** — 2 non-empty rows
+28. **ZicfissH** — 3 non-empty rows
+29. **SsdbltrpH** — 2 non-empty rows
+30. **SsnpmH** — 2 non-empty rows
+31. **SmnpmH** — 2 non-empty rows
+
+---
+
+## Sheet: ExceptionsH-SN
+
+| Coverpoint | Goal | Feature Description | Expectation | Bins | ID | Normative Rule |  |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Note: M trap handler should log mcause/mepc/mtval/mstatus/mtinst/mtval2. Only certain mstatus bits need to be saved: GVA |  |  |  |  |  |  |  |
+| HS trap handler should log scause/sepc/stval/sstatus/hstatus/htinst/htval.  Only certain bits of status: hstatus.GVA/SPV |  |  |  |  |  |  |  |
+| VS trap handler should log scause/spec/stval/sstatus (these will be the VS versions).  Save sstatu.SPP, SPIE |  |  |  |  |  |  |  |
+| cp_hedeleg | Delegation to HS or VS | Attempt {instruction/load/store access fault, instruction/load/store misaligned fault, illegal instruction, ebreak} cros | VU/U/VS delegate to VS when bit is set in both delegation registers. Check xcause, xtval, xtinst, xepc, mtval2, xstatus. | 8 faults * 5 priv modes  * 2 medeleg * 9 hedeleg *** might be too many | *** a version of this is needed in VMH for page faults.  Umer doing this. |  | Also covers {m/h}status.GVA; see also cp_gva |
+| cp_ecall_to_vs | ecall to VS sets status bits | Delegate ecalls from VU to VS with medeleg and hedeleg.  Make ecall from VU to VS. Check vsstatus.SPP, vsstatus.SPIE, vs | status bits written per spec | 1 priv modes |  |  |  |
+| cp_ecall_to_hs | ecall to HS sets status bits | Delegate ecalls from {U, VS, VU} to HS with medeleg with hedeleg = 0.  Make ecall to HS cross with hstatus.SPVP={0/1}.   | status bits written per spec | 4 |  |  |  |
+| cp_ecall_to_m | ecall to M sets status bits | No delegation of ecalls.  Make ecall from M/HS/U/VS/VU to M.  Check mstatus.MPV/MPP/GVA/MPIE/MIE | status bits written per spec | 5 | mode x medeleg ecall bits 0 x mstatus | note: medelg ecall bits 0 (cehck for this) |  |
+| cp_ebreak_to_m | ebreak to M sets status bits | No delegation of ebreak.  Make ebreak from M/HS/U/VS/VU to M.  Check mstatus.MPV/MPP/GVA/MPIE/MIE | status bits written per spec | 5 |  |  |  |
+| cp_vstvec | ecall to VS uses vstvec | Delegate ecall from {VU, VS} to VS with medeleg and hedeleg. Point vstvec to a different trap handler than stvec.  Make  | Goes to vstvec handler | 2 |  |  | Should this move to SvH because of page faults? |
+| cp_priority | priority of illegal/virtual instruction, misaligned, access fault | Execute {hlv.w / hsv.w} x {legal/illegal address} x {addr[1:0] = 00/01} x {priv=M/HS/VS/VU/U} x hstatus.HU={0/1} to caus | Highest priority exception should occur | 2 instr * 2 access * 2 misaligned * 5 priv * 2 HU |  |  |  |
+| cp_virtual_instruction_vs | exercise all ways to trigger virtual-instruction exceptions from VS | read instret with hcounteren[2] = 0, mcounteren[2] = 1 execute hlv.w, hlvx.wu, hsv.w, hfence.vvma, hfence.gvma read vstv | virtual instruction exception | 14+ | *** check which fences belong in each. |  |  |
+| cp_virtual_instruction_vu | exercise all ways to trigger virtual-instruction exceptions from VU | in VU: read instret with hcounteren[2] = 0, scounteren[2] = 1, mcounteren[2] = 1 read instret with hcounteren[2] = 1, sc | virtual instruction exception | 14+ | *** check which fences belong in each. |  |  |
+| cp_loadstore_priv | Valid privilege modes of hypervisor load/store | In each privilege mode {M/HS/VS/U/VU} with hstatus.HU={0/1}, attempt {HLV.W, HLVX.W, HSV.W} from scratch memory | succeeds in M, HS; virtual-instruction in VS,VU; illegal instruction in U with HU=0 | 5 priv * 2 HU |  |  |  |
+| cp_hfence_priv | valid priv mode of hypervisor fences | In each privilege mode {M/HS/VS/U/VU} with mstatus.TVM={0/1}, hstatus.VTVM = {0/1}, attempt {sfence.vma, hfence.vvma, hf | Illegal instruction in U/VU-mode or in HS-mode with TVM=1.  Virtual instruction exception in VS-mode.  Otherwise succeed | 5 priv * 2 TVM * 2 VTMV |  |  |  |
+| cp_hlv_address_misaligned | Hypervisor Load Misaligned | In M mode with identity page tables set up and XR permission, attempt hlv.{b, bu, h, hu, w} and hlvx.{hu, wu} with every | Success or load misaligned, affected by Zicclsm | 8 instr * 8 addr |  |  |  |
+| cp_hlv_access_fault | Hypervisor Load Access Fault | In M mode with identity page tables set up and XR permission, attempt hlv.{b, bu, h, hu, w} and hlvx.{hu, wu} from an il | Access fault | 8 instr |  |  |  |
+| cp_hsv_address_misaligned | Hypervisor Store Misaligned | In M mode with identity page tables set up and WR permission, attempt hsv.{b, h, w} with every combination of three lsbs | Success or store misaligned, affected by Zicclsm | 3 instr * 8 addr |  |  |  |
+| cp_hsv_access_fault | Hypervisor Store Access Fault | In M mode with identity page tables set up and WR permission, attempt hsv.{b, h, w} from an illegal address (parameteriz | Access fault | 3 instr |  |  |  |
+| cp_xtinst_instr_misaligned | Instruction address misaligned writes xtinst | From VS mode with medeleg = {0/1}, hedeleg = 0, random value written to mtinst and mtval2, jump to misaligned address.   | If Zca supported, no fault.  Otherwise, Instruction misaligned trap with {m/h}tinst = 0 or custom,  Trap to machine also | 2 | mtinst could be hardwired to 0 and would ignore random value |  |  |
+| cp_xtinst_instr_access | Instruction acc fault writes xtinst | From VS mode with medeleg = {0/1}, hedeleg = 0, random value written to mtinst and mtval2, jump to access fault address | Inst Access fault with {m/h}tinst = 0.  Trap to machine also sets mtval2 = 0. | 2 |  |  |  |
+| cp_xtinst_illegalinstr | Illegal instruction writes xtinst | From VS mode with medeleg = {0/1}, hedeleg = 0, execute illegal instruction all 0s | Illegal Instr fault with {m/h}tinst = 0.  Trap to machine also sets mtval2 = 0. | 2 |  |  |  |
+| cp_xtinst_breakpoint | breakpoint writes xtinst | From VS mode with medeleg = {0/1}, hedeleg = 0, execute ebreak | Breakpoint exception with {m/h}tinst = 0 or custom.  Trap to machine also sets mtval2 = 0. | 2 |  |  |  |
+| cp_xtinst_virtinstr | Virtual instruction writes xtinst | From VS mode with medeleg = {0/1}, hedeleg = 0, csrr vstval | Virtual instr exception with {m/h}tinst = 0 or custom.  Trap to machine also sets mtval2 = 0. | 2 |  |  |  |
+| cp_xtinst_load_misaligned | load misaligned writes xtinst | From VS mode with medeleg = {0/1}, hedeleg = 0, misaligned load | If Zicclsm supported, no fault.  Otherwise Load misaligned exception with {m/h}tinst = 0 or transformed or custom.  Trap | 2 |  |  |  |
+| cp_xtinst_load_access | load access writes xtinst | From VS mode with medeleg = {0/1}, hedeleg = 0, load access falt | Load access exception with {m/h}tinst = 0 or transformed or custom.  Trap to machine also sets mtval2 = 0. | 2 |  |  |  |
+| cp_xtinst_store_misaligned | store misaligned writes xtinst | From VS mode with medeleg = {0/1}, hedeleg = 0, misaligned store | Store misaligned exception with {m/h}tinst = 0 or transformed or custom.  Trap to machine also sets mtval2 = 0. | 2 |  |  |  |
+| cp_xtinst_store_access | store access writes xtinst | From VS mode with medeleg = {0/1}, hedeleg = 0, store access falt | If Zicclsm supported, no trap. Otherwise store access exception with {m/h}tinst = 0 or transformed or custom.  Trap to m | 2 |  |  |  |
+| cp_xtinst_ecall | ecall writes xtinst | From VS mode with medeleg = {0/1}, hedeleg = 0,ecall | ecall from vs mode with {m/h}tinst = 0 or custom.  Trap to machine also sets mtval2 = 0. | 2 |  |  |  |
+
+## Sheet: ExceptionsHF-SN
+
+| Coverpoint | Goal | Feature Description | Expectation | Bins | ID | Normative Rule |  |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| cp_exceptionsHF_fs |  | Confirm that mstatus.FS and vsstatus.FS are selected correctly according to the privilege level to disable vector instru | Cross mstatus.FS = {00, 01, 10, 11}, vsstatus.FS= {00, 01 10, 11}, mode = {M/HS/VS/VU/U}.  Attempt csrr t0, fcsr and fad | Illegal instruction if mstatus.FS = 00 or ((mode = VS or VU) and vsstatus.FS = 00).  Otherwise, fadd sets mstatus.FS to  | 4 * 4 * 5 |  |  |
+
+## Sheet: ExceptionsHV-SN
+
+| Coverpoint | Goal | Feature Description | Expectation | Bins | ID | Normative Rule |  |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| cp_exceptionsHV_vs |  | mstatus.VS and vsstatus.VS are selected correctly according to the privilege level to disable vector instructions when o | Set misa.V to 1.  Cross mstatus.VS = {00, 01, 10, 11}, vsstatus.vs = {00, 01 10, 11}, mode = {M/HS/VS/VU/U}.  Attempt cs | Illegal instruction if mstatus.VS = 00 or ((mode = VS or VU) and vsstatus.VS = 00).  Otherwise, vadd.vv sets mstatus.VS  | 4 * 4 * 5 |  |  |
+| cp_misa_V |  | vector instructions don't work when misa.V = 0 | Set misa.V to 0.  Attempt vadd.vv. | Illegal instruction if V is not hardwired to 1 | 1 |  |  |
+
+## Sheet: InterruptsH-NC
+
+| Coverpoint | Goal | Feature Description | Expectation | Bins | ID | Normative Rule |  |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Record all trap information including xstatus |  |  |  |  |  |  |  |
+| add to CTP an assumption that all interrupts are implemented |  |  |  |  |  |  |  |
+| Following tests are done in M-mode |  |  |  |  |  |  |  |
+| cp_mideleg | hypervisor bits of mideleg are read-only 1 | Write 0 to mideleg and read it back. | Bits 10, 6, 2 are 1s.  If GEILEN > 0, bit 12 is also 1. | 1 |  |  |  |
+| cp_mie | mie.VS*IE bits are alias of hie | With hie = 0x444, read mie. | 0x444 | 1 |  |  |  |
+| cp_mip | mip.VS*IP bits are alias of hip | With hvip = 0x444, read mip and hip. Note that hip depends on hvip. | 0x444 | 1 |  |  |  |
+| cp_nohint_m | VS*I never causes machine-mode interrupt | mstatus.MIE=1, hideleg = 0, mie = 0x444, mip = 0x444 | No interrupt occurs because these are always delegated to HS or VS | 1 |  |  |  |
+| Following tests are done in M-mode if GILEN > 0 |  |  |  |  |  |  |  |
+| cp_mie_gilen | mie.SGEIE is alias of hie | With hie = 0x1444, read mie. | 0x1444 | 1 |  |  |  |
+| cp_mip_gilen | mip.SGEIP is alias of hip | Set hgeip nonzero and read mip | 0x1000 | 1 |  |  |  |
+| Following tests are done in M-mode if GILEN = 0 |  |  |  |  |  |  |  |
+| cp_mie_gilen | mie.SGEIE is read-only zero if GILEN = 0 | Write hie = 0x1000, read mie | 0x0000 | 1 |  |  |  |
+| Following tests are done in HS-mode |  |  |  |  |  |  |  |
+| cp_trigger_vsei | trigger HS-mode VSEI | With sstatus.SIE={0/1}, hideleg.VSEI = {0/1}, hie.VSEIE = {0/1}, write hvip.VSEIP | hip.VSEIP rises. if SIE=1 & hideleg = 0 & hie = 1, interrupt to HS-mode with cause 10 | 2 * 2 * 2 |  |  |  |
+| cp_trigger_vsti | trigger HS-mode VSTI | With sstatus.SIE={0/1}, hideleg.VSTI = {0/1}, hie.VSTIE = {0/1}, write hvip.VSTIP | hip.VSTIP rises. if SIE=1 & hideleg = 0 & hie = 1, interrupt to HS-mode with cause 6 | 2 * 2 * 2 |  |  |  |
+| cp_trigger_vssi | trigger HS-mode VSSI | With sstatus.SIE={0/1}, hideleg.VSSI = {0/1}, hie.VSSIE = {0/1}, write hvip.VSSIP | hip.VSSIP rises. if SIE=1 & hideleg = 0 & hie = 1, interrupt to HS-mode with cause 2 | 2 * 2 * 2 |  |  |  |
+| cp_hip_write | only hip.vssip is writable, and aliases to hvip | Write hip=0xFFFF and hip = 0x0000.  Read back hvip and hip. | 0x0004 and 0x0000 in both hip and hvip. | 1 |  |  |  |
+| cp_priority_en_vsi | trigger highest priority enabled VSI | With sstatus.SIE=1, hideleg = 0, 2^3 combinations of hie.VS*IE, write 2^3 combinations of hvip.VS*IP | Highest priority enabled interrupt to HS-mode | 8 * 8 |  |  |  |
+| cp_priority_deleg_vsi | trigger highest priority undelegated VSI | With sstatus.SIE = 1, hie=0x444, 2^3 combinations of hideleg, write 2^3 combinations of hvip.VS*IP | Highest priority undelegated interrupt to HS-mode | 8 * 8 |  |  |  |
+| cp_priority_s | VS*I has lower priority than any S*I | With sstatus.SIE = 1, hvip = 0x444, hideleg = 0, hie = 0x444, sie = 1s, sip = {SEIP, STIP, SSIP, none} | Take highest priority interrupt (supervisor, if any asserted, else VSEI) | 4 |  |  |  |
+| cp_hie | hie.VS*IE bits are alias of mie | With mie = 0x444, 2^3 combinations of hideleg, read hie and vsie | hie = 0x444; vsie = 1s in delegated bits | 8 |  |  |  |
+| cp_hip | hip.VS*IP bits are alias of mip | With mip = 0x444, 2^3 combinations of hideleg, read hip and visp | hip = 0x444; visp = 1s in delegated bits | 8 |  |  |  |
+| cp_hideleg | hideleg bits 10, 6, 2 are writable | Write 0xFFFF to hideleg, read back | 0x444 | 1 |  |  |  |
+| cp_vsie | vsie is alias of hie when delegated | With 2^3 combinations of hideleg and 2^3 combinations of hie, read vsie | vsie bits = 1 if hideleg and hie bits = 1 (shifted) | 8 * 8 |  |  |  |
+| cp_vsip | vsip is alias of hip when delegated | With 2^3 combinations of hideleg and 2^3 combinations of hip, read vsip | vsip bits = 1 if hideleg and hip bits = 1 (shifted) | 8 * 8 |  |  |  |
+| cp_vsie_from_hie | hie is alias of vsie when delegated | With 2^3 combinations of hideleg, write 0xFFFF to vsie, read hie | delegated bits show up as 1 in hie (shifted) | 8 |  |  |  |
+| Following tests are done in HS-mode if GILEN > 0 |  |  |  |  |  |  |  |
+| cp_hie_gilen | hie.SGEIE is alias of mie | With mie = 0x1444, read hie | 0x1444 | 1 |  |  |  |
+| cp_priority_sgei | SGEI has higher priority than VS*I | With sstatus.SIE=1, hvip = 0x444, sgeip & sgeie != 0, hideleg = 0, hei = 0x1444 | interrupt to HS-mode with cause 12 | 1 |  |  |  |
+| cp_priority_sgei_s | SGEI has lower priroity than any S*I | With sstatus.SIE = 1, hvip = 0x444, hideleg = 0, hie = 0x1444, sie = 1s, sip = {SEIP, STIP, SSIP, none} | Take highest priority interrupt (supervisor, if any are asserted) | 4 |  |  |  |
+| cp_trigger_sgei | trigger HS-mode SGEI | With sstatus.SIE={0/1}, sgeip & sgeie != 0, hie.SGEIE = {0/1} | hip.SGEIP =1.  if  SIE=1 & hie = 1, interrupt to HS-mode with cause 12 | 2 * 2 |  |  |  |
+| cp_hgeie | hgeie enables SGEI | With sstatus.SIE = 0, for i in 1...GILEN, with hgeip = {0, 1 in i, 1s in all writable bits}, hgeie = 1 in bit i | hip.SEGIP = 1 if hgeip & hgeie != 0 | GLEN * 3 |  |  |  |
+| cp_trigger_vsei_hgeip | trigger HS-mode VSEI with HGEIP | With sstatus.SIE = 0, hvip = 0, hideleg = 0, hie = 0, for i in 1...GLEN: hgeip = {0, 1 in i, 1 in all writable bits exce | hip.VSEIP = hgeip[i] independent of hgeie | GLEN * 2 |  |  |  |
+| cp_hgeip0 | no VSEI selected when VGEIN=0 | With statatus.SIE=0, hvip = 0, hideleg=0, hie = 0, hgeip = hgeie = 1s in all writable bits, hstatus.VGEIN = 0 | hip.SEGIP = 0, hip.VSEIP = 0 | 1 |  |  |  |
+| Following tests are done in VS-mode |  |  |  |  |  |  |  |
+| cp_hideleg_hip_vs |  | Set up 2^3 combinations of hideleg, 2^3 combinations of hip, hie = 0x444.  Change to VS-mode with vsstatus.SIE = 1 | Take highest priority interrupt to HS or VS.  VS shifts to SEI/STI/SSI. | 8 * 8 |  |  |  |
+| cp_hideleg_hie_vs |  | Set up 2^3 combinations of hideleg, 2^3 combinations of hie, hip = 0x444.  Change to VS-mode with vsstatus.SIE = 1 | Take highest priority interrupt to HS or VS.  VS shifts to SEI/STI/SSI. | 8 * 8 |  |  |  |
+| cp_hip_hie_vs |  | Set up 2^3 combinations of hip, 2^3 combinations of hie, hideleg = 0x444.  Change to VS-mode with vsstatus.SIE = 1 | Take highest priority interrupt to HS or VS.  VS shifts to SEI/STI/SSI. | 8 * 8 |  |  |  |
+| cp_sie_vs |  | hideleg = hip = hie = 0x444.  Change to VS-mode with vsstatus.SIE = {0/1} | Take SEI if SIE=1 | 2 |  |  |  |
+| cp_mideleg_mip_vs |  | With mstatus.MIE=0, mideleg = {0/1s}, mip = {MEIP/MTIP/MSIP/SEI/STI/SSI}, mie = 1s, change to VS-mode with vsstatus.SIE= | Take interrupt to M or HS | 2 * 6 |  |  |  |
+| cp_mtinst | mtinst = 0 on interrupt | with mtinst randomized, mideleg = 0, exercise each interrupt. | mtinst = 0 | 10 interrupts |  |  |  |
+| cp_htinst | htinst = 0 on interrupt | with htinst randomized, mideleg = 1, hideleg = 0 exercise each interrupt. | htinst = 0 | 10 interrupts |  |  |  |
+| Following tests are done in VU-mode |  |  |  |  |  |  |  |
+| cp_hideleg_hip_vu |  | Set up 2^3 combinations of hideleg, 2^3 combinations of hip, hie = 0x444.  Change to VU-mode. | Take highest priority interrupt to HS or VS.  VS shifts to SEI/STI/SSI. | 8 * 8 |  |  |  |
+| cp_hideleg_hie_vu |  | Set up 2^3 combinations of hideleg, 2^3 combinations of hie, hip = 0x444. Change to VU-mode. | Take highest priority interrupt to HS or VS.  VS shifts to SEI/STI/SSI. | 8 * 8 |  |  |  |
+| cp_hip_hie_vu |  | Set up 2^3 combinations of hip, 2^3 combinations of hie, hideleg = 0x444.  Change to VU-mode. | Take highest priority interrupt to HS or VS.  VS shifts to SEI/STI/SSI. | 8 * 8 |  |  |  |
+| cp_mideleg_mip_vu |  | With mstatus.MIE=0, mideleg = {0/1s}, mip = {MEIP/MTIP/MSIP/SEI/STI/SSI}, mie = 1s, change to VU-mode | Take interrupt to M or HS | 2 * 6 |  |  |  |
+| Following tests are done in U-mode |  |  |  |  |  |  |  |
+| cp_vsint_disabled_u | VS-mode interrupts are globally disabled in U-mode | hideleg = hip = hie = 0x444.  Change to U-mode. | Nothing | 1 |  |  |  |
+| Four hie/hip bits aliased to mie/mip |  |  |  |  |  |  |  |
+| Generating hip.VSEIP with hvip |  |  |  |  |  |  |  |
+| Generating hip.VSEIP with hgeip |  |  |  |  |  |  |  |
+| Generating hip.VSTIP with hivip.vstip |  |  |  |  |  |  |  |
+| Generating hip.VSTIP with vstimecmp and htimedelta (Sstc supported) |  | See SstcH |  |  |  |  |  |
+| generating hip.VSSIP with hvip.VSSIP |  |  |  |  |  |  |  |
+| generating hip.VSSIP by writing it directly |  |  |  |  |  |  |  |
+| priority of interrupts |  |  |  |  |  |  |  |
+| Generating hip.SGEIP with one or more of hgeip & hgeie |  |  |  |  |  |  |  |
+| When hideleg is set, hip and hie bit is aliased to vsip and vsie *** mideleg required too? |  |  |  |  |  |  |  |
+| Delegated interrupts replace supervisor interrupts (test both) |  |  |  |  |  |  |  |
+| Priority of interrupts |  |  |  |  |  |  |  |
+| Interrupts not taken in higher mode? |  |  |  |  |  |  |  |
+| Delegated interrupts are read-only zero in sie/sip.  Undelegated read-only zero in hip/hie |  |  |  |  |  |  |  |
+| delegated interrupts are masked at the delegator privilege level |  |  |  |  |  |  |  |
+| interrupts to S mode take priority over interrupts to lower priv mode |  |  |  |  |  |  |  |
+| However, interrupts directed to HS-level continue to be indicated in |  |  |  |  |  |  |  |
+| the HS-level sip register, not in vsip, when V=1. |  |  |  |  |  |  |  |
+
+## Sheet: SstcH
+
+| Coverpoint | Goal | Feature Description | Expectation | Bins | ID | Normative Rule |  |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| In M-Mode |  |  |  |  |  |  |  |
+| cp_vstip | OR of vstimecmp and hvip | Cross of menvcfg.STCE = {0/1}, henvcfg = {0/1}, hvip.VSTIP = {0/1}, htimedelta = 0, vstimecmp = {0, 2^30}.  Check hip.VS | If both STCE = 1 and vstimecmp = 0, hip.VSTIP = 1.  Else hip.VSTIP = hvip.VSTIP. |  |  |  |  |
+| cp_htimedelta | htimedelta affects vstimecmp | menvcfg.STCE = 1, henvcfg.STCE = 1, hvip.VSTIP = 0, htimedelta = {0, 2^30, 2^60, 2^-30, 2^-60}, vstimecmp = {0, 2^29, 2^ | hip.VSTIP = (htimedelta >= vstimecmp) |  |  |  |  |
+| cp_m_vstimecmp_accessible | TM and STCE control access depending on priv level | With cross of menvcfg.STCE = {0/1}, henvcfg.STCE = {0/1} mcounteren.TM = {0/1}, hcounteren.TM = {0/1} read vstimecmp.  F | success | 2 mSTCE *2 hSTCE * 2 mTM * 2hTM * up to 2 regs |  |  |  |
+| cp_m_vstimecmp_accesses | All types of access | With cross of menvcfg.STCE = 1, henvcfg.STCE = 0 mcounteren.TM = 0, hcounteren.TM =0, read/write (0s,1s)/set/clear vstim | sucess | 5 accesses * up to 2 regs |  |  |  |
+| In HS-Mode |  |  |  |  |  |  |  |
+| cp_walk_vstimecmp | SSTC CSRs accessible | Walking 1s and 0s in vstimecmp.  Also vstimecmph for RV32. | Writable | 64 |  |  |  |
+| cp_hs_vstimecmp_accessible | TM and STCE control access depending on priv level | With cross of menvcfg.STCE = {0/1}, henvcfg.STCE = {0/1} mcounteren.TM = {0/1}, hcounteren.TM = {0/1} read vstimecmp.  F | illegal instruction if menvcfg.STCE = 0 or mcounteren.TM = 0 | 2 mSTCE *2 hSTCE * 2 mTM * 2hTM * up to 2 regs |  |  |  |
+| cp_hs_vstimecmp_accesses | All types of access | With cross of menvcfg.STCE = 1, henvcfg.STCE = 0 mcounteren.TM = 1, hcounteren.TM = 0, read/write (0s,1s)/set/clear vsti | sucess | 5 accesses * up to 2 regs |  |  |  |
+| In VS-Mode |  |  |  |  |  |  |  |
+| cp_vs_stimecmp_accessible | TM and STCE control access depending on priv level | Put different values in stimecmp and vstimecmp. With cross of menvcfg.STCE = {0/1}, henvcfg.STCE = {0/1} mcounteren.TM = | trap if menvcfg.STCE = 0 or mcounteren.TM = 0.  virtual instruction trap if menvcfg.STCE = mcounteren.TM = 1 but henvcfg | 2 mSTCE *2 hSTCE * 2 mTM * 2hTM * up to 2 regs |  |  |  |
+| cp_vs_stimecmp_accesses | All types of access | Put random value in stimecmp/h before entering VS-mode. With cross of menvcfg.STCE = 1, henvcfg.STCE = 1 mcounteren.TM = | Changes should show up in vstimecmp/h | 5 accesses * up to 2 regs |  |  |  |
+| cp_vs_vstimecmp_inaccessible |  | With menvcfg.STCE=1, henvcft.STCE=1, mcounteren.TM = 1, hcounteren.TM = 1, read vstimecmp.  For RV32, also vstimecmph | Illegal instruction trap | 2 |  |  |  |
+| In VU-Mode |  |  |  |  |  |  |  |
+| cp_vu_timecmp_inaccessible |  | With menvcfg.STCE=1, henvcfg.STCE=1, mcounteren.TM = 1, hcounteren.TM = 1, read stimecmp, vstimecmp.  For RV32, also sti | Illegal instruction trap | 4 |  |  |  |
+| In U-Mode |  |  |  |  |  |  |  |
+| cp_u_timecmp_inaccessible |  | With menvcfg.STCE=1, henvcft.STCE=1, mcounteren.TM = 1, hcounteren.TM = 1, read stimecmp, vstimecmp.  For RV32, also sti | Illegal instruction trap | 4 |  |  |  |
+
+## Sheet: EndianH-JG
+
+|  | Goal | Feature Description | Expectation | Bins | ID | Normative Rule |  |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| cp_hstatus_vsbe_endianness | endianvs | VSBE | Read from memory in an endian fashion in supervisor mode. | Run test in VS mode. For each endianness given by hstatus.VSBE, sd 0x0102030405060708 to scratch, and also write all sub | restore endianness to normal afterward | Check against RM | To be Done |
+| cp_mstatus_mprv_vsbe_endianness | endianvs | MPRV, MBE, VSBE | Read from memory in an endian fashion based on MBE and VSBE depending on MPRV. | Run test in machine mode. Each endianness is a cross-product of MPRV = 0/1, MPP = 01/11, MPV=0/1, MBE = 0/1, VSBE = 0/1  | restore endianness to normal afterward | Check against RM | To be Done |
+| cp_vsstatus_ube_endianness | endianvs | UBE | Read from memory in an endian fashion | Run test in VU mode. For each endianness given in vsstatus.UBE, sd 0x0102030405060708 to scratch, and also write all sub | restore endianness to normal afterward | Check against RM | To be Done |
+| Note: some implementations may make UBE a read-only copy of hstatus.VSBE, or VSBE a read-only copy of sstatus.SBE, or SB |  |  |  |  |  |  |  |
+
+## Sheet: ZicntrH-JG
+
+| Coverpoint | Goal | Feature Description | Expectation | Bins | ID | Normative Rule |  |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| in M mode |  |  |  |  |  |  |  |
+| cp_mhscounteren_access_m | vscounters | Write walking 1s and 0s to all of mcounteren, hcounteren, scounteren.  Read from corresponding counter and counterh in M | always succeeds |  |  |  |  |
+| cp_delta | htimedelta does not affect time in M mode | With htimedelta = {0, 2^30, 2^60, -2^30, -2^60}, read time.   In RV32, this also involves htimedeltah and timeh. Note: d | 0 < time < 2^30 in all circumstances | 5 | norm:csr:htimedleta:delta |  |  |
+| in HS mode |  |  |  |  |  |  |  |
+| cp_scounteren_access_hs | vscounters | Write walking 1s and 0s to scounteren with mcounteren = all 1s, hcounteren = all 0s.  Read from corresponding counter an | always succeeds |  |  |  |  |
+| cp_delta | htimedelta does not affect time in HS mode | With htimedelta = {0, 2^30, 2^60, -2^30, -2^60}, read time.   In RV32, this also involves htimedeltah and timeh. Note: d | 0 < time < 2^30 in all circumstances | 5 |  |  |  |
+| in VS mode |  |  |  |  |  |  |  |
+| cp_mcounteren_access_vs | vscounters | Write walking 1s and 0s to mcounteren with hcounteren = all 1s and scounteren = all 0s.  Read from corresponding counter | fails when 0 |  |  |  |  |
+| cp_hcounteren_access_vs | vscounters | Write walking 1s and 0s to hcounteren with mcounteren = all 1s  and scounteren = all 0s.  Read from corresponding counte | fails when 0 |  |  |  |  |
+| cp_delta | htimedelta affects time in VS mode | With htimedelta = {0, 2^30, 2^60, -2^30, -2^60}, read time.   In RV32, this also involves htimedeltah and timeh. Note: d | 0: 0 < time < 2^30 2^30: 2^30 < time < 2^60 2^60: 2^60 < time ^ 2^61 -2^30: -2^30 < time < 0 -2^60: -2^60 < time < 2^-59 | 5 |  |  |  |
+| in U mode |  |  |  |  |  |  |  |
+| cp_scounteren_access_u | vscounters | Write walking 1s and 0s to scounteren with mcounteren = all 1s, hcounteren = all 0s.  Read from corresponding counter an | fails when 0 |  |  |  |  |
+| cp_delta | htimedelta does not affect time in U mode | With htimedelta = {0, 2^30, 2^60, -2^30, -2^60}, read time.   In RV32, this also involves htimedeltah and timeh. Note: d | 0 < time < 2^30 in all circumstances | 5 |  |  |  |
+| in VU mode |  |  |  |  |  |  |  |
+| cp_hcounteren_access_vu | vscounters | Write walking 1s and 0s to hcounteren with mcounteren = scounteren = all 1s.  Read from corresopnding counter and counte | fails when 0 |  |  |  |  |
+| cp_scounteren_access_vu | vscounters | Write walking 1s and 0s to scounteren with mcounteren = hcounteren = all 1s.  Read from corresopnding counter and counte | fails when 0 |  |  |  |  |
+| cp_delta | htimedelta affects time in VU mode | With htimedelta = {0, 2^30, 2^60, -2^30, -2^60}, read time.   In RV32, this also involves htimedeltah and timeh. Note: d | 0: 0 < time < 2^30 2^30: 2^30 < time < 2^60 2^60: 2^60 < time ^ 2^61 -2^30: -2^30 < time < 0 -2^60: -2^60 < time < 2^-59 | 5 |  |  |  |
+| NOTE: xcounteren are WARL and some bits could be read-only zero.  Currently, the coverpoints won't be hit.  What should  |  |  |  |  |  |  |  |
+| *** move everything related to htimedelta from ZicsrH to here |  |  |  |  |  |  |  |
+
+## Sheet: SvinvalH-JG
+
+| Coverpoint | Goal | Feature Description | Expectation | Bins | ID | Normative Rule |  |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| cp_svinval | Svinval instructions trap appropriately. | Test all Svinval instructions { sfence.w.inval, sfence.inval.ir, sinval.vma, hinval.vvma, hinval.gvma} in each privilege | Instruction executes or throws illegal instruction trap.  Doesn't try to check that anything is actually invalidated. | 5 instructions x 5 privilege modes x 2 TVM * 2 VTVM |  |  |  |
+
+## Sheet: H - US
+
+| Coverpoint | Goal | Feature Description | Expectation | Bins | Normative Rule |  |  |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+|  |  | Definitions: Machine H-Extension CSRs: mtval2, mtinst HS H-Extension CSRs: hstatus, hedeleg, hideleg, hie, hcounteren, h |  |  |  |  |  |
+| Note: *** trap handler should also record hstatus, m/s status in signature |  |  |  |  |  |  |  |
+| Tests executed in M-mode (H_mcsr_cg) |  |  |  |  |  |  |  |
+| cp_hcsr_access | All H-extension CSRs are able to read, write, set, and clear | Write all 1s and all 0s, then set all bits, then clear all bits, then read each {Machine/HS/VS} H-Extension CSR. | All registers are accessible. hgeip is read-only. | 5 * (2 + 14-17 + 9-11) | norm:csr:mtval2:reg, norm:csr:mtinst:reg, norm:csr:hstatus:reg, norm:csr:hedeleg:reg, norm:csr:hideleg:reg, norm:csr:hie |  | *** also capture 2.7 >xlen,2 "accessible at higher priv levels" |
+| cp_hcsrwalk | Exercise each bit of H-extension CSRs | Set and clear each bit of each Machine H-Extension CSR. | All registers are accessible.  Some fields are WARL and will not change. | 64*2*(2 + 13-16 + 8-10) | norm:csr:mtval2:reg, norm:csr:mtinst:reg | *** make sure each bit of hstatus, vsstatus are tested elsehwere |  |
+| cp_replica | Writing to S/VS-mode CSRs doesn't affect replica | Write different random values into S-mode CSRs and their VS-mode replicas.  Read back | Each CSR should have value written. | 9 | norm:ext:H:vscsrs-v0 |  |  |
+| cp_mtvala | mtval must not be read-only zero | Write 1s to mtval | nonzero | 1 | norm:csr:mtval:h-nrz | CSR `mtval` must not be read-only zero |  |
+| Tests executed in HS-mode (H_hscsr_cg) |  |  |  |  |  |  |  |
+| cp_hcsr_access | All H-extension CSRs are able to read, write, set, and clear | Write all 1s and all 0s, then set all bits, then clear all bits, then read each {HS/VS} H-Extension CSR. | All registers are accessible. hgeip is read-only. | 5 * (14-17 + 9-11) | norm:csr:hstatus:reg, norm:csr:hedeleg:reg, norm:csr:hideleg:reg, norm:csr:hie:reg, norm:csr:htimedelta:reg, norm:csr:hc |  |  |
+| cp_hcsrwalk | Exercise each bit of H-extension CSRs | Set and clear each bit of each {HS/VS} H-Extension CSR. Exclude hstatus, vsstatus because of WPRI bits. | All registers are accessible.  Some fields are WARL and will not change. | 64 * 2 * (13-16 + 8-10) | norm:csr:hedeleg:reg, norm:csr:hideleg:reg, norm:csr:hie:reg, norm:csr:htimedelta:reg, norm:csr:hcounteren:reg; norm:csr | The ...X bits, when set, indicate that the PMP entry permits ... instruction execution |  |
+| cp_hcsr_inaccessible | M-mode H-extension registers are inaccessible from HS-mode | csrrw, csrrs, csrrc, csrr each Machine H-Extension CSR | Illegal instruction fault | 5 * 2 | norm:ext:Zicsr:insufficient-privlege |  |  |
+| cp_replica | In HS, writing to S/VS-mode CSRs doesn't affect replica | In M-mode, write different random values into S-mode CSRs and their VS-mode replicas.  Switch to HS-mode and read, write | Each CSR should have value written. | 9 | norm:ext:H:vscsrs-v0 |  |  |
+| cp_hstatus_vgein | VGEIN can hold values between 0 and GEILEN | Write {0, 1, GEILEN-1, GEILEN, GEILEN+1, 63} to hstatus.VGEIN | Only write legal values | 6 | norm:csrfld:hstatus:vgein:op |  |  |
+| cp_vscause_write | vscause WLRL fields writable | Write values (WLRL) | with interrupt = 1: 0-15 with interrupt = 0: 0-64 | 81 |  |  |  |
+| cp_tvm | TVM traps access to satp and hgatp | With mstatus.TVM = {0/1} read and write satp and hgatp | Illegal instruction fault if TVM = 1 | 2 TVM * 2 accesses * 2 regs |  |  |  |
+| *** check if any other bitfields need special cases, including hstatus, vsstatus |  |  |  |  |  |  |  |
+| Tests executed in VS-mode (H_vscsr_cg) |  |  |  |  |  |  |  |
+| cp_hcsr_inaccessible | M-mode H-extension registers are inaccessible from VS-mode | csrrw, csrrs, csrrc, csrr each Machine H-Extension CSR | Illegal instruction fault | 5 * 2 | norm:ext:Zicsr:insufficient-privlege |  |  |
+| cp_hcsr_virtualinstructionfault | HS and VS registers cause virtual instruction fault from VS-mode | csrrw, csrrc, csrrs, csrr each {HS/VS} H-Extension CSR | Virtual instruction fault | 5 * (13-16 + 8-10) | norm:ext:H:csrs-hs-not-vs norm:ext:H:vscsrs-vs-perm | "When V=1, an attempt to read or write a VS CSR directly by its own separate CSR address causes a virtual-instruction ex |  |
+| cp_illegalupper | In RV64, h half of CSRs are illegal. | RV64 ONLY: csrrw, csrrs, csrrc, csrr  each h H-extension CSR | Illegal instruction fault *** may need to remove vstimecmp from all cp_illegalupper coverpoints if not implemented | 5 * 4 |  | "When XLEN>32, an attempt to access a high-half CSR always raises an illegal-instruction exception." | *** should this be every h register, not just these, and at lesat the unpriv counters? |
+| cp_replica | In VS, writing to S-mode CSRs affects replica instead | In M-mode, write different random values into S-mode CSRs and their VS-mode replicas.  Switch to VS-mode and write and r | VS replica should have changed but S CSR does not change. | 9 | norm:ext:H:vscsrs-v0 | "When V=1, the VS CSRs substitute for the corresponding supervisor CSRs, taking over all functions of the usual supervis |  |
+| cp_nonreplica | In VS, accessing nonreplicated S-mode CSRs behaves normally | csrrw, csrrc, csrrs, csrr each S CSR without VS replica | Normal access | 5 * 3 | norm:ext:H:scsrs-nomatch |  |  |
+| cp_vsstatus_sd_write | vstatus.SD affected by vstatus.FS/VS | Write 1 and 0 to SD with FS/VS all 0.  Write cross-product of all bits of vsstatus.SD/ FS/ VS. | vsstatus.SD = 1 if FS or VS are nonzero | 2 * 4 * 4 |  |  |  |
+| cp_tvm | VTVM traps access to satp | With mstatus.TVM = {0/1} cross hstatus.VTVM = {0/1} read and write satp | Virtual instruction fault if VTVM = 1. TVM does not affect VS-mode. | 2 TVM * 2 VTVM * 2 accesses |  |  |  |
+| Tests executed in U-mode (H_ucsr_cg) |  |  |  |  |  |  |  |
+| cp_hcsr_inaccessible | All H-extenion CSRs are inaccessible from U-mode | csrrw, csrrc, csrrs, csrr each {Machine/HS/VS} H-Extension CSR | Illegal instruction fault | 5 * (2 + 14-17 + 9-11) | norm:ext:Zicsr:insufficient-privlege |  |  |
+| cp_illegalupper | In RV64, h half of CSRs are illegal. | RV64 ONLY: csrrw, csrrs, csrrc, csrr  each h H-extension CSR | Illegal instruction fault | 5 * 4 | norm:ext:Zicsr:insufficient-privlege | *** |  |
+| cp_scsr | Illegal instruction fault on U access to supervisor CSRs | csrrw, csrrc, csrrs, csrr each S CSRs {with/without VS replicas}*** this should get tested in ZicsrS, along with other i | Illegal instruction fault | 5 * (9 + 3) | norm:ext:Zicsr:insufficient-privlege |  |  |
+| Tests executed in VU-mode (H_vucsr_cg) |  |  |  |  |  |  |  |
+| cp_hcsr_inaccessible | M-mode H-extension registers are inaccessible from VS-mode | csrrw, csrrs, csrrc, csrr each {Machine/HS/VS} H-Extension and {Machine/Supervisor} CSR | Illegal instruction fault | 5 * (2 + 14-17 + 9-11) | norm:ext:Zicsr:insufficient-privlege |  |  |
+| cp_illegalupper | In RV64, h half of CSRs are illegal. | RV64 ONLY: csrrw, csrrs, csrrc, csrr  each h H-extension CSR | Illegal instruction fault | 5 * 4 | norm:ext:Zicsr:insufficient-privlege |  |  |
+| cp_scsr | Virtual instruction fault on VU access to hypervisor CSRs | csrrw, csrrc, csrrs, csrr each {HS/VS/S} CSRs {with/without VS replicas} | Virtual instruction fault or illegal instruction | 5 * (9 + 3) | norm:ext:H:vscsrs-vs-perm norm:ext:Zicsr:insufficient-privlege |  |  |
+| Seems Zicsr* should write all 0s and all 1s to each standard CSR and read the CSR.  Applies to all Zicsr* tabs. *** mayb |  |  |  |  |  |  |  |
+| Instructions (H_inst_cg) |  |  |  |  |  |  |  |
+| cp_hlv | Basic load | Set up non-identity G and VS-stage page tables. In {M, HS, U (with hstatus.HU = 1)}: Write a random value to scratch. hl | Read and sign/zero extend | 3 modes * 7 instr |  |  |  |
+| cp_hlvx | Basic load | Set up non-identity G and VS-stage page tables. In {M, HS, U (with hstatus.HU = 1): Write a random value to scratch. hlv | Read and sign/zero extend | 3 modes * 2 instr |  |  |  |
+| cp_hsv | Basic store | Set up non-identity G and VS-stage page tables. In {M, HS, U (with hstatus.HU = 1): Write a random value to scratch. hsv | Read and sign/zero extend | 3 modes * 4 instr |  |  |  |
+| cp_hfence | Basic fence | Execute hfence.vvma, hfence.gvma in {M, HS mode} cross with mstatus.TVM = {0,1} and with hstatus.VTVM = {0,1} | Only exception for HFENCE.GVMA in HS-mode with mstatus.TVM=1 | 2 modes * 2 instr * 2 TVM * 2 VTVM |  |  |  |
+| cp_sfence | Basic fence | Execute sfence.vma in {M, HS, VS mode} cross with mstatus.TVM = {0,1} and with hstatus.VTVM = {0,1} | Only exception in HS mode when TVM = 1 or in VS-mode when VTMV = 1 | 3 modes * 2 TVM * 2 VTVM |  |  |  |
+| cp_mret_m | mret uses MPV | Execute mret in machine mode with cross-product of mstatus.MPP / MPV / MPIE. | Goes to appropriate mode | 2 MPP * 2 MPV * 2 MPIE |  |  |  |
+| cp_mret_illegal | mret unavailable below M mode | Execute mret in {HS, VS, VU} modes. | Illegal instruction | 3 modes |  |  |  |
+| cp_sret_illegal | sret unavailable in VU mode | Execute sret in VU mode. | Virtual instruction | 1 mode |  |  |  |
+| cp_sret_m | sret from M mode | Execute sret in machine mode with cross-product of mstatus.SPP / SPV / SPIE. | Goes to appropriate mode | 2 SPP * 2 SPV * 2 SPIE |  |  |  |
+| cp_sret_hs | sret from HS mode | Execute sret in HS-mode with cross-product of sstatus.SPP / SPIE  / hstatus.SPV. Check sstatus.SPP, SIE, SPIE, hstatus.S | Goes to appropriate mode | 2 SPP * 2 SPIE * 2 SPV |  |  |  |
+| cp_sret_vs | sret from VS mode | Execute sret in VS-mod ewith cross-product of sstatus.SPP / SPIE  / hstatus.VTSR. Check sstatus.SPP, SIE, SPIE. | Goes to appropriate mode, or virtual-instruction exception if VTSR=1. | 2 SPP * 2 SPIE * 2 VTSR |  |  |  |
+
+## Sheet: SvH-US
+
+| Coverpoint | Reviewed | Coverpoint Done | Test Done | Goal | Feature Description | Expectation | Bins |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+|  |  |  |  | note that BARE-only implementations would likely make whole of satp read only 0 | This test plan verifies functional behavior of RISC-V Hypervisor extension features, including memory translation across |  |  |
+| cp_vsatp_mode_field | y | ✅ Done |  | supported/unsupported MODE encodings | RV64 Only: Test Case: For x = {0...15} In HS-mode: First write vsatp with {Bare, Sv39}.  Then write vsatp.MODE field = { | write to vsatp with an unsupported MODE value is either ignored as it is for satp, or the fields of vsatp are treated as | {16 x} * 2 starting modes |
+| cp_satp_mode_field | y | ✅ Done |  | supported/unsupported MODE encodings | RV64 Only: Test Case: For x = {0...15} In VS-mode: First write satp with {Bare, Sv39}.  Then write satp.MODE field = {x} | write to satp with an unsupported MODE value is ignored, so the old value is preserved | {16 x} * 2 starting modes |
+| cp_vsatp_ppn_field | y | ✅ Done |  | programmability of PPN field | Environment: in HS mode, Set vsatp.MODE = Sv32 or Sv39.  Test Case: Write all-zeros, all legal ones, and legal walking-o | PPN field retains patterns (at least for legal PPNs). | {0s,1s,22 or 44 PPN walknig 1s} |
+| cp_vsatp_asidlen_detect | y | ✅ Done |  | implemented ASID length | Environment: Set vsatp.MODE vsatp.MODE Sv32 or Sv39.  Test Case: Write 1s to all ASID bits, read back to determine imple | Only implemented bits writable; readback equals ASIDLEN. | 1 |
+| cp_vsatp_mprv_effects | y | ✅ Done |  | MPRV effects on address translation | Environment: While in M-mode, set MPRV=1, mstatus.MPP={S,U}, mstatus.MPV=1, vsatp.MODE = Sv32 or Sv39, hgatp.MODE=BARE,  | Data accesses translated via VS page tables, causing fault; instructions bypass and don't fault. | {read,write} × {MPP=S,U} |
+| cp_vsatp_sum_effects | y | ✅ Done |  | SUM=0 restriction and SUM=1 behavior | Environment: Valid PTE.U=1. Set vsstatus.SUM={0,1}, mode=VS.  Test Case: From VS, do read/write/exec. Test at leaf PTE w | Page fault raised for all access types for SUM=0. Read/write succeed; exec raises page fault for SUM=1. | {read,write,exec}x{SUM=0,1} |
+| vsatp_sum_set | y |  |  | SUM=1 behavior | Environment: Valid PTE.U=1. Set vsstatus.SUM=1, mode=VS.  Test Case: From VS, do read/write/exec. Test at leaf PTE with  | Read/write succeed; exec raises page fault. | {read,write,exec} |
+| cp_vsatp_endianess | y | ✅ Done |  | SBE endianness | Environment: In VS mode, Set vsatp.MODE={Sv32 or Sv39}. Enable PTE perms.  Test Case: Set hstatus.VSBE=0 (little), then  | RW succeeds; endian swap affects data ordering. | {SBE=0,SBE=1} × {read,write} |
+| cp_vsatp_pte_rsw | y | ✅ Done |  | reserved RSW bits ignored | Environment: Construct valid PTE with RSW set to {00,01,10,11}.  Test Case: Write/read PTE. | RSW reads as written | {00,01,10,11} |
+| cp_vsatp_invalid_pte | y | ✅ Done |  | invalid PTE behavior | Environment: PTE.V=0, vsatp.MODE={Sv32 orSv39}.  Test Case: Try read/write/exec VA. | Page fault on all access types. | {read,write,exec} |
+| cp_vsatp_nonleaf_lvl0 | y | ✅ Done |  | non-leaf L0 PTE fault | Environment: PTE at L0 with RWX=0.  Test Case: read/write/exec VA. | Page fault. | {read,write,exec} |
+| cp_vsatp_spages_sum_rwx | y | ✅ Done |  | RWX on VS-mode pages, vsstaus.SUM=0 | Environment: PTE.U=0. vsstatus.SUM=0. RWX = {001, 011, 100, 101, 111} vsatp.MODE={Sv32 orSv39} Test Case: Do RWX accesse | Allowed if perms; else page fault. | {read,write,exec} * 5 RWX |
+| cp_vsstatus_mxr_sum | y | ✅ Done |  | MXR=0 on exec-only page | Environment: RWX = {001, 111} PTE.U = {0/1}.  vsatp.MODE={Sv32 or Sv39}.  Test Case: Do {read, write, exec} in {VS, VU}- | Depends on case | {read, write, exec} * 2 RWX * 2 U * 2 SUM * 2 MXR * 2 modes |
+| cp_vsatp_svpbmt | y | ✅ Done |  | SVpbmt extension | Environment: If  RV64 & !SVPBMT_SUPPORTED, PTE[62:61] = {0...3}  Test Case: Access page | Page fault if nonzero, else normal. | {read,write,exec} * 4 PTE[62:61] |
+| cp_vsatp_reserved_fields | y | ✅ Done |  | reserved PTE bits | Environment: RV64 & PTE[60:54]: Walking 1s, all 1s, all 0s Test Case: Access page | Page fault if nonzero, else normal. | {read,write,exec} * 9 values |
+| cp_hgatp_mode_field | y | ✅ Done |  | supported/unsupported MODE encodings for hgatp | "RV64 Only: Test Case: For x = {0...15} In HS-mode: First write hgatp with {Bare, Sv39x4}.  Then write hgatp.MODE field  | Supported MODEs accepted and retained; unsupported encodings get WARL handling (fields may be masked/unchanged). | 2^4 |
+| cp_hgatp_ppn_field | y | ✅ Done |  | programmability of PPN in hgatp | Environment: hgatp.MODE != Sv39x4 or Sv32x4.  Test Case: Write patterns (all-0, all-1, walking-1) to hgatp.PPN, read bac | PPN retains written pattern within WARL constraints; PPN[1:0]=0 in paged modes. | 2 + 44 (RV64) or  2 + 22 (RV64) |
+| cp_hgatp_vmidlen_detect | y | ✅ Done |  | implemented VMIDLEN via hgatp.VMID | Environment: Set hgatp.MODE Sv32x4 or Sv39x4.  Test Case: Write 1s to all VMID bits. | Only implemented bits writable | {RV32: 7, RV64:14} |
+| cp_hgatp_tvm_effects | y | ✅ Done |  | TVM gating on hgatp | Environment: Set mstatus.TVM={0,1} in HS.  Test Case: Attempt to write hgatp. | Access to hgatp from HS cause illegal-instruction trap when TVM=1. | {TVM=0,1} |
+| cp_hgatp_mprv_effects | y | ✅ Done |  | MPRV behavior when G-stage present | Environment: While in M-mode, set MPRV={0/1}, mstatus.MPP/MPV={M, HS, VS, U, VU}, hgatp.MODE = Sv32x4 or Sv39x4, identit | When MPRV=1 and MPV=1, data accesses via basic load/store instructions translated via HS page tables, causing fault; ins | 2 MPRV x 5 MPP/MPV x {lw,sw, hlv.w, hsv.w} |
+| cp_hgatp_gpa_width_checks | y |  |  | guest-physical address width limits | RV64 Only Environment: In VS-mode, For each supported hgatp.MODE in {Sv39x4, Sv48x4, Sv57x4}, set up G-stage PTEs with w | Sv39x4: guest page fault if GPA bits 63:41 are nonzero. Sv48x4: guest page fault if GPA bits 63:50 are nonzero. Sv57x4:  | up to 3 modes x (63-37) bits GPA |
+| cp_hgatp_perm_checks | y | ✅ Done |  | G-stage permissions enforcement | Environment: Create G-stage PTEs with URWX = {0111, 1111, 0000, 1000}.  Test Case: From guest (VS/VU) perform accesses w | Access blocked if G-stage denies; guest page fault raised with appropriate cause. | 2 modes * 4 URWX combinations |
+| hgatp_pte_g_bit | y | ✅ Done |  | PTE.G bit is reserved in G-stage PTEs | Environment: Set G-stage PTE.G i(bit not used by Sv*x4).  Test Case: Access GPA mapped by this PTE. It must be ignored b | Normal. | {read,write,exec} |
+| cp_hgatp_svpbmt | y | ✅ Done |  | Svpbmt extension in G-stage | Environment: If  RV64 & !SVPBMT_SUPPORTED, G-stage PTE[62:61] = {0...3}  Test Case: Access page | Guest page fault if nonzero, else normal. | {read,write,exec} * 4 PTE[62:61] |
+| cp_hgatp_reserved_fields | y | ✅ Done |  | reserved PTE bits in G-stage | Environment: RV64 & G-stage PTE[60:54]: Walking 1s, all 1s, all 0s Test Case: Access page | Guest page fault if nonzero, else normal. | {read,write,exec} * 9 values |
+| cp_hgatp_pte_rsw | y | ✅ Done |  | reserved RSW bits ignored | Environment: Construct valid G-stage PTE with RSW set to {00,01,10,11}.  Test Case: Access page | Normal. | {read,write,exec} * 4 PTE[9:8] |
+| cp_hgatp_invalid_pte | y | ✅ Done |  | invalid PTE behavior | Environment: G-stage PTE.V=0, hgatp.MODE={Sv32x4 or Sv39x4}.  Test Case: Try read/write/exec VA. | Guest page fault on all access types. | {read,write,exec} |
+| cp_hgatp_nonleaf_lvl0 | y | ✅ Done |  | non-leaf L0 PTE fault | Environment: PTE at L0 with RWX=0.  Test Case: read/write/exec VA. | Guest page fault. | {read,write,exec} |
+| hgatp_misaligned_superpage | y |  |  | misaligned superpage detection in G-stage | Environment: Create G-stage superpage PTE with PPN low bits != 0 at given level.  Test Case: Access mapped GPA. | Page fault raised for misaligned superpage. | {level-specific tests per mode} |
+| cp_hgatp_vmid_scoping | y | ✅ Done |  | implemented VMID length | Environment: Set hgatp.MODE to Sv32 or Sv39.  Test Case: Write 1s to all VMID bits, read back to determine implemented V | Only implemented bits writable; readback equals VMIDLEN. | 1 |
+| hgatp_root_table_alignment_and_size | y |  |  | Validate root page table expansion and alignment for G-stage translation in Sv{32,39,48,57}x4 modes | Environment: Set hgatp.MODE = {Sv32x4 or Sv39x4}. Configure G-stage root page table at both {4 KiB-,16 KiB-}aligned addr | When root page table is not 16 KiB aligned, translation fails with guest page fault. | {mode = 1 for HXLEN=32, 3 for HXLEN=64} × {4KiB aligned, 16 KiB aligned} |
+| cp_hgatp_u_mode_access | y | ✅ Done |  | Verify that all G-stage memory accesses are treated as U-mode accesses, including those made from VS-mode | Environment: In HS-mode, Configure G-stage page tables, Mark a G-stage PTE with U=0 (not user-accessible). Set vsatp=BAR | Since G-stage accesses are treated as U-mode, a guest-page fault should occur due to lack of user access permission, eve | {access_type = inst_fetch, load, store} × {U-bit = 0, 1} |
+| cp_hgatp_adbit_behavior | y | ✅ Done |  | Verify that A/D bits in G-stage PTEs are updated for implicit page table accesses (not the original access type) | Environment: Configure a G-stage PTE with A=0, D=0. Configure VS-stage PTE with A=D={00, 11}. Do a sfence.vma to clear t | If Svade is supported and menvcfg.adue = 1, then the G-stage PTE should set A=1 because it is implicitly accessed.  If t | {implicit_access = read, write} × {A/D bits before/after} |
+| hgatp_exception_reporting |  |  |  | Verify that G-stage page faults are reported with respect to the original access type | Environment: Configure G-stage PTEs to deny R/W/X permissions. Perform VS-stage instruction fetch, load, and store opera | Even though all G-stage accesses are treated as U-mode, the trap cause (e.g., instruction guest page fault, load guest p | {access_type = inst_fetch, load, store} × {permission_fault} |
+| cp_vsatp_perm_checks | y | ✅ Done |  | VS-stage permissions enforcement | Environment: Create VS-stage PTEs with URWX = {0111, 1111, 0000, 1000}.  Test Case: From guest (VS/VU) perform accesses  | Access blocked if VS-stage denies; page fault raised with appropriate cause. | 2 modes * 4 URWX combinations |
+| two_stage_read |  |  |  | Verify two-stage read translation (GVA to GPA to SPA) across all page sizes | Environment: In M-mode, initialize a known pattern in memory at a physical address (PA). Configure vsatp.MODE = {Sv32 or | The read value at GVA in VS-mode must match the initialized PA value in M-mode after GVA→GPA→SPA translation. No page fa | 3 VS-stage pages sizes x 3 G-stage page sizes |
+| two_stage_write |  |  |  | Verify two-stage write translation and data propagation through both stages | Environment: Same VS and G-stage mappings as the read test. Ensure G-stage and VS-stage PTEs are writable.  G stage acce | The data written in VS-mode must be visible when read from the same SPA in M-mode. No faults or misaligned accesses shou | 3 VS-stage pages sizes x 3 G-stage page sizes |
+| two_stage_ifetch |  |  |  | Verify instruction fetch through two-stage translation (GVA, GPA, SPA) and interplay with MXR and X-permissions | Environment: Setup executable code region at a known PA. Configure VS-stage page table with executable PTE mapping GVA t | Instruction fetch should succeed only when both VS and G-stage PTEs permit execute or when MXR allows read-as-execute. I | 3 VS-satge page sizes x 3 G-stage page sizes x (1 executable + 2 mstatus.MXR x 2 hstatus.MXR) x (2 VS-stage X vs R) x (2 |
+| stage_both_bare |  |  |  | Validate direct VA to SPA mapping when both stages are Bare | Environment: Set vsatp.MODE = Bare and hgatp.MODE = Bare. Disable all address translation stages.   Test Case:  Access a | VA must be treated as SPA directly with no translation applied. No page walks or faults must occur. | {vsatp.MODE = Bare, hgatp.MODE = Bare} |
+| *** |  |  |  |  | With virtualization enabled and two-stage translation active (hgatp.MODE = Sv32x4/Sv39x4), current privilege is {HS/VS/U | *** | 3 Access types * 4 priv modes * 2 SUM x 4 VS permissions x 4 G permissions = 384 |
+| mprv_sum_effect_hs_two_stage |  |  |  | effect of mstatus.MPRV with MPP=HS on accesses to user pages (two-stage on) | With virtualization enabled and two-stage translation active (hgatp.MODE = Sv32x4/Sv39x4), set mstatus.MPRV=1, mstatus.{ | For data accesses: when sstatus.SUM=0, HS data access to a U page must fault with page fault of the corresponding type ( | 3 Access type × 5 MPP/MPV × 2 SUM × 4 VS permissions x 4 G-stage permissions = 480 |
+| VM_permission_invalid |  |  |  | that invalid permission in a guest PTE (pte.V=0) during 2-stage translation triggers correct page fault exceptions for i | With two-stage transnslation active, in each of {HS, VS, U, VU}, with each pages size {kilo/mega/giga} in VS and G stage | The following guest page faults must be raised depending on access type: - Instruction page fault for execute. - Load pa | 4 Privilege Mode × 3 Access Type × 2 HS-stage valid x 2 VS-stage valid x 3 VS page sizes x 3 G page sizes = 432 |
+| RWX access on Umode pages in Umode |  |  |  | RWX access permissions when U=1 in user mode across both guest (Stage-1) and host (Stage-2) translations. | Stage-1 (Guest PTEs):• If PTE.U=1, user mode can access the page.• Access type must match granted permissions (R, W, X). | • Access succeeds if Stage-1 PTE grants permission and the U=1 condition matches user mode.• Faults raised if permission | RWX bins (for each stage):1. Read allowed (R=1), denied (R=0).2. Write allowed (W=1 & R=1), denied (W=0).3. Exec allowed |
+| PTE with only X=1 and MXR=0, VS-stage, HS-mode |  |  |  | enforcement of MXR=0 across all relevant privilege modes. | Verifies that supervisor attempts to read from execute-only page cause load page fault at VS-stage translation - satp.mo | Load page fault must be raised m/scause = Load Page Fault m/sepc = faulting VA instruction |  |
+| PTE with only X=1 and MXR=0, VS-stage, VS-mode |  |  |  | fault is correctly raised at all valid page table levels. | Verifies same behavior when VS-mode accesses VS-stage translation Same as above, but s/mstatus.MXR=0 applies for VS mode | Load page fault expected at VS-stage Trap visible in HS as virtual instruction trap |  |
+| Execute-only PTE read access with MXR=0, VU-stage, VS-mode |  |  |  | Ensure exception behavior is consistent across all supported virtual memory configurations. | Ensures guest user access follows VS-stage semantics Same test setup as above  Test Case: In VU mode, attempt read acces | Load page fault raised at VS-stage Propagates to HS | Read (should fault)  Execute (should succeed, no trap) |
+| Second stage translation of GPA with execute-only mapping and MXR=0, HS-mode, G-stage |  |  |  | Confirm that read attempts raise an exception while execute works fine. | Ensures G-stage honors MXR restrictions when translating GPAs for HS-mode - hgatp.mode = sv32x4, sv39x4 - Leaf G-stage P | Load page fault raised at G-stage Trap in HS with correct mcause | PTE.U=0 with access from Supervisor/HS/VS  PTE.U=1 with access from U/VU |
+| *** hgatp misaligned super pages and 16KB  (US) |  |  |  |  |  |  |  |
+| *** tests exercising successful translation with any bits of the GPA (including 33:32 for Sv32x4) |  |  |  |  |  |  |  |
+| *** need some tests involving translation through both G and VS-stage |  |  |  |  |  |  |  |
+| *** tests with cross-product of either G or VS denying |  |  |  |  |  |  |  |
+| *** add cases exercising SV48 and SV57 |  |  |  |  |  |  |  |
+| *** add case of access from M-mode with MPRV=0 doing no translation |  |  |  |  |  |  |  |
+
+## Sheet: PMPH-US
+
+| Coverpoint | Goal | Feature Description | Expectation | Bins | ID | Normative Rule |  |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+|  |  | This test plan verifies correct enforcement of PMP in systems implementing the RISC-V Hypervisor extension. It ensures t |  |  |  |  |  |
+| cp_pmp_hs_mode_access | Verify PMP applies in HS-mode | HS-mode executes {lw, sw, jalr} to PMP-protected region | Access allowed iff PMP permits on final PA | {R,W,X} × {allow/deny} | pmp_hs_access_v0 | norm:pmp_check_priv_modes norm:pmp_with_paging |  |
+| cp_pmp_vs_mode_access | Verify PMP applies in VS-mode |  | Access allowed iff PMP permits on final PA | {R,W,X} × {allow/deny} | pmp_vs_access_v0 | norm:pmp_check_priv_modes, norm:pmp_with_paging |  |
+| cp_pmp_vu_mode_access | Verify PMP applies in VU-mode | VS-mode access via VS-stage or 2-stage translation | Access allowed iff PMP permits on final PA | {R,W,X} × {allow/deny} | pmp_vu_access_v0 | norm:pmp_check_priv_modes norm:pmp_with_paging |  |
+| cp_pmp_hlv_read | Verify HLV obeys PMP.R | HS-mode executes HLV* into PMP.R=0 region | Load access fault | {HLVB,HLVH,HLVW,HLVD} | pmp_hlv_r_v0 | norm:pmp_load_fault, norm:pmp_rwx_check |  |
+| cp_pmp_hsv_write | Verify HSV obeys PMP.W | HS-mode executes HSV into PMP.W=0 region | Store access fault | {HSV} | pmp_hsv_w_v0 | norm:pmp_store_fault |  |
+| cp_pmp_hlvx_x_only | Ensure HLVX does not bypass X-only PMP | PMP region X=1, R=W=0; HS executes HLVX | Load access fault | {X-only} | pmp_hlvx_xonly_v0 | norm:pmp_load_fault, norm:pmp_rwx_check |  |
+| cp_pmp_hlvx_r_allowed | Verify HLVX works when PMP.R=1 | PMP region R=1; HS executes HLVX | Load succeeds | {R=1} | pmp_hlvx_r_v0 | norm:pmp_rwx_check |  |
+| cp_pmp_after_gstage | Verify PMP checked after G-stage | G-stage translation succeeds, PMP denies | Access fault (not page fault) | {allow/deny} | pmp_gstage_order_v0 | norm:pmp_with_paging |  |
+| cp_pmp_after_vsstage | Verify PMP checked after VS-stage | VS-stage translation succeeds, PMP denies | Access fault | {deny} | pmp_vsstage_order_v0 | norm:pmp_with_paging |  |
+| cp_pmp_pf_priority | Verify page fault precedes PMP | VS or G-stage translation fault | Page fault raised | {VS,G} | pmp_pf_prio_v0 | norm:pmp_with_paging |  |
+| cp_pmp_exec_fault_h | PMP exec violation in virtualized mode | VS/HS instruction fetch denied by PMP | Instruction access fault | {HS,VS} | pmp_exec_fault_h_v0 | norm:pmp_exec_fault |  |
+| cp_pmp_precise_trap_h | PMP faults are precise | Faulting instruction does not retire | PC points to faulting insn | {all types} | pmp_precise_v0 | norm:pmp_violation_precise_trap |  |
+| cp_pmp_hfence_translation | HFENCE required only for G-stage | Change hgatp/PT + PMP | Translation changes visible only after HFENCE | {before/after} | pmp_hfence_v0 | norm:pmp_with_paging |  |
+| cp_pmp_block | Check PMP and PMPH enforcement | Execute {hlv*, hsv*, hlvx*} targeting addresses disallowed by PMP/PMPH config | Should raise Load/Store Access Fault | instr × priv_mode × pmp_cfg_case |  |  |  |
+| pmp_twostage_interaction | Verify PMP interaction with two-stage translation | Test Setup: Configure G-stage page tables with various GPA to SPA mappings. Set up PMP regions covering different SPA ra | PMP should apply to final supervisor physical addresses regardless of virtualization mode | PMP configurations (R/W/X/A/L) × translation results (success/fail) × privilege modes (HS/VS/VU) |  |  |  |
+| pmp_gstage_pagetable_access | Verify PMP protection of G-stage page tables | Test Setup: Configure PMP regions to selectively protect/allow access to G-stage page table memory locations. Map G-stag | PMP should protect G-stage page table accesses and cause appropriate faults | PMP settings (deny/allow) × page table access patterns (read/write) × page table levels (L0/L1/L2/L3) |  |  |  |
+| pmp_hypervisor_priority | Verify PMP vs hypervisor exception priority | Test Setup: Create scenarios where both PMP violations and guest page faults can occur simultaneously. Configure G-stage | PMP exceptions should have higher priority than virtualization exceptions | Exception combinations (PMP fault + guest page fault) × access types (read/write/execute) × privilege levels |  |  |  |
+| pmp_gpa_spa_mapping | Verify PMP application to guest physical addresses | Test Setup: Configure G-stage page tables with various GPA to SPA mappings including identity, offset, and scattered map | PMP should check supervisor physical addresses, not guest physical addresses | GPA ranges × SPA mappings × PMP rule coverage × translation validity |  |  |  |
+| pmp_atomic_operations | Verify PMP with atomic operations in virtualized environment | Test Setup: Configure atomic memory regions accessible through two-stage translation with various PMP protections. Set u | Atomic Operation will give guest page fault if PTE permissions are violated, else access fault if PMP permissions fail | Atomic operation types (AMO/LR/SC) × PMP permissions × virtualization modes × address alignment |  |  |  |
+| pmp_instruction_fetch | Verify PMP execute permissions with virtualized instruction fetch | Test Setup: Place executable code at various SPA locations with different PMP execute permissions. Configure G-stage tra | Execute permissions should be enforced on final physical addresses | Instruction fetch scenarios × execute permissions (granted/denied) × translation stages × privilege transitions |  |  |  |
+| pmp_interrupt_handling | Verify PMP during interrupt/exception handling in virtualized modes | Test Setup: Configure interrupt delegation (mideleg/sideleg) for VS-mode interrupt handling. Set up interrupt handlers a | Interrupt handlers should respect PMP boundaries after address translation | Interrupt types (external/timer/software) × handler locations × PMP rule coverage × virtualization modes |  |  |  |
+| pmp_nested_virtualization | Verify PMP with nested virtualization scenarios | Test Setup: Configure nested hypervisor environment (if supported by implementation). Set up multiple levels of address  | PMP should apply consistently across all virtualization levels | Nesting levels × PMP configurations × address translation chains × privilege mode combinations |  |  |  |
+| pmp_memory_ordering | Verify memory ordering constraints with PMP in virtualized environment | Test Setup: Configure memory regions with different PMP permissions accessible via two-stage translation. Create memory  | Memory ordering should be preserved even when PMP violations occur | Memory operation sequences × PMP fault locations × ordering constraints × virtualization modes |  |  |  |
+| pmp_fault_delegation | Verify fault delegation with PMP in virtualized environment | Test Setup: Configure trap delegation registers (medeleg/sedeleg, hideleg/hedeleg) for various fault types. Set up scena | PMP faults should be delegated according to virtualization and delegation settings | Fault types × delegation configurations × virtualization modes × trap handling |  |  |  |
+| pmp_edge_cases | Verify PMP edge cases in virtualized environment | Test Setup: Configure PMP regions at critical address boundaries (address space limits, wraparound conditions). Set up t | System should handle edge cases gracefully without undefined behavior | Edge conditions (address boundaries/wrap-around/alignment) × PMP configurations × virtualization states |  |  |  |
+| Test Configuration Notes |  |  |  |  |  |  |  |
+| hypervisor loads and stores depend on PMP |  |  |  |  |  |  |  |
+| hlvx does not override PMP execute-only |  |  |  |  |  |  |  |
+| PMP intgeraction with fences G and VS-stage |  |  |  |  |  |  |  |
+| General Setup for All Tests: |  |  |  |  |  |  |  |
+| Use PMP_writable_regs = 16 for test runtime optimization |  |  |  |  |  |  |  |
+| Configure bottom region (region 15 or PMP_writable_regs-1) as background: pmpcfg_n.A=NAPOT, RWX permissions, pmpcfg_n.L= |  |  |  |  |  |  |  |
+| Execute in M-mode unless specified otherwise |  |  |  |  |  |  |  |
+| Standard regions use NAPOT of max(g,8) bytes, placed beyond code without overlapping other standard regions |  |  |  |  |  |  |  |
+| Default TOR regions aligned to grain size g, starting beyond program end, size g |  |  |  |  |  |  |  |
+| After PMP CSR writes, issue sfence.vma or hfence.gvma for synchronization |  |  |  |  |  |  |  |
+| Handle sfence.vma illegal instruction traps on systems with satp.MODE read-only zero |  |  |  |  |  |  |  |
+| Legal pmpcfg.XWR combinations: {000, 001, 011, 100, 101, 110} (W=1,R=0 is reserved) |  |  |  |  |  |  |  |
+| Grain size g = 2^(G+2) where G is the PMP grain size parameter |  |  |  |  |  |  |  |
+| For RV32 systems, exclude lwu, ld, sd instructions from testing |  |  |  |  |  |  |  |
+| Address Translation Setup: |  |  |  |  |  |  |  |
+| Configure valid G-stage page tables for two-stage translation testing |  |  |  |  |  |  |  |
+| Use appropriate VMID and ASID values for TLB management tests |  |  |  |  |  |  |  |
+| Set up hgatp register for G-stage translation control |  |  |  |  |  |  |  |
+| Configure proper privilege mode transitions between HS, VS, and VU modes |  |  |  |  |  |  |  |
+| Synchronization Requirements: |  |  |  |  |  |  |  |
+| Issue HFENCE.GVMA with rs1=x0, rs2=x0 after PMP changes affecting translation structures |  |  |  |  |  |  |  |
+| Use appropriate memory barriers for cache coherency testing |  |  |  |  |  |  |  |
+| Ensure proper ordering of configuration changes relative to memory operations |  |  |  |  |  |  |  |
+
+## Sheet: SvnapotH-US
+
+| Coverpoint | Goal | Feature Description | Expectation | Bins | ID | Normative Rule |  |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| repeat Svnapot tests in VS and VU mode with only VS-stage translation |  |  |  |  |  |  |  |
+| Repeat Svnapot tests in VS and VU with only G-stage translation |  |  |  |  |  |  |  |
+| Repeat Svnapot tests in VS and VU with both G and VS translation |  |  |  |  |  |  |  |
+| (flush this out) |  |  |  |  |  |  |  |
+| hgatp_g_stage_svnapot | SVNAPOT handling in G-stage | Environment: If RV64 & !SVNAPOT_SUPPORTED, set PTE[63]=1 {0/1} Test Case: Access page. | Page fault if bit set, else normal. | {read,write,exec} * 2 PTE[63] |  |  |  |
+| vsatp_svnapot | SVNAPOT handling | Environment: If RV64 & !SVNAPOT_SUPPORTED, set PTE[63]=1 {0/1} Test Case: Access page. | Page fault if bit set, else normal. | {read,write,exec} * 2 PTE[63] |  |  |  |
+
+## Sheet: SvHCBO-US
+
+| Coverpoint | Goal | Feature Description | Expectation | Bins | ID | Normative Rule |  |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| *** also includes hypervisor instructions, CSRs related to hypervisor |  |  |  |  |  |  |  |
+| Be sure hgatp WARL fields are exercised in VM tests. |  |  |  |  |  |  |  |
+| vs_invalid_pte_cbo | Verify CBO faulting when VS-stage PTE.V=0 | Environment: vsatp.mode={Sv32,Sv39,Sv48,Sv57}, PMP permits SPA.  Test Case: Set PTE.V=0, PTE.R=1, PTE.W=1. Execute CBO f | Store/AMO page fault at VS-stage. | satp.mode × {VS,VU} |  |  |  |
+| g_invalid_pte_cbo | Verify CBO faulting when G-stage PTE.V=0 | Environment: Valid VS mapping, invalid G PTE.V=0.  Test Case: Issue CBO to GVA. | Store/AMO page fault at G-stage. | hgatp.mode × {VS,VU} |  |  |  |
+| reserved_rwx_vs | Detect reserved RWX encoding at VS-stage | Env: Leaf PTE with W=1,R=0.  Test Case: Execute CBO on GVA. | Page fault at VS-stage. | {VS,VU} × Levels |  |  |  |
+| reserved_rwx_g | Detect reserved RWX encoding at G-stage | Env: Leaf G PTE with W=1,R=0.  Test Case: Execute CBO on GVA. | Page fault at G-stage. | {VS,VU} × Levels |  |  |  |
+| nonleaf_vs | Detect CBO on VS non-leaf PTE at L0 | Env: Level0 PTE with RWX=0.  Test Case: Execute CBO. | Page fault. | {VS,VU} × satp.mode |  |  |  |
+| nonleaf_g | Detect CBO on G non-leaf PTE at L0 | Env: G-stage level0 PTE with RWX=0.  Test Case: Execute CBO. | Page fault. | {VS,VU} × hgatp.mode |  |  |  |
+| sum_effect_vs | Verify SUM effects in VS-stage | Env: PTE.U=1, SUM={0,1}.  Test Case: Issue CBO in VS-mode. | SUM=0 → page fault; SUM=1 → no fault. | SUM={0,1} |  |  |  |
+| hu_effect_cbo | Verify hstatus.HU allows U-mode CBO | Env: hstatus.HU={0,1}.  Test Case: From U-mode issue CBO. | HU=1 → CBO permitted; HU=0 → illegal. | HU={0,1} |  |  |  |
+| vs_access_bit | Verify PTE.A handling in VS-stage for CBO | Env: Leaf VS PTE.A=0. sfence.vma before.  Test Case: Execute CBO. | Page fault if Svade implemented. | {VS,VU} × satp.mode |  |  |  |
+| g_access_bit | Verify PTE.A handling in G-stage for CBO | Env: Leaf G PTE.A=0.  Test Case: Execute CBO. | Page fault if Svade implemented. | hgatp.mode |  |  |  |
+| vs_dirty_bit | Verify PTE.D handling in VS-stage for CBO | Env: Leaf VS PTE.D=0.  Test Case: Execute CBO. | No fault; CBO succeeds. | {VS,VU} |  |  |  |
+| g_dirty_bit | Verify PTE.D handling in G-stage for CBO | Env: Leaf G PTE.D=0.  Test Case: Execute CBO. | No fault; CBO succeeds. | hgatp.mode |  |  |  |
+| misaligned_superpage_vs | Detect misaligned VS superpage with CBO | Env: Leaf VS PTE with misaligned PPN.  Test Case: Execute CBO. | Page fault. | {levels L1–L4} |  |  |  |
+| misaligned_superpage_g | Detect misaligned G superpage with CBO | Env: Leaf G PTE with misaligned PPN.  Test Case: Execute CBO. | Page fault. | {levels L1–L4} |  |  |  |
+| leaf_invalid_pa_vs | Detect invalid PA in VS PTE | Env: VS leaf points to non-existent GPA.  Test Case: Execute CBO. | Store access fault. | {VS,VU} |  |  |  |
+| leaf_invalid_pa_g | Detect invalid PA in G PTE | Env: G leaf points to non-existent SPA.  Test Case: Execute CBO. | Store access fault. | hgatp.mode |  |  |  |
+| nonleaf_invalid_pa_vs | Detect invalid PA in VS non-leaf | Env: Non-leaf VS PTE invalid pointer.  Test Case: Execute CBO. | Store access fault. | satp.mode |  |  |  |
+| nonleaf_invalid_pa_g | Detect invalid PA in G non-leaf | Env: Non-leaf G PTE invalid pointer.  Test Case: Execute CBO. | Store access fault. | hgatp.mode |  |  |  |
+| dau_bits_vs | Verify DAU bits set in VS non-leaf PTE | Env: Non-leaf VS PTE with D/A/U set.  Test Case: Execute CBO. | Store/AMO page fault. | {D,A,U} |  |  |  |
+| dau_bits_g | Verify DAU bits set in G non-leaf PTE | Env: Non-leaf G PTE with D/A/U set.  Test Case: Execute CBO. | Store/AMO page fault. | {D,A,U} |  |  |  |
+| aliasing_vs_g | Check aliasing across 2-stage | Env: Map two GVAs to same SPA via VS+G.  Test Case: CBO on GVA1, probe via GVA2. | Both aliases affected. | {cbo.clean,cbo.flush,cbo.inval} |  |  |  |
+| hfence_interaction | Verify HFENCE with CBO | Env: Modify VS/G tables; omit/insert HFENCE.VVMA/GVMA.  Test Case: Issue CBO post-modification. | Without HFENCE, stale ops; with HFENCE, correct. | {with fence, without fence} |  |  |  |
+| vmid_reuse_cbo | Check VMID reuse without flush | Env: Run CBO under VMID1, reuse VMID for new mappings.  Test Case: Probe caches. | Without HFENCE, stale; with HFENCE, correct. | {reuse, fresh} |  |  |  |
+| pmp_deny_spa | PMP denies SPA for CBO | Env: GPA valid, but PMP denies SPA.  Test Case: Execute CBO. | Store access fault. | PMP deny bit |  |  |  |
+
+## Sheet: Shcounterenw
+
+| Coverpoint | Goal | Feature Description | Expectation | Bins | ID | Normative Rule |  |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Following tests are done in HS-mode |  |  |  |  |  |  |  |
+| cp_shcounterenw | which hcounteren bits are writable | Write a 0 and a -1 to hcounteren. | 0 writes 32 bits of 0 -1 writes 1s to every bit with a non-read-only-zero hpmcounter, matching ref model | 2 |  | For any hpmcounter that is not read-only zero, the corresponding bit in hcounteren must be writable. |  |
+|  | check that hcounteren works with mcounteren and scounteren to control access to counters from lower privilege modes. |  |  |  |  |  |  |
+
+## Sheet: Shvsatpa
+
+| Coverpoint | Goal | Feature Description | Expectation | Bins | ID | Normative Rule |  |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Following tests are done in M-mode |  |  |  |  |  |  |  |
+| cp_shvsatpa | Check all values writable to vsatp.mode | RV32: write vsatp.mode = 0/1 RV64: write vsatp.mode = 0, 8, 9, 10 | Matches reference model, which should accept same values as satp.mode | 2 or 4 |  | All translation modes supported in satp must be supported in vsatp. |  |
+
+## Sheet: Shgatpa
+
+| Coverpoint | Goal | Feature Description | Expectation | Bins | ID | Normative Rule |  |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Following tests are done in M-mode |  |  |  |  |  |  |  |
+| cp_shgatpa | Check all values writable to hgatp.mode | RV32: write hgatp.mode = 0/1 RV64: write hgatp.mode = 0, 8, 9, 10 | Matches reference model, which should accept same values as satp.mode | 2 or 4 |  | For each supported virtual memory scheme SvNN supported in satp, the corresponding hgatp SvNNx4 mode must be supported.  |  |
+
+## Sheet: Shvstvecd
+
+| Coverpoint | Goal | Feature Description | Expectation | Bins | ID | Normative Rule |  |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Following tests are done in M-mode |  |  |  |  |  |  |  |
+| cp_shvstvecd | Check vstvec.MODE can be 0 and when it is, vstvec.base can hold valid 4-byte aligned addresses | Write vstvec = RAM_BASE_ADDR, RAM_BASE_ADDR+4 | vstvec gets value written | 2 |  | vstvec.MODE must be capable of holding the value 0 (Direct). When vstvec.MODE=Direct, vstvec.BASE must be capable of hol |  |
+
+## Sheet: Shvstvala
+
+| Coverpoint | Goal | Feature Description | Expectation | Bins | ID | Normative Rule |  |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Following tests are done in from VU-mode and VS-mode into VS-mode |  |  |  |  |  |  |  |
+| Initialize vstval to some random value before each test |  |  |  |  |  |  |  |
+| cp_load_page_fault | Fault writes VA to vstval | Load from bad page | vstval written with VA | 2 |  | vstval must be written with the faulting virtual address for load, store, and instruction page-fault, access-fault, and  |  |
+| cp_store_page_fault | Fault writes VA to vstval | Store to bad page | vstval written with VA | 2 |  |  |  |
+| cp_instr_page_fault | Fault writes VA to vstval | Fetch from bad page | vstval written with VA | 2 |  |  |  |
+| cp_load_access_fault | Fault writes VA to vstval | Load from ACCESS_FAULT_ADDRESS+4 | vstval written with VA | 2 |  |  |  |
+| cp_store_access_fault | Fault writes VA to vstval | Store to ACCESS_FAULT_ADDRESS+4 | vstval written with VA | 2 |  |  |  |
+| cp_instr_access_fault | Fault writes VA to vstval | Fetch from ACCESS_FAULT_ADDRESS+4 | vstval written with VA | 2 |  |  |  |
+| cp_misaligned_load | Fault writes VA to vstval | lw from scratch+2 | no fault, or vstval written with VA | 2 |  |  |  |
+| cp_misaligned_store | Fault writes VA to vstval | sw to scratch+2.  Scratch should be 8 bytes | no fault, or vstval written with VA | 2 |  |  |  |
+| cp_misaligned_instr | Fault writes VA to vstval | fetch ret from scratch+2. | no fault, or vstval written with VA | 2 |  |  |  |
+| cp_virt_instr | Fault writes instr to vstval | Cause virtual instruction fault | vstval written with instr | 2 |  |  |  |
+| cp_illegal_instr | Fault writes instr to vstval | Cause illegal instruction fault | vstval written with instr | 2 |  |  |  |
+| Note that debug breakpoint vstval is checked in Sdtrig ***confirm when written |  |  |  |  |  |  |  |
+
+## Sheet: Shtvala
+
+| Coverpoint | Goal | Feature Description | Expectation | Bins | ID | Normative Rule |  |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Following tests are done in from VU and VS-modes into HS-mode |  |  |  |  |  |  |  |
+| Initialize htval to some random value before each test |  |  |  |  |  |  |  |
+| cp_load_guest_page_fault | Fault writes GPA >> 2 to htval | Cause load guest-page fault | htval written with GPA | 1 |  |  |  |
+| cp_store_guest_page_fault | Fault writes GPA >> 2 to htval | Cause store guest-page fault | htval written with GPA | 1 |  |  |  |
+| cp_instr_guest_page_fault | Fault writes GPA >> 2 to htval | Cause fetch guest-page fault | htval written with GPA | 1 |  |  |  |
+
+## Sheet: Shlcofideleg
+
+| Coverpoint | Goal | Feature Description | Expectation | Bins | ID | Normative Rule |  |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Develop this after baseline overflow delegation tests |  |  |  |  |  |  |  |
+
+## Sheet: ZkrH
+
+| Coverpoint | Goal | Feature Description | Expectation | Bins | ID | Normative Rule |  |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Develop this after baseline entropy CSR tests |  |  |  |  |  |  |  |
+| focus on registers being accessible |  |  |  |  |  |  |  |
+
+## Sheet: SsstateenH
+
+| Coverpoint | Goal | Feature Description | Expectation | Bins | ID | Normative Rule |  |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Develop this after baseline state enable tests |  |  |  |  |  |  |  |
+
+## Sheet: SscrindH
+
+| Coverpoint | Goal | Feature Description | Expectation | Bins | ID | Normative Rule |  |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Develop this after baseline indirect CSR tests |  |  |  |  |  |  |  |
+
+## Sheet: SscfgH
+
+| Coverpoint | Goal | Feature Description | Expectation | Bins | ID | Normative Rule |  |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Develop this after baseline Sscfg tests |  |  |  |  |  |  |  |
+
+## Sheet: SmctrH
+
+| Coverpoint | Goal | Feature Description | Expectation | Bins | ID | Normative Rule |  |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Develop this after baseline control transfer record tests |  |  |  |  |  |  |  |
+
+## Sheet: SvaduH - US
+
+| Coverpoint | Goal | Feature Description | Expectation | Bins | ID | Normative Rule |  |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Develop as part of virtual memory |  |  |  |  |  |  |  |
+| vsatp_svadu | Verify SVADU | Environment: If unsupported, menvcfg.ADUE must=0.  Test Case: Read ADUE. | Always 0 if not implemented. | — |  |  |  |
+
+## Sheet: ZicfilpH
+
+| Coverpoint | Goal | Feature Description | Expectation | Bins | ID | Normative Rule |  |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Develop this after baseline landing pad tests |  |  |  |  |  |  |  |
+
+## Sheet: ZicfissH
+
+| Coverpoint | Goal | Feature Description | Expectation | Bins | ID | Normative Rule |  |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Develop this after baseline shadow stack tests |  |  |  |  |  |  |  |
+| *** Should this belong to UET? |  |  |  |  |  |  |  |
+
+## Sheet: SsdbltrpH
+
+| Coverpoint | Goal | Feature Description | Expectation | Bins | ID | Normative Rule |  |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| *** develop after Ssdbltrp |  |  |  |  |  |  |  |
+
+## Sheet: SsnpmH
+
+| Coverpoint | Goal | Feature Description | Expectation | Bins | ID | Normative Rule |  |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Develop this after baseline pointer masking tests |  |  |  |  |  |  |  |
+
+## Sheet: SmnpmH
+
+| Coverpoint | Goal | Feature Description | Expectation | Bins | ID | Normative Rule |  |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Develop this after baseline pointer masking tests |  |  |  |  |  |  |  |

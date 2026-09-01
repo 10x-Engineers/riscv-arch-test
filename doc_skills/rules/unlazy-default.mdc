@@ -1,0 +1,23 @@
+---
+description: Default unlazy completion discipline for substantial agent work
+alwaysApply: true
+---
+
+# unlazy (default for substantial work)
+
+Skill path: `.cursor/skills/unlazy/` (upstream [Leonxlnx/unlazy](https://github.com/Leonxlnx/unlazy)).
+
+**When to use (default):** long / multi-part tasks, audits, builds, half-done returns, parallel leaves, or user triggers `/unlazy`, `tree N`, `gates`, “do not stop until it is done”.
+
+**When to skip:** trivial one-line edits or short factual Q&A.
+
+**Before claiming done on substantial work:**
+1. Read skill `unlazy` (`SKILL.md`).
+2. Write `GATES.md` from `templates/gates-leaf.md` (or a scoped `.unlazy/<scope>/` pipeline).
+3. Status-only parse first: `node .cursor/skills/unlazy/scripts/gate-check.mjs --status GATES.md`
+4. Approve + run only understood oracles: `… --approve GATES.md`
+5. Reverify before the final report: `… --reverify GATES.md`
+
+**Precedence:** ACT4 `act4-*` skills / `AGENTS.md` win on paths, Make/coverage/xlsx commands, vault updates, and license rules. Gate `CHECK:` lines must use those real commands.
+
+**Runtime:** Node 16+ via workspace `.mise.toml` (`node = "22"`). Do not install the Claude Stop hook unless the user explicitly asks.

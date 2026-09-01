@@ -1,0 +1,98 @@
+---
+description: ACT4 RISC-V Hypervisor (10x) test plan — coverpoints, sheets, CSR lists, and verification goals from Hypervisor (10x).xlsx
+alwaysApply: true
+---
+
+# Hypervisor (10x) ACT4 Test Plan — Persistent Reference
+
+**Source spreadsheet:** `Hypervisor (10x).xlsx`
+**Full exports:** `hypervisor-10x-test-plan.md` (human-readable), `hypervisor-10x-test-plan.json` (machine-readable, all 31 sheets)
+
+When working on RISC-V Hypervisor extension verification, ACT4, or coverpoint/test development, consult these files first.
+
+## CSR Inventory (from H - US sheet)
+
+**Machine H-extension:** mtval2, mtinst
+
+**HS H-extension:** hstatus, hedeleg, hideleg, hie, hcounteren, hgeie, henvcfg, htval, hip, hvip, htinst, hgatp, hgeip (+ htimedelta; + hedelegh, htimedeltah, henvcfgh for RV32)
+
+**VS H-extension:** vsstatus, vsie, vstval, vsip, vstvec, vsscratch, vsepc, vscause, vsatp (+ vstimecmp; + vstimecmph for RV32)
+
+**S CSRs with VS replicas:** sstatus, sie, stvec, sscratch, sepc, scause, stval, sip, satp
+
+**S CSRs without VS replicas:** scounteren, senvcfg, scountinhibit
+
+## Trap Handler Logging Requirements
+
+- **M-mode:** mcause, mepc, mtval, mstatus (GVA, MPP, MPV, MPIE, MIE), mtinst, mtval2
+- **HS-mode:** scause, sepc, stval, sstatus (SPP, SPIE), hstatus (GVA, SPV, SPVP), htinst, htval
+- **VS-mode:** scause/sepc/stval/sstatus (VS versions), vsstatus.SPP, SPIE
+
+## 31 Sheets — Purpose Summary
+
+| Sheet | Focus |
+|-------|-------|
+| ExceptionsH-SN | Delegation (hedeleg/hideleg), ecall/ebreak status bits, virtual-instruction (VS/VU), HLV/HSV/HFENCE priv, xtinst on traps |
+| ExceptionsHF-SN | mstatus.FS vs vsstatus.FS for floating-point in guest |
+| ExceptionsHV-SN | mstatus.VS vs vsstatus.VS for vector; misa.V |
+| InterruptsH-NC | mideleg RO-1 bits, mie/mip↔hie/hip aliases, hideleg, VSEI/VSTI/VSSI, SGEI, VGEIN, priority, delegation to VS |
+| SstcH | vstimecmp, htimedelta, STCE, hip.VSTIP, counter access by mode |
+| EndianH-JG | hstatus.VSBE, MPRV+VSBE, vsstatus.UBE |
+| ZicntrH-JG | hcounteren/mcounteren/scounteren, htimedelta effect on time by mode |
+| SvinvalH-JG | SFENCE/SINVAL/HINVAL in each priv with TVM/VTVM |
+| H - US | CSR access/walk all modes, replica behavior, TVM/VTVM, HLV/HLVX/HSV, HFENCE, mret/sret |
+| SvH-US | vsatp/hgatp two-stage translation, permissions, MXR/SUM/MPRV, guest-page faults, A/D bits |
+| PMPH-US | PMP in HS/VS/VU, HLV/HSV/HLVX vs PMP, two-stage + PMP ordering |
+| SvnapotH-US | Svnapot in VS/G/both stages |
+| SvHCBO-US | CBO.* in virtualized environment, henvcfg CBIE/CBCFE/CBZE |
+| Shcounterenw | hcounteren writable bits |
+| Shvsatpa | vsatp.MODE WARL |
+| Shgatpa | hgatp.MODE WARL (Bare + Sv*x4) |
+| Shvstvecd | vstvec.MODE=Direct, aligned BASE |
+| Shvstvala | vstval written on faults (VA or instruction) |
+| Shtvala | htval written with GPA>>2 on guest-page faults |
+| Shlcofideleg | LCOFI delegation to VS (extension) |
+| ZkrH, SsstateenH, SscrindH, SscfgH, SmctrH | Placeholder — develop after baseline |
+| SvaduH - US | henvcfg.ADUE for VS-stage |
+| ZicfilpH, ZicfissH, SsdbltrpH, SsnpmH, SmnpmH | Extension-specific hypervisor tests |
+
+## Key Coverpoints (ExceptionsH-SN)
+
+- `cp_hedeleg` — medeleg × hedeleg × 8 faults × 5 priv modes; GVA bit
+- `cp_ecall_to_vs/hs/m` — status bits on trap (SPP, SPV, SPVP, MPV, MPP, GVA)
+- `cp_virtual_instruction_vs/vu` — all virtual-instruction trigger paths
+- `cp_loadstore_priv` — HLV/HSV legal in M/HS; virtual-instr in VS/VU; illegal in U if HU=0
+- `cp_hfence_priv` — SFENCE/HFENCE.VVMA/HFENCE.GVMA by priv + TVM/VTVM
+- `cp_xtinst_*` — mtinst/htinst behavior per exception type
+
+## Key Coverpoints (InterruptsH-NC)
+
+- mideleg bits 10,6,2 (and 12 if GEILEN>0) read-only 1
+- hideleg writable bits 10,6,2 only
+- Interrupt cause translation: VS ext(10)→guest SEI(9), VS timer(6)→STI(5), VS soft(2)→SSI(1)
+- Priority: SEI > SSI > STI > SGEI > VSEI > VSSI > VSTI > LCOFI
+- hip.VSEIP = OR(hvip.VSEIP, hgeip[VGEIN], platform)
+- hip.VSTIP = OR(hvip.VSTIP, vstimecmp vs time+htimedelta)
+
+## Key Coverpoints (SvH-US)
+
+- vsatp/hgatp MODE/PPN/ASID/VMID WARL
+- Two-stage read/write/ifetch across page sizes
+- G-stage: all accesses as U-mode; guest-page fault not page fault
+- VS MXR overrides VS-stage only; HS MXR overrides both stages
+- World switch: zero vsatp → swap hgatp → write new vsatp
+
+## SvH-US Test Environment Defaults
+
+- H extension enabled; two-stage when applicable
+- vsatp tests: hgatp.MODE=Bare; hgatp tests: vsatp.MODE=Bare
+- Run in VS-mode unless stated; SFENCE.VMA / HFENCE after PT changes
+- Valid PTE perms: XWRV=1111, A/D=11 unless otherwise specified
+
+## Normative Rule IDs (use canonical form from norm-rules.html)
+
+`norm:hstatus_sz_acc_op`, `norm:H_vscsrs_v0`, `norm:H_csrs_hs_not_vs`, `norm:H_vscsrs_acc_vs`, `norm:H_vm_twostage`, `norm:hgatp_sz_acc_op`, `norm:vsatp_mode_unsupported_v0`, `norm:pmp_with_paging`, `norm:H_pmp`
+
+Legacy xlsx IDs (`norm:csr:*:reg`, `norm:ext:*`) are normalized by `fill_norm_rules_xlsx.py`.
+
+For complete coverpoint rows, expectations, bins, and normative rule columns, read `hypervisor-10x-test-plan.md` or `hypervisor-10x-test-plan.json`.

@@ -1,0 +1,28 @@
+---
+description: Ponytail minimal-diff guidance for riscv-arch-test
+globs: riscv-arch-test/**
+alwaysApply: false
+---
+
+# Ponytail for ACT4 `riscv-arch-test`
+
+Use this as a **supplement** to the ACT4 rules, not a replacement.
+Project-specific safety, coverage, and anti-hallucination rules take priority.
+
+Before adding code, stop at the first rung that works:
+
+1. Does this need to exist at all?
+2. Does this already exist somewhere in this codebase?
+3. Can stdlib or an existing project utility do it?
+4. Can a native platform or ISA/test-env feature do it?
+5. Can the change stay in one file and one small diff?
+6. Only then write the minimum code that works.
+
+For this repo:
+
+- Reuse existing test/env macros, TB parsing patterns, and coverage plumbing before creating new helpers.
+- Prefer extending current `Tracefile -> .rvvi -> testbench -> rvviTrace -> ins queue` flow rather than adding side paths.
+- No new dependency unless clearly required.
+- No new abstraction unless repeated use is already proven.
+- Smallest correct diff wins, but only after reading the real flow end-to-end.
+- Keep validation, security, trap correctness, and coverage evidence intact; never shrink by skipping them.

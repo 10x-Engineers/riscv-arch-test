@@ -419,33 +419,6 @@ def _config_etrigger(
     return lines
 
 
-def _config_textra_scontext(
-    reg: int,
-    trig_num: int,
-    trig_type: str,
-    tdata3: int,
-    mode: str,
-) -> list[str]:
-
-    lines: list[str] = []
-
-    if trig_type == "icount":
-        lines.extend(_config_icount(reg, trig_num, 1, mode, tdata3=tdata3))
-
-    elif trig_type == "itrigger":
-        lines.extend(_config_itrigger(reg, trig_num, 1 << 5, mode, tdata3=tdata3))
-
-    elif trig_type == "etrigger":
-        lines.extend(_config_etrigger(reg, trig_num, 1 << 2, mode, tdata3=tdata3))
-
-    elif trig_type == "mcontrol6":
-        lines.extend(_config_mcontrol6(reg, trig_num, 0x12345678, mode, xsl=0b010, select=1, tdata3=tdata3))
-    else:
-        raise ValueError(f"unsupported textra trigger type: {trig_type}")
-
-    return lines
-
-
 def _config_textra(
     reg: int,
     trig_num: int,
@@ -453,6 +426,7 @@ def _config_textra(
     tdata3: int,
     mode: str,
 ) -> list[str]:
+
     lines: list[str] = []
 
     if trig_type == "icount":
@@ -466,9 +440,9 @@ def _config_textra(
 
     elif trig_type == "mcontrol6":
         lines.extend(_config_mcontrol6(reg, trig_num, 0x12345678, mode, xsl=0b010, select=1, tdata3=tdata3))
-
     else:
         raise ValueError(f"unsupported textra trigger type: {trig_type}")
+
     return lines
 
 
@@ -1852,7 +1826,6 @@ def _generate_textra_tests(test_data: TestData, mode: str) -> list[TestChunk]:
     lines: list[str] = tc.code
 
     trig_type4 = ("icount", "itrigger", "etrigger", "mcontrol6")
-
     # TODO: Uncomment these once UDB includes sdtrig parameters
     # trig_type_guards = {
     #     "icount": "UDB_ICOUNT_TRIG{trig_num}_AVAILABLE",

@@ -446,6 +446,68 @@ def _config_textra_scontext(
     return lines
 
 
+def _config_textra(
+    reg: int,
+    trig_num: int,
+    trig_type: str,
+    tdata3: int,
+    mode: str,
+) -> list[str]:
+    lines: list[str] = []
+
+    if trig_type == "icount":
+        lines.extend(_config_icount(reg, trig_num, 1, mode, tdata3=tdata3))
+
+    elif trig_type == "itrigger":
+        lines.extend(_config_itrigger(reg, trig_num, 1 << 5, mode, tdata3=tdata3))
+
+    elif trig_type == "etrigger":
+        lines.extend(_config_etrigger(reg, trig_num, 1 << 2, mode, tdata3=tdata3))
+
+    elif trig_type == "mcontrol6":
+        lines.extend(_config_mcontrol6(reg, trig_num, 0x12345678, mode, xsl=0b010, select=1, tdata3=tdata3))
+
+    else:
+        raise ValueError(f"unsupported textra trigger type: {trig_type}")
+    return lines
+
+
+def _fire_textra_trigger(
+    test_data: TestData,
+    trig_type: str,
+    mode: str,
+    cfg_reg: int,
+    addr_reg: int,
+    data_reg: int,
+) -> list[str]:
+
+    if trig_type == "icount":
+        return [
+            "nop # icount: decrement count and test ASID match",
+        ]
+
+    if trig_type == "itrigger":
+        return [
+            *_cause_interrupt(5, mode, cfg_reg),
+            "nop # allow supervisor timer interrupt to be taken",
+            *_clear_interrupt(5, mode, cfg_reg),
+        ]
+
+    if trig_type == "etrigger":
+        return [
+            ".word 0xFFFFFFFF # illegal instruction",
+        ]
+
+    if trig_type == "mcontrol6":
+        return [
+            f"LA(x{addr_reg}, scratch)",
+            f"LI(x{data_reg}, 0x12345678)",
+            f"sw x{data_reg}, 0(x{addr_reg}) # mcontrol6 data-store trigger",
+        ]
+
+    raise ValueError(f"unsupported textra trigger type: {trig_type}")
+
+
 def _fire_supported_triggers(trig_num: int, mode: str, cfg_reg: int, addr_reg: int, data_reg: int) -> list[str]:
     """Emit firing code for every trigger type supported on ``trig_num``."""
     lines: list[str] = []
@@ -1790,176 +1852,115 @@ def _generate_textra_tests(test_data: TestData, mode: str) -> list[TestChunk]:
     lines: list[str] = tc.code
 
     trig_type4 = ("icount", "itrigger", "etrigger", "mcontrol6")
+
+    # TODO: Uncomment these once UDB includes sdtrig parameters
+    # trig_type_guards = {
+    #     "icount": "UDB_ICOUNT_TRIG{trig_num}_AVAILABLE",
+    #     "itrigger": "UDB_ITRIGGER_TRIG{trig_num}_AVAILABLE",
+    #     "etrigger": "UDB_ETRIGGER_TRIG{trig_num}_AVAILABLE",
+    #     "mcontrol6": "UDB_MCONTROL6_TRIG{trig_num}_AVAILABLE",
+    # }
     # RV64 spelling; RV32 bins differ (see svh)
     # mhvalue = ("match", "zero", "half")
     # svalue = ("aaaaaaaa", "bbbbbbaa", "bbbbaabb", "bbaabbbb", "aabbbbbb", "bbbbbbbb")
     # svalue_asid = ("below", "equal", "above")
 
     ######################################
-    coverpoint = "cp_sdtrig_textra_scontext"
+    coverpoint = "cp_sdtrig_textra_asid"
     ######################################
-
     lines.append(
         comment_banner(
             coverpoint,
-            "textra sselect=scontext/svalue/sbytemask match against scontext",
+            "textra sselect=asid svalue match against satp.ASID",
         )
     )
-
-    rv32_scontext = 0x00001234
-    rv64_scontext = 0x12345678
-
-    rv32_svalues = (
-        0x0000,
-        0x0034,
-        0x1200,
-        0x1234,
+    asid_x = "((1 << UDB_ASID_WIDTH) - 2)"
+    rv32_asid_svalues = (
+        ("0_32", "0"),
+        ("x_32", asid_x),
+        ("1fe", "0x1FE"),
+        ("x_or_bit15", f"({asid_x} | (1 << 15))"),
+        ("fffe_32", "0xFFFE"),
     )
-    rv32_masks = (
-        0b00,
-        0b01,
-        0b10,
-        0b11,
-    )
-
-    rv64_svalues = (
-        0x00000000,
-        0x12345600,
-        0x12340078,
-        0x12005678,
-        0x00345678,
-        0x12345678,
-    )
-    rv64_masks = (
-        0b0000,
-        0b0001,
-        0b0010,
-        0b0100,
-        0b1000,
-        0b1111,
+    rv64_asid_svalues = (
+        ("0_64", "0"),
+        ("x_64", asid_x),
+        ("fffe", "0xFFFE"),
+        ("x_or_bit31", f"({asid_x} | (1 << 31))"),
+        ("fffffffe", "0xFFFFFFFE"),
     )
 
     # Registers used by the generated test code.
     cfg_reg, addr_reg, data_reg, temp_reg = test_data.int_regs.get_registers(
-        4, exclude_regs=[2], reg_range=list(range(8, 16))
+        4,
+        exclude_regs=[2],
+        reg_range=list(range(8, 16)),
     )
+
     lines.extend(_global_ie(mode, True))
-    lines.append("#ifdef UDB_SCONTEXT_AVAILABLE")
+
+    # lines.append("#ifdef UDB_SCONTEXT_AVAILABLE")
 
     for trig_num in range(UDB_NUM_TRIGGERS):
         for tt in trig_type4:
+            # guard = trig_type_guards[tt].format(trig_num=trig_num)
+            # lines.append(f"#endif // {guard}")
             # ----------------------------------------------------------
             # RV32
             # ----------------------------------------------------------
             lines.append("#if __riscv_xlen == 32")
-            lines.extend(
-                [
-                    _load_reg(temp_reg, rv32_scontext),
-                    _csr_access(f"csrw scontext, x{temp_reg}", mode),
-                ]
-            )
 
-            for sv in rv32_svalues:
-                for mask in rv32_masks:
-                    binname = f"trig_num_{trig_num}_type_{tt}_svalue_{sv:04x}_mask_{mask:02b}"
-                    tdata3 = (mask << 18) | (sv << 2) | 0b01
-                    lines.extend(
-                        [
-                            _add_tc(test_data, binname, coverpoint, covergroup),
-                            *_config_textra_scontext(cfg_reg, trig_num, tt, tdata3, mode),
-                        ]
-                    )
+            for asid_name, sv in rv32_asid_svalues:
+                binname = f"trig_num_{trig_num}_type_{tt}_asid_{asid_name}"
+                tdata3 = f"(({sv} << 2) | 0b10)"
 
-                    if tt == "icount":
-                        lines.append("nop # icount: decrement count and test scontext match")
-
-                    elif tt == "itrigger":
-                        lines.extend(
-                            [
-                                *_cause_interrupt(5, mode, cfg_reg),
-                                "nop # allow supervisor timer interrupt to be taken",
-                                *_clear_interrupt(5, mode, cfg_reg),
-                            ]
-                        )
-
-                    elif tt == "etrigger":
-                        lines.extend(
-                            [
-                                ".word 0x11111111 # illegal instruction",
-                            ]
-                        )
-
-                    elif tt == "mcontrol6":
-                        lines.extend(
-                            [
-                                f"LA(x{addr_reg}, scratch)",
-                                f"LI(x{data_reg}, 0x12345678)",
-                                f"sw x{data_reg}, 0(x{addr_reg}) # mcontrol6 data-store trigger",
-                            ]
-                        )
-
-                    lines.extend(_disable_trigger(cfg_reg, trig_num, mode))
+                lines.extend(
+                    [
+                        _add_tc(test_data, binname, coverpoint, covergroup),
+                        f"csrr x{temp_reg}, satp",
+                        f"LI(x{data_reg}, ({asid_x} << 22))",
+                        f"not x{cfg_reg}, x{data_reg}",
+                        f"and x{temp_reg}, x{temp_reg}, x{cfg_reg}",
+                        f"or x{temp_reg}, x{temp_reg}, x{data_reg}",
+                        _csr_access(f"csrw satp, x{temp_reg} ", mode),
+                        *_config_textra(cfg_reg, trig_num, tt, 0, mode),
+                        # Write textra ASID value
+                        f"LI(x{cfg_reg}, {tdata3}) # textra sselect=asid",
+                        _csr_access(f"csrw tdata3, x{cfg_reg}", mode),
+                        *_fire_textra_trigger(test_data, tt, mode, cfg_reg, addr_reg, data_reg),
+                        *_disable_trigger(cfg_reg, trig_num, mode),
+                    ]
+                )
 
             # ----------------------------------------------------------
             # RV64
             # ----------------------------------------------------------
             lines.append("#else // __riscv_xlen == 64")
-            lines.extend(
-                [
-                    _load_reg(temp_reg, rv64_scontext),
-                    _csr_access(
-                        f"csrw scontext, x{temp_reg}",
-                        mode,
-                    ),
-                ]
-            )
 
-            for sv in rv64_svalues:
-                for mask in rv64_masks:
-                    binname = f"trig_num_{trig_num}_type_{tt}_svalue_{sv:08x}_mask_{mask:04b}"
-                    tdata3 = (mask << 36) | (sv << 2) | 0b01
-                    lines.extend(
-                        [
-                            _add_tc(test_data, binname, coverpoint, covergroup),
-                            *_config_textra_scontext(cfg_reg, trig_num, tt, tdata3, mode),
-                        ]
-                    )
+            for asid_name, sv in rv64_asid_svalues:
+                binname = f"trig_num_{trig_num}_type_{tt}_asid_{asid_name}"
+                tdata3 = f"(({sv} << 2) | 0b10)"
 
-                    if tt == "mcontrol6":
-                        lines.extend(
-                            [
-                                f"LA(x{addr_reg}, scratch)",
-                                f"LI(x{data_reg}, 0x12345678)",
-                                f"sw x{data_reg}, 0(x{addr_reg}) # mcontrol6 data-store trigger",
-                            ]
-                        )
+                lines.extend(
+                    [
+                        _add_tc(test_data, binname, coverpoint, covergroup),
+                        f"csrr x{temp_reg}, satp",
+                        f"LI(x{data_reg}, ({asid_x} << 44))",
+                        f"not x{cfg_reg}, x{data_reg}",
+                        f"and x{temp_reg}, x{temp_reg}, x{cfg_reg}",
+                        f"or x{temp_reg}, x{temp_reg}, x{data_reg}",
+                        _csr_access(f"csrw satp, x{temp_reg} # set satp.ASID = X", mode),
+                        *_config_textra(cfg_reg, trig_num, tt, 0, mode),
+                        f"LI(x{cfg_reg}, {tdata3}) # textra sselect=asid",
+                        _csr_access(f"csrw tdata3, x{cfg_reg}", mode),
+                        *_fire_textra_trigger(test_data, tt, mode, cfg_reg, addr_reg, data_reg),
+                        *_disable_trigger(cfg_reg, trig_num, mode),
+                    ]
+                )
 
-                    elif tt == "icount":
-                        lines.append("nop # icount: decrement count and test scontext match")
-
-                    elif tt == "itrigger":
-                        lines.extend(
-                            [
-                                *_cause_interrupt(5, mode, cfg_reg),
-                                "nop # allow supervisor timer interrupt to be taken",
-                                *_clear_interrupt(5, mode, cfg_reg),
-                            ]
-                        )
-
-                    elif tt == "etrigger":
-                        lines.extend(
-                            [
-                                ".word 0xffffffff # illegal instruction",
-                            ]
-                        )
-
-                    lines.extend(_disable_trigger(cfg_reg, trig_num, mode))
-
-            lines.append("#endif")
-
-        # lines.append(f"#endif // {trig_guard}")
-
-    lines.append("#endif // UDB_SCONTEXT_AVAILABLE")
+            lines.append("#endif // __riscv_xlen")
+        # lines.append(f"#endif // {guard}")
+    # lines.append("#endif // UDB_SCONTEXT_AVAILABLE")
 
     test_data.int_regs.return_registers([cfg_reg, addr_reg, data_reg, temp_reg])
     lines.extend(_global_ie(mode, False))

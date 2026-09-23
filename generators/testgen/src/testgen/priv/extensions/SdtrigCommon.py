@@ -283,8 +283,16 @@ def _config_mcontrol6(
             _csr_access("csrw tdata1, x0 # disable before configuring", mode),
             _load_reg(reg, tdata2),
             _csr_access(f"csrw tdata2, x{reg} # match value", mode),
-            _load_reg(reg, tdata3),
-            _csr_access(f"csrw tdata3, x{reg} # textra context matching ", mode),
+        ]
+    )
+    if isinstance(tdata3, str):
+        lines.append(f"LI(x{reg}, {tdata3}) # textra")
+    else:
+        lines.append(_load_reg(reg, tdata3))
+
+    lines.extend(
+        [
+            _csr_access(f"csrw tdata3, x{reg}", mode),
             f"# tdata1: type={mcontrol6} priv={privbits:05b} xsl={xsl:03b} select={select} size={size} match={match} chain={chain}",
             *_load_tdata1(reg, mcontrol6, mode, lowfields),  # load data in tdata1
         ]
@@ -330,10 +338,18 @@ def _config_icount(
             _load_reg(reg, tselect),
             _csr_access(f"csrw tselect, x{reg}", mode),
             _csr_access("csrw tdata1, x0 # disable before configuring", mode),
-            _load_reg(reg, tdata3),
+        ]
+    )
+    if isinstance(tdata3, str):
+        lines.append(f"LI(x{reg}, {tdata3}) # textra")
+    else:
+        lines.append(_load_reg(reg, tdata3))
+
+    lines.extend(
+        [
             _csr_access(f"csrw tdata3, x{reg} # textra", mode),
             f"# tdata1: type={icount} priv={privbits:05b} count={count} pending={pending} action={action}",
-            *_load_tdata1(reg, icount, mode, lowfields),  # load data in tdata1
+            *_load_tdata1(reg, icount, mode, lowfields),
         ]
     )
     return lines
@@ -371,8 +387,16 @@ def _config_itrigger(
             _load_reg(reg, tdata2),
             _csr_access(f"csrw tdata2, x{reg} # interrupt-cause mask", mode),
             _csr_access(f"csrs mie, x{reg} # enable masked interrupt(s)", mode),
-            _load_reg(reg, tdata3),
-            _csr_access(f"csrw tdata3, x{reg} # textra context matching ", mode),
+        ]
+    )
+    if isinstance(tdata3, str):
+        lines.append(f"LI(x{reg}, {tdata3}) # textra")
+    else:
+        lines.append(_load_reg(reg, tdata3))
+
+    lines.extend(
+        [
+            _csr_access(f"csrw tdata3, x{reg}", mode),
             f"# tdata1: type={itrigger} priv={privbits:05b} nmi={nmi} action={action}",
             *_load_tdata1(reg, itrigger, mode, lowfields),  # load data in tdata1
         ]
@@ -410,8 +434,16 @@ def _config_etrigger(
             _csr_access("csrw tdata1, x0 # disable before configuring", mode),
             _load_reg(reg, tdata2),
             _csr_access(f"csrw tdata2, x{reg} # exception-cause mask", mode),
-            _load_reg(reg, tdata3),
-            _csr_access(f"csrw tdata3, x{reg} # textra context matching ", mode),
+        ]
+    )
+    if isinstance(tdata3, str):
+        lines.append(f"LI(x{reg}, {tdata3}) # textra")
+    else:
+        lines.append(_load_reg(reg, tdata3))
+
+    lines.extend(
+        [
+            _csr_access(f"csrw tdata3, x{reg}", mode),
             f"# tdata1: type={etrigger} priv={privbits:05b} action={action}",
             *_load_tdata1(reg, etrigger, mode, lowfields),  # load data in tdata1
         ]
@@ -423,7 +455,7 @@ def _config_textra(
     reg: int,
     trig_num: int,
     trig_type: str,
-    tdata3: int,
+    tdata3: int | str,
     mode: str,
 ) -> list[str]:
 
@@ -1865,11 +1897,8 @@ def _generate_textra_tests(test_data: TestData, mode: str) -> list[TestChunk]:
 
     # Registers used by the generated test code.
     cfg_reg, addr_reg, data_reg, temp_reg = test_data.int_regs.get_registers(
-        4,
-        exclude_regs=[2],
-        reg_range=list(range(8, 16)),
+        4, exclude_regs=[2], reg_range=list(range(8, 16))
     )
-
     lines.extend(_global_ie(mode, True))
 
     # lines.append("#ifdef UDB_SCONTEXT_AVAILABLE")
@@ -1896,10 +1925,7 @@ def _generate_textra_tests(test_data: TestData, mode: str) -> list[TestChunk]:
                         f"and x{temp_reg}, x{temp_reg}, x{cfg_reg}",
                         f"or x{temp_reg}, x{temp_reg}, x{data_reg}",
                         _csr_access(f"csrw satp, x{temp_reg} ", mode),
-                        *_config_textra(cfg_reg, trig_num, tt, 0, mode),
-                        # Write textra ASID value
-                        f"LI(x{cfg_reg}, {tdata3}) # textra sselect=asid",
-                        _csr_access(f"csrw tdata3, x{cfg_reg}", mode),
+                        *_config_textra(cfg_reg, trig_num, tt, tdata3, mode),
                         *_fire_textra_trigger(test_data, tt, mode, cfg_reg, addr_reg, data_reg),
                         *_disable_trigger(cfg_reg, trig_num, mode),
                     ]
@@ -1923,9 +1949,7 @@ def _generate_textra_tests(test_data: TestData, mode: str) -> list[TestChunk]:
                         f"and x{temp_reg}, x{temp_reg}, x{cfg_reg}",
                         f"or x{temp_reg}, x{temp_reg}, x{data_reg}",
                         _csr_access(f"csrw satp, x{temp_reg} # set satp.ASID = X", mode),
-                        *_config_textra(cfg_reg, trig_num, tt, 0, mode),
-                        f"LI(x{cfg_reg}, {tdata3}) # textra sselect=asid",
-                        _csr_access(f"csrw tdata3, x{cfg_reg}", mode),
+                        *_config_textra(cfg_reg, trig_num, tt, tdata3, mode),
                         *_fire_textra_trigger(test_data, tt, mode, cfg_reg, addr_reg, data_reg),
                         *_disable_trigger(cfg_reg, trig_num, mode),
                     ]

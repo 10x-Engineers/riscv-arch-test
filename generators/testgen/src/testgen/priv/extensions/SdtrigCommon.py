@@ -98,6 +98,13 @@ UDB_DEFINES = [
     "#define UDB_TDATA3_TRIG0_AVAILABLE",
     "#define UDB_TDATA3_TRIG1_AVAILABLE",
     "#define UDB_EXCEPTION_ILL_SUPPORTED",
+    "#define UDB_ICOUNT_TRIG0_AVAILABLE",
+    "#define UDB_ICOUNT_TRIG1_AVAILABLE",
+    "#define UDB_ITRIGGER_TRIG0_AVAILABLE",
+    "#define UDB_ITRIGGER_TRIG1_AVAILABLE",
+    "#define UDB_SDTRIG_ETRIGGER_SUPPORTED0",
+    "#define UDB_SDTRIG_ETRIGGER_SUPPORTED1",
+    "#define UDB_EXCEPTION_ILL_SUPPORTED",
     # Sims that do not follow Suggested Trigger Timing in spec or fires several cycles after will mismatch MEPC in trap handler
     # "#define SDTRIG_IMPRECISE_XEPC",
     "#define SDTRIG_TRIGGER_BP_HANDLING",

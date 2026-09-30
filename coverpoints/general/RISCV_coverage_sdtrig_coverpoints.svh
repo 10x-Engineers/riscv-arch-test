@@ -12,7 +12,7 @@
 //   Debug Trigger coverpoints common to SdtrigSm, SdtrigS, SdtrigU
 //
 ///////////////////////////////////////////
-`ifndef
+`ifndef UDB_NUM_TRIGGERS
     `define UDB_NUM_TRIGGERS 2
 `endif
 

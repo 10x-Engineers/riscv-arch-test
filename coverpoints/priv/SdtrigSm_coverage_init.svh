@@ -9,3 +9,11 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
     SdtrigSm_trig_module_reg_cg = new();       SdtrigSm_trig_module_reg_cg.set_inst_name("obj_SdtrigSm_trig_module_reg");
+
+    `ifdef UDB_SDTRIG_ITRIGGER_SUPPORTED
+        SdtrigSm_itrigger_cg = new();          SdtrigSm_itrigger_cg.set_inst_name("obj_SdtrigSm_itrigger");
+    `endif
+
+    `ifdef UDB_TDATA3_AVAILABLE
+        SdtrigSm_textra_cg = new();            SdtrigSm_textra_cg.set_inst_name("obj_SdtrigSm_textra");
+    `endif

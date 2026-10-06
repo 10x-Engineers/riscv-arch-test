@@ -28,6 +28,8 @@ def tsbi_call(instr: str) -> str:
     """
 
     normalized_instr = _normalize_instr(instr)
+    if normalized_instr.lower() == "sfence.vma":
+        return f"{INDENT}RVTEST_TSBI_SFENCE_VMA # T-SBI call to execute instruction: {instr}"
     rs1 = get_rs1(normalized_instr)
     rs2 = get_rs2(normalized_instr)
     rd = get_rd(normalized_instr)
@@ -113,6 +115,8 @@ _CSR_ALIASES = {
     "menvcfg": 0x30A,
     "mseccfg": 0x747,
     "menvcfgh": 0x31A,
+    "mstateen0": 0x30C,
+    "mstateen0h": 0x31C,
     "stimecmp": 0x14D,
     "stimecmph": 0x15D,
     "tselect": 0x7A0,

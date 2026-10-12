@@ -14,7 +14,7 @@
 covergroup Zicfilp_u_cg with function sample(ins_t ins);
     option.per_instance = 0;
     `include "general/RISCV_coverage_standard_coverpoints.svh"
-    `include "Zicfilp_coverpoints.svh"
+    `include "general/Zicfilp_coverpoints.svh"
     `ifdef XLEN64
         elp_before: coverpoint get_csr_val(ins.hart, ins.issue,
                                 `SAMPLE_CURRENT, "mstatus", "mpelp") {
@@ -38,12 +38,12 @@ covergroup Zicfilp_u_cg with function sample(ins_t ins);
                                 `SAMPLE_CURRENT, "menvcfg", "lpe") {
         bins disabled = {0};
     }
-    xtval_lpad: coverpoint ins.current.csr[12'h343] {
+    xtval_lpad: coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_AFTER, "mtval", "mtval") {
         bins code_2 = {2};
     }
 
-    instr_access_fault: coverpoint ins.current.csr[12'h342][4:0] {
-        bins cause_1 = {5'd1};
+    instr_access_fault: coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_AFTER, "mcause", "code") {
+        bins instruction_access_fault = {INSTRUCTION_ACCESS_FAULT};
     }
 
     cp_zicfilp_indirect_elp_state_update: cross priv_mode_u, menvcfg_lpe, indirect_ct_prev, rs1_all_prev, lpad_dest;

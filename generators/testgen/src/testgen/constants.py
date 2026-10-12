@@ -31,9 +31,14 @@ def indent_asm(line: str) -> str:
 TESTCASES_PER_FILE = 1000
 TESTCASES_PER_PRIV_FILE = 512
 
+# Default number of traps allocated for a privileged test that does not specify its own count.
+PRIV_TRAP_SIGUPD_COUNT = 1500
+
 # =============================================================================
 # Extension Configuration
 # =============================================================================
+
+EXPERIMENTAL_EXTENSIONS = frozenset({})
 
 # Extensions that should generate RV32E/RV64E variants
 # TODO: Add Zcmp and Zcmt when implemented
@@ -78,16 +83,6 @@ def get_flen_for_extensions(extensions: list[str]) -> int:
 # (they are already covered by other tests)
 SKIP_COVERPOINTS = frozenset(
     {
-        # FP flags - covered by edge tests
-        "cp_csr_fflags_n",
-        "cp_csr_fflags_on",
-        "cp_csr_fflags_v",
-        "cp_csr_fflags_vd",
-        "cp_csr_fflags_vdon",
-        "cp_csr_fflags_vdoun",
-        "cp_csr_fflags_vn",
-        "cp_csr_fflags_von",
-        "cp_csr_fflags_voun",
         # FP classification - covered elsewhere
         "cp_fclass",
     }

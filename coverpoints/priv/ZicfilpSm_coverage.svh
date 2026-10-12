@@ -17,7 +17,7 @@ covergroup Zicfilp_Sm_cg with function sample(ins_t ins);
     option.per_instance = 0;
     `include "general/RISCV_coverage_standard_coverpoints.svh"
 
-    `include "Zicfilp_coverpoints.svh"
+    `include "general/Zicfilp_coverpoints.svh"
 
     `ifdef XLEN64
         elp_before: coverpoint get_csr_val(ins.hart, ins.issue,
@@ -41,7 +41,7 @@ covergroup Zicfilp_Sm_cg with function sample(ins_t ins);
                                 `SAMPLE_CURRENT, "mseccfg", "mlpe") {
         bins disabled = {0};
     }
-    xtval_lpad: coverpoint ins.current.csr[12'h343] {
+    xtval_lpad: coverpoint get_csr_val(ins.hart, ins.issue, `SAMPLE_AFTER, "mtval", "mtval") {
         bins code_2 = {2};
     }
     `ifdef XLEN64

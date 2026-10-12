@@ -20,6 +20,7 @@
 
 // Extra defines (if needed) to enable trap handlers, fpu, vector, etc.
 #define BOOT_TO_MMODE
+#define TRAP_SIGUPD_COUNT 1500
 
 // Include framework macros
 #include "riscv_arch_test.h"
@@ -52,13 +53,8 @@ RVTEST_BEGIN
 #define MPP        (3 << 11)
 #define MPP_LOWER  (1 << 11)
 #define REGIONSTART TEST_FOR_EXECUTION
-#if UDB_PMP_GRANULARITY != 2
-#define PMP_MASK        ~((1 << (UDB_PMP_GRANULARITY - 3)) - 1)
-#define PMP_REGION_SIZE ((1 << (UDB_PMP_GRANULARITY - 3)) - 1)
-#else
-#define PMP_MASK        ~0
-#define PMP_REGION_SIZE 0
-#endif
+#define PMP_REGION_SIZE (((1 << (UDB_PMP_GRANULARITY - 2)) - 1) >> 1)
+#define PMP_MASK        ~PMP_REGION_SIZE
 
   RVTEST_PMP_SET_BACKGROUND x4
 

@@ -88,11 +88,14 @@ def _ref_model_sig_cmd(
     sig_trace_file: Path,
     xlen: int,
     debug: bool,
+    enable_experimental_extensions: bool,
 ) -> list[str]:
     """Build the command for invoking the reference model to produce a signature file."""
     if config.ref_model_type == RefModelType.SAIL:
         sail_config_path = config.dut_include_dir / "sail.json"
         cmd = [str(config.ref_model_exe)]
+        if enable_experimental_extensions:
+            cmd.append("--enable-experimental-extensions")
         if debug:
             cmd.append("--trace")
             cmd.extend(["--trace-output", str(sig_trace_file)])
@@ -129,6 +132,7 @@ def gen_compile_tasks(
     ref_model_inputs: tuple[Path, ...] = (),
     debug: bool = False,
     fast: bool = False,
+    enable_experimental_extensions: bool = False,
 ) -> list[BuildTask]:
     """Generate BuildTasks for the compilation pipeline of a single test.
 
@@ -187,6 +191,9 @@ def gen_compile_tasks(
     c_compile_flags = (
         ["-ffreestanding", "-fno-builtin", "-msmall-data-limit=0", "-std=gnu99"] if test_metadata.is_c_test else []
     )
+    # Assembly tests set up their own sp; only C tests need the linker script's stack.
+    # 128 bytes rather than 0 leaves room for RVMODEL macros that use the stack.
+    stack_flags = [] if test_metadata.is_c_test else ["-Wl,--defsym=__stack_size=128"]
 
     # Compilation sources and inputs
     test_sources = [str(test_path)]
@@ -199,6 +206,7 @@ def gen_compile_tasks(
         sig_elf_cmd = [
             *compile_prefix,
             *c_compile_flags,
+            *stack_flags,
             "-o",
             str(sig_elf),
             *march_flags,
@@ -233,7 +241,9 @@ def gen_compile_tasks(
             )
 
         # 2. sig – run reference model
-        ref_model_cmd = _ref_model_sig_cmd(config, sig_elf, sig_file, sig_trace_file, xlen, debug)
+        ref_model_cmd = _ref_model_sig_cmd(
+            config, sig_elf, sig_file, sig_trace_file, xlen, debug, enable_experimental_extensions
+        )
         ref_model_outputs = (sig_file, sig_trace_file) if debug else (sig_file,)
         tasks.append(
             BuildTask(
@@ -278,6 +288,7 @@ def gen_compile_tasks(
     final_elf_cmd = [
         *compile_prefix,
         *c_compile_flags,
+        *stack_flags,
         "-o",
         str(final_elf),
         *march_flags,
@@ -322,6 +333,7 @@ def gen_rvvi_tasks(
     config: Config,
     ref_model_inputs: tuple[Path, ...] = (),
     fast: bool = False,
+    enable_experimental_extensions: bool = False,
 ) -> list[BuildTask]:
     """Generate BuildTasks for RVVI trace generation (coverage pipeline).
 
@@ -356,15 +368,19 @@ def gen_rvvi_tasks(
         )
 
     # Run Sail with trace
-    sail_cmd = [
-        str(config.ref_model_exe),
-        "--trace",
-        "--trace-output",
-        str(sail_trace),
-        "--config",
-        str(config.dut_include_dir / "sail.json"),
-        str(elf),
-    ]
+    sail_cmd = [str(config.ref_model_exe)]
+    if enable_experimental_extensions:
+        sail_cmd.append("--enable-experimental-extensions")
+    sail_cmd.extend(
+        [
+            "--trace",
+            "--trace-output",
+            str(sail_trace),
+            "--config",
+            str(config.dut_include_dir / "sail.json"),
+            str(elf),
+        ]
+    )
     tasks.append(
         BuildTask(
             outputs=(sail_trace,),
@@ -398,6 +414,7 @@ def gen_coverage_tasks(
     coverage_simulator: CoverageSimulator,
     verbose: bool = False,
     dry_run: bool = False,
+    enable_experimental_extensions: bool = False,
 ) -> list[BuildTask]:
     """Generate BuildTasks for coverage UCDB generation, reports, and summary merging."""
     tasks: list[BuildTask] = []
@@ -413,14 +430,21 @@ def gen_coverage_tasks(
     script_name = "riscv-arch-test.do" if coverage_simulator == CoverageSimulator.QUESTA else "riscv-arch-test-vcs.sh"
     sim_script = Path(str(act_resources / script_name)).absolute()
 
-    # Collect file dependencies for staleness checking.
-    # Coverage simulation depends on coverpoints, fcov infrastructure, generated DUT
-    # config header (in udb_header_dir), and the simulator script.
-    coverpoint_files = tuple(sorted(p.absolute() for p in coverpoint_dir.rglob("*") if p.is_file()))
+    # Collect shared file dependencies for staleness checking. Extension-specific
+    # coverpoints are added to each coverage task below so changing one extension
+    # does not invalidate every coverage group.
+    shared_coverpoint_files = tuple(
+        sorted(
+            p.absolute()
+            for path in (coverpoint_dir, coverpoint_dir / "coverage", coverpoint_dir / "general")
+            for p in path.iterdir()
+            if p.is_file()
+        )
+    )
     fcov_files = tuple(sorted(p.absolute() for p in fcov_path.rglob("*") if p.is_file()))
     udb_svh_files = tuple(sorted(p.absolute() for p in udb_header_dir.iterdir() if p.suffix == ".svh"))
     env_svh_files = tuple(sorted(p.absolute() for p in env_header_dir.iterdir() if p.suffix == ".svh"))
-    coverage_inputs = (*coverpoint_files, *fcov_files, *udb_svh_files, *env_svh_files, sim_script)
+    shared_coverage_inputs = (*shared_coverpoint_files, *fcov_files, *udb_svh_files, *env_svh_files, sim_script)
 
     for coverage_group, traces in sorted(coverage_targets.items()):
         # Paths
@@ -433,6 +457,17 @@ def gen_coverage_tasks(
         work_dir = base_name.parent / f"{coverage_db_ext}_work"
         report_file_base = config_report_dir / coverage_group.stem
         summary_file = Path(f"{report_file_base}_summary.txt")
+
+        coverpoint_kind = "priv" if coverage_group.parts[0] == "priv" else "unpriv"
+        group_coverpoint_dir = coverpoint_dir / coverpoint_kind
+        group_coverpoint_files = (
+            (group_coverpoint_dir / f"{coverage_group.stem}_coverage.svh").absolute(),
+            (group_coverpoint_dir / f"{coverage_group.stem}_coverage_init.svh").absolute(),
+        )
+        coverage_inputs = (
+            *shared_coverage_inputs,
+            *group_coverpoint_files,
+        )
 
         # Write tracelist file, but only when its contents actually change so its mtime
         # reflects real changes. This lets us include it in extra_inputs below without
@@ -449,7 +484,12 @@ def gen_coverage_tasks(
 
         # Coverage collection task
         coverage_tag = f"{coverage_group.stem.upper()}_COVERAGE"
-        coverage_defines = f"{coverage_tag} FCOV_VERBOSE" if verbose else coverage_tag
+        coverage_define_list = [coverage_tag]
+        if verbose:
+            coverage_define_list.append("FCOV_VERBOSE")
+        if enable_experimental_extensions:
+            coverage_define_list.append("ENABLE_EXPERIMENTAL_EXTENSIONS")
+        coverage_defines = " ".join(coverage_define_list)
         if coverage_simulator == CoverageSimulator.QUESTA:
             do_script = (
                 f"do {sim_script} "
@@ -523,6 +563,8 @@ def gen_coverage_tasks(
 # Top-level build plan construction
 # ---------------------------------------------------------------------------
 
+_COVERAGE_GROUPS_WITHOUT_COVERPOINTS = frozenset({Path("priv/H")})
+
 
 def generate_build_plan(
     config: Config,
@@ -537,6 +579,7 @@ def generate_build_plan(
     fast: bool = False,
     verbose: bool = False,
     dry_run: bool = False,
+    enable_experimental_extensions: bool = False,
 ) -> list[BuildTask]:
     """Build the full DAG of tasks for a single config."""
     if coverage_enabled and config.ref_model_type != RefModelType.SAIL:
@@ -566,10 +609,11 @@ def generate_build_plan(
 
     # Sail config affects reference model output (Spike has no equivalent file).
     ref_model_inputs: tuple[Path, ...] = ()
-    signature_compile_flags: tuple[str, ...] = ()
+    # sail_macros.h is included by every test, so the platform defines are needed
+    # whatever the reference model is; only the model's own inputs are Sail-specific.
+    sail_config = config.dut_include_dir / "sail.json"
+    signature_compile_flags = _sail_platform_defines(sail_config)
     if config.ref_model_type == RefModelType.SAIL:
-        sail_config = config.dut_include_dir / "sail.json"
-        signature_compile_flags = _sail_platform_defines(sail_config)
         ref_model_inputs = (sail_config.absolute(),)
 
     for test_name_str, test_metadata in sorted(selected_tests.items()):
@@ -591,6 +635,7 @@ def generate_build_plan(
                 ref_model_inputs,
                 debug,
                 fast,
+                enable_experimental_extensions,
             )
         )
 
@@ -599,8 +644,24 @@ def generate_build_plan(
             trace_name = test_name.with_suffix(".rvvi")
             trace_path = config_coverage_dir / trace_name
             coverage_group_dir = trace_path.parent.relative_to(config_coverage_dir)
-            coverage_targets[coverage_group_dir].append(trace_path.absolute())
+            coverpoint_kind = "priv" if coverage_group_dir.parts[0] == "priv" else "unpriv"
+            coverage_file = coverpoint_dir / coverpoint_kind / f"{coverage_group_dir.stem}_coverage.svh"
 
+            if coverage_group_dir in _COVERAGE_GROUPS_WITHOUT_COVERPOINTS:
+                if coverage_file.is_file():
+                    raise ValueError(
+                        f"Coverage group '{coverage_group_dir}' is listed as having no coverpoints, "
+                        f"but '{coverage_file}' exists"
+                    )
+                continue
+
+            if not coverage_file.is_file():
+                raise FileNotFoundError(
+                    f"Coverage group '{coverage_group_dir}' has no coverpoint file at '{coverage_file}'. "
+                    "Add coverpoints or list the group in _COVERAGE_GROUPS_WITHOUT_COVERPOINTS."
+                )
+
+            coverage_targets[coverage_group_dir].append(trace_path.absolute())
             tasks.extend(
                 gen_rvvi_tasks(
                     test_name,
@@ -608,6 +669,7 @@ def generate_build_plan(
                     config,
                     ref_model_inputs,
                     fast,
+                    enable_experimental_extensions,
                 )
             )
 
@@ -624,6 +686,7 @@ def generate_build_plan(
                 coverage_simulator,
                 verbose,
                 dry_run,
+                enable_experimental_extensions,
             )
         )
 

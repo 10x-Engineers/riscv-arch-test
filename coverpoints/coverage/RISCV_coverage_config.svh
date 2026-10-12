@@ -53,17 +53,23 @@
 `ifdef EXCEPTIONSSV_COVERAGE
   `include "ExceptionsSv_coverage.svh"
 `endif
+`ifdef EXCEPTIONSSVSM_COVERAGE
+  `include "ExceptionsSvSm_coverage.svh"
+`endif
 `ifdef EXCEPTIONSSVZAAMO_COVERAGE
   `include "ExceptionsSvZaamo_coverage.svh"
+`endif
+`ifdef EXCEPTIONSSVZAAMOSM_COVERAGE
+  `include "ExceptionsSvZaamoSm_coverage.svh"
 `endif
 `ifdef EXCEPTIONSSVZALRSC_COVERAGE
   `include "ExceptionsSvZalrsc_coverage.svh"
 `endif
+`ifdef EXCEPTIONSSVZALRSCSM_COVERAGE
+  `include "ExceptionsSvZalrscSm_coverage.svh"
+`endif
 `ifdef EXCEPTIONSU_COVERAGE
   `include "ExceptionsU_coverage.svh"
-`endif
-`ifdef EXCEPTIONSVF_COVERAGE
-  `include "ExceptionsVf_coverage.svh"
 `endif
 `ifdef EXCEPTIONSVF16_COVERAGE
   `include "ExceptionsVf16_coverage.svh"
@@ -109,6 +115,12 @@
 `endif
 `ifdef I_COVERAGE
   `include "I_coverage.svh"
+`endif
+`ifdef INTERRUPTSS_COVERAGE
+  `include "InterruptsS_coverage.svh"
+`endif
+`ifdef INTERRUPTSSM_COVERAGE
+  `include "InterruptsSm_coverage.svh"
 `endif
 `ifdef M_COVERAGE
   `include "M_coverage.svh"
@@ -176,8 +188,14 @@
 `ifdef SMNPMS_COVERAGE
   `include "SmnpmS_coverage.svh"
 `endif
+`ifdef SMNPMSSM_COVERAGE
+  `include "SmnpmSSm_coverage.svh"
+`endif
 `ifdef SMNPMU_COVERAGE
   `include "SmnpmU_coverage.svh"
+`endif
+`ifdef SMNPMUSM_COVERAGE
+  `include "SmnpmUSm_coverage.svh"
 `endif
 `ifdef SMSTATEEN_COVERAGE
   `include "Smstateen_coverage.svh"
@@ -200,6 +218,9 @@
 `ifdef SSNPM_COVERAGE
   `include "Ssnpm_coverage.svh"
 `endif
+`ifdef SSNPMSM_COVERAGE
+  `include "SsnpmSm_coverage.svh"
+`endif
 `ifdef SSSTATEEN_COVERAGE
   `include "Ssstateen_coverage.svh"
 `endif
@@ -214,6 +235,12 @@
 `endif
 `ifdef SSSTRICTV_COVERAGE
   `include "SsstrictV_coverage.svh"
+`endif
+`ifdef SSTC_COVERAGE
+  `include "Sstc_coverage.svh"
+`endif
+`ifdef SSTCSM_COVERAGE
+  `include "SstcSm_coverage.svh"
 `endif
 `ifdef SSTVALA_COVERAGE
   `include "Sstvala_coverage.svh"
@@ -236,6 +263,9 @@
 `ifdef SVPMPZICBO_COVERAGE
   `include "SvPMPZicbo_coverage.svh"
 `endif
+`ifdef SVSM_COVERAGE
+  `include "SvSm_coverage.svh"
+`endif
 `ifdef SVZICBO_COVERAGE
   `include "SvZicbo_coverage.svh"
 `endif
@@ -251,11 +281,17 @@
 `ifdef SVBARE_COVERAGE
   `include "Svbare_coverage.svh"
 `endif
+`ifdef SVBARESM_COVERAGE
+  `include "SvbareSm_coverage.svh"
+`endif
 `ifdef SVINVAL_COVERAGE
   `include "Svinval_coverage.svh"
 `endif
 `ifdef SVINVALH_COVERAGE
   `include "SvinvalH_coverage.svh"
+`endif
+`ifdef SVINVALSM_COVERAGE
+  `include "SvinvalSm_coverage.svh"
 `endif
 `ifdef SVNAPOT_COVERAGE
   `include "Svnapot_coverage.svh"
@@ -317,9 +353,6 @@
 `ifdef ZACAS_COVERAGE
   `include "Zacas_coverage.svh"
 `endif
-`ifdef ZACASZABHA_COVERAGE
-  `include "ZacasZabha_coverage.svh"
-`endif
 `ifdef ZALRSC_COVERAGE
   `include "Zalrsc_coverage.svh"
 `endif
@@ -362,15 +395,6 @@
 `ifdef ZCB_COVERAGE
   `include "Zcb_coverage.svh"
 `endif
-`ifdef ZCBM_COVERAGE
-  `include "ZcbM_coverage.svh"
-`endif
-`ifdef ZCBZBA_COVERAGE
-  `include "ZcbZba_coverage.svh"
-`endif
-`ifdef ZCBZBB_COVERAGE
-  `include "ZcbZbb_coverage.svh"
-`endif
 `ifdef ZCD_COVERAGE
   `include "Zcd_coverage.svh"
 `endif
@@ -380,20 +404,8 @@
 `ifdef ZCMOP_COVERAGE
   `include "Zcmop_coverage.svh"
 `endif
-`ifdef ZFAD_COVERAGE
-  `include "ZfaD_coverage.svh"
-`endif
-`ifdef ZFAF_COVERAGE
-  `include "ZfaF_coverage.svh"
-`endif
-`ifdef ZFAZFH_COVERAGE
-  `include "ZfaZfh_coverage.svh"
-`endif
-`ifdef ZFAZFHD_COVERAGE
-  `include "ZfaZfhD_coverage.svh"
-`endif
-`ifdef ZFAZVFH_COVERAGE
-  `include "ZfaZvfh_coverage.svh"
+`ifdef ZFA_COVERAGE
+  `include "Zfa_coverage.svh"
 `endif
 `ifdef ZFBFMIN_COVERAGE
   `include "Zfbfmin_coverage.svh"
@@ -401,14 +413,8 @@
 `ifdef ZFH_COVERAGE
   `include "Zfh_coverage.svh"
 `endif
-`ifdef ZFHD_COVERAGE
-  `include "ZfhD_coverage.svh"
-`endif
 `ifdef ZFHMIN_COVERAGE
   `include "Zfhmin_coverage.svh"
-`endif
-`ifdef ZFHMIND_COVERAGE
-  `include "ZfhminD_coverage.svh"
 `endif
 `ifdef ZIC64BZICBOZ_COVERAGE
   `include "Zic64bZicboz_coverage.svh"
@@ -463,9 +469,6 @@
 `endif
 `ifdef ZIHINTNTL_COVERAGE
   `include "Zihintntl_coverage.svh"
-`endif
-`ifdef ZIHINTNTLZCA_COVERAGE
-  `include "ZihintntlZca_coverage.svh"
 `endif
 `ifdef ZIHINTPAUSE_COVERAGE
   `include "Zihintpause_coverage.svh"

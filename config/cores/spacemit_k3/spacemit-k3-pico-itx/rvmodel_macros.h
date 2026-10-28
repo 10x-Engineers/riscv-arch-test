@@ -71,10 +71,15 @@ rvmodel_runner_mtvec:                    \
 // RVMODEL_BOOT) and ecall. The K3's monitor hart does not run, so nothing polls tohost: the
 // runner hart ends the case on this M-mode ecall (runner_machine_trap.c, ecall_m_tohost).
 // Restoring mtvec matters on failure paths, which call the halt with ACT's handler installed.
+// mstatus.MPRV is cleared first: a test that fails with MPRV set (the Sv *_mprv_* suites) would
+// otherwise hand the runner an M-mode whose loads translate through the test's page tables, and
+// the runner loops on load page faults until the UART timeout (k3-uart-weekly #5).
 #define RVMODEL_HALT_PASS                              \
     la   a0, tohost                                   ;\
     li   a1, 1                                        ;\
     sd   a1, 0(a0)                                    ;\
+    li   a1, 0x20000 /* mstatus.MPRV */               ;\
+    csrc mstatus, a1                                  ;\
     la   a0, rvmodel_runner_mtvec                     ;\
     ld   a0, 0(a0)                                    ;\
     csrw mtvec, a0                                    ;\
@@ -88,6 +93,8 @@ rvmodel_runner_mtvec:                    \
     la   a0, tohost                                   ;\
     li   a1, 3                                        ;\
     sd   a1, 0(a0)                                    ;\
+    li   a1, 0x20000 /* mstatus.MPRV */               ;\
+    csrc mstatus, a1                                  ;\
     la   a0, rvmodel_runner_mtvec                     ;\
     ld   a0, 0(a0)                                    ;\
     csrw mtvec, a0                                    ;\
@@ -141,8 +148,41 @@ rvmodel_runner_mtvec:                    \
 
 #define RVMODEL_MSIP_ADDRESS K3_MSIP_ADDRESS
 
-#define RVMODEL_SET_MEXT_INT(_R1, _R2)
-#define RVMODEL_CLR_MEXT_INT(_R1, _R2)
+// The K3 has AIA (Smaia, IMSIC) and no PLIC. M-mode raises its own external interrupt through
+// the M-level IMSIC interrupt file's indirect CSRs, with no MMIO: enable delivery (eidelivery = 1),
+// accept every priority (eithreshold = 0), enable identity K3_MEXT_IID in eie0 and set it
+// pending in eip0, which raises mip.MEIP. Clearing the eip0 bit drops MEIP again.
+// Not yet measured on the board (k3-uart-weekly #5 ran with empty macros, so every MEI test
+// took the next timer interrupt instead).
+#define K3_CSR_MISELECT        0x350
+#define K3_CSR_MIREG           0x351
+#define K3_ISEL_EIDELIVERY     0x70
+#define K3_ISEL_EITHRESHOLD    0x72
+#define K3_ISEL_EIP0           0x80
+#define K3_ISEL_EIE0           0xC0
+#define K3_MEXT_IID            1
+
+#define RVMODEL_SET_MEXT_INT(_R1, _R2)         \
+    li   _R1, K3_ISEL_EIDELIVERY              ;\
+    csrw K3_CSR_MISELECT, _R1                 ;\
+    li   _R2, 1                               ;\
+    csrw K3_CSR_MIREG, _R2                    ;\
+    li   _R1, K3_ISEL_EITHRESHOLD             ;\
+    csrw K3_CSR_MISELECT, _R1                 ;\
+    csrw K3_CSR_MIREG, zero                   ;\
+    li   _R1, K3_ISEL_EIE0                    ;\
+    csrw K3_CSR_MISELECT, _R1                 ;\
+    li   _R2, 1 << K3_MEXT_IID                ;\
+    csrs K3_CSR_MIREG, _R2                    ;\
+    li   _R1, K3_ISEL_EIP0                    ;\
+    csrw K3_CSR_MISELECT, _R1                 ;\
+    csrs K3_CSR_MIREG, _R2
+
+#define RVMODEL_CLR_MEXT_INT(_R1, _R2)         \
+    li   _R1, K3_ISEL_EIP0                    ;\
+    csrw K3_CSR_MISELECT, _R1                 ;\
+    li   _R2, 1 << K3_MEXT_IID                ;\
+    csrc K3_CSR_MIREG, _R2
 
 #define RVMODEL_SET_MSW_INT(_R1, _R2)  \
     LOAD_ADDR32(_R2, K3_MSIP_ADDRESS) ;\
@@ -155,10 +195,10 @@ rvmodel_runner_mtvec:                    \
 
 ##### Supervisor Interrupts #####
 
-#define RVMODEL_SET_SEXT_INT(_R1, _R2)
-#define RVMODEL_CLR_SEXT_INT(_R1, _R2)
-#define RVMODEL_SET_SSW_INT(_R1, _R2)
-#define RVMODEL_CLR_SSW_INT(_R1, _R2)
+// RVMODEL_SET/CLR_SEXT_INT and RVMODEL_SET/CLR_SSW_INT are left undefined on purpose: ACT then
+// raises them through mip.SEIP and mip.SSIP (tests/env/check_defines.h, rvtest_setup.h), which
+// the K3 implements. Defining them empty told ACT a controller exists and raised nothing
+// (k3-uart-weekly #5: every SEI/SSI test took the timer interrupt instead).
 
 ##### Sscofpmf #####
 

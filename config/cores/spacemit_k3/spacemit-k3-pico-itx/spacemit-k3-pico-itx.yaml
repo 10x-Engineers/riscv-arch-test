@@ -97,6 +97,7 @@ implemented_extensions:
   - { name: Ssccptr,      version: "= 1.0.0" }
   - { name: Sscounterenw, version: "= 1.0.0" }
   - { name: Ssnpm,        version: "= 1.0.0" }
+  - { name: Smnpm,        version: "= 1.0.0" }   # menvcfg.PMM writable (k3-uart-weekly #5)
   - { name: Sstvala,      version: "= 1.0.0" }
   - { name: Sstvecd,      version: "= 1.0.0" }
   - { name: Ssu64xl,      version: "= 1.0.0" }
@@ -143,6 +144,8 @@ params:
   HW_MSTATUS_VS_DIRTY_UPDATE: precise
   # Ssnpm params (upstream sail-RVA23S64 value, UNVERIFIED on the K3)
   SUPPORTED_PMLEN_SSNPM: [0, 7]
+  # Smnpm params: menvcfg.PMM = 2 (PMLEN 7) measured on the K3 (k3-uart-weekly #5); PMLEN 16 UNVERIFIED
+  SUPPORTED_PMLEN_SMNPM: [0, 7]
   # Zawrs params (upstream sail-RVA23S64 value, UNVERIFIED on the K3)
   ZAWRS_NTO_IS_NOP: true
   # CBO params

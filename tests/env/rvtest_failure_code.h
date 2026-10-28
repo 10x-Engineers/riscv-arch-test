@@ -1971,6 +1971,13 @@
         call rvmodel_io_write_str
 
     failedtest_terminate:
+    #ifdef STANDARD_SM_SUPPORTED
+        # The failure may have been reported from S/U/VS/VU-mode (a check in the test body
+        # or in that mode's trap handler), and RVMODEL_HALT_FAIL may need M-mode (a DUT
+        # halt that restores mtvec, for example). Switch to M-mode first, as cleanup_epilogs
+        # does; from M-mode this is a round trip through the M-mode handler.
+        RVTEST_TSBI_GOTO_MMODE
+    #endif
         call rvmodel_halt_fail
 
 

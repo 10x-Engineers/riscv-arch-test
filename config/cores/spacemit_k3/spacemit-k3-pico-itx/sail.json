@@ -709,32 +709,33 @@
     "Sscofpmf": {
       "supported": true
     },
+    // The Sh* extensions need H, which is off in this configuration (see "H" above).
     "Sha": {
       "supported": false
     },
     "Shcounterenw": {
-      "supported": true
+      "supported": false
     },
     "Sscounterenw": {
       "supported": true
     },
     "Shvsatpa": {
-      "supported": true
+      "supported": false
     },
     "Shvstvala": {
-      "supported": true
+      "supported": false
     },
     "Shvstvecd": {
-      "supported": true
+      "supported": false
     },
     "Sstc": {
       "supported": true
     },
     "Shgatpa": {
-      "supported": true
+      "supported": false
     },
     "Shtvala": {
-      "supported": true
+      "supported": false
     },
     "Sstvala": {
       "supported": true

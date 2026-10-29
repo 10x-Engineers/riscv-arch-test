@@ -78,14 +78,15 @@ rvmodel_runner_mtvec:                    \
 // runner hart ends the case on this M-mode ecall (runner_machine_trap.c, ecall_m_tohost).
 // Restoring mtvec matters on failure paths, which call the halt with ACT's handler installed.
 // mstatus.MPRV is cleared first: a test that fails with MPRV set (the Sv *_mprv_* suites) would
-// otherwise hand the runner an M-mode whose loads translate through the test's page tables, and
-// the runner loops on load page faults until the UART timeout (k3-uart-weekly #5).
+// otherwise translate the tohost store through the test's page tables, and hand the runner an
+// M-mode whose loads do the same, so the runner loops on load page faults until the UART
+// timeout (k3-uart-weekly #5).
 #define RVMODEL_HALT_PASS                              \
+    li   a1, 0x20000 /* mstatus.MPRV */               ;\
+    csrc mstatus, a1                                  ;\
     la   a0, tohost                                   ;\
     li   a1, 1                                        ;\
     sd   a1, 0(a0)                                    ;\
-    li   a1, 0x20000 /* mstatus.MPRV */               ;\
-    csrc mstatus, a1                                  ;\
     la   a0, rvmodel_runner_mtvec                     ;\
     ld   a0, 0(a0)                                    ;\
     csrw mtvec, a0                                    ;\
@@ -96,11 +97,11 @@ rvmodel_runner_mtvec:                    \
     j    _rvmodel_halt_pass_loop
 
 #define RVMODEL_HALT_FAIL                              \
+    li   a1, 0x20000 /* mstatus.MPRV */               ;\
+    csrc mstatus, a1                                  ;\
     la   a0, tohost                                   ;\
     li   a1, 3                                        ;\
     sd   a1, 0(a0)                                    ;\
-    li   a1, 0x20000 /* mstatus.MPRV */               ;\
-    csrc mstatus, a1                                  ;\
     la   a0, rvmodel_runner_mtvec                     ;\
     ld   a0, 0(a0)                                    ;\
     csrw mtvec, a0                                    ;\

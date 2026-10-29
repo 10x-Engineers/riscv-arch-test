@@ -44,8 +44,12 @@ ATOMIC_FAULTS = [
 
 
 def _implicit_va(vs: SvMode) -> int:
-    """The guest virtual address one superpage below vs.data_va, whose VS-stage walk reads an unmapped PTE."""
-    return int(vs.data_va, 16) - (1 << vs.page_offset_bits(vs.levels - 1))
+    """The guest virtual address two superpages above vs.data_va, whose VS-stage walk reads an unmapped PTE.
+
+    Its root PTE must not share a slot with the test image's identity mapping, which would overwrite it.  One
+    superpage below vs.data_va is the image's slot on boards whose DRAM starts at 0x1_0000_0000 (SpacemiT K3: image
+    at 0x1_1000_0000, Sv39 slot 4), and one superpage above is the code alias (va_code)."""
+    return int(vs.data_va, 16) + 2 * (1 << vs.page_offset_bits(vs.levels - 1))
 
 
 def _leaves(g: SvMode, vs: SvMode, user: bool, regs: tuple[int, int, int]) -> list[str]:

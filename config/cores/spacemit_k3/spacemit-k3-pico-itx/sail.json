@@ -119,6 +119,10 @@
       "napot_supported": true
     },
     "misaligned": {
+      // AMO and LR/SC are not faulted here, before translation: the K3 translates a misaligned
+      // AMO/LR first and takes the page fault when the PTE is invalid, and the access fault
+      // (regions misaligned_exceptions) only when translation succeeds (riscv-uart-single-elf
+      // #156, Sv_ExceptionsZaamoSm mprv test6: store page fault, tests 1-5 pass).
       "exceptions": {
         "load_store": {
           "None": null
@@ -127,10 +131,10 @@
           "Some": "AccessFault"
         },
         "amo": {
-          "Some": "AccessFault"
+          "None": null
         },
         "lrsc": {
-          "Some": "AccessFault"
+          "None": null
         }
       },
       "order_decreasing": false,

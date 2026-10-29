@@ -11,9 +11,9 @@ description: >
   medeleg/mideleg masks, VLEN 256, Sv39 only, ASID 16, PMP granularity 4 KiB, PA 40 bits,
   misaligned scalar loads in hardware. Revision 2 adds the RVA23S64 extensions the board's
   device tree lists in riscv,isa-extensions (runner repo
-  artifacts/onboarding/spacemit_k3_20261019/observation.md), except the hypervisor ones: H is
-  present but misa.H = 0 at reset (writable; RVMODEL_BOOT sets it, so the hart matches Sail,
-  which has H enabled), and the hypervisor jobs run the H suites with their own config. Za128rs follows from Za64rs. Not in the device tree, so not declared: Ziccrse,
+  artifacts/onboarding/spacemit_k3_20261019/observation.md), including the hypervisor ones:
+  H is present with misa.H = 0 at reset (writable; RVMODEL_BOOT sets it). The H parameters
+  are the K3 values measured with the CSR probe (observation.md, "Hypervisor CSRs"). Za128rs follows from Za64rs. Not in the device tree, so not declared: Ziccrse,
   Zic64b, Supm. Zicclsm (in the device tree) waits for a board check of misaligned vector
   accesses: Sail rejects it while those raise access faults, the K1 value kept here.
   Parameters not listed above are the K1's values, or for the revision 2 extensions upstream's
@@ -103,6 +103,16 @@ implemented_extensions:
   - { name: Sstvecd,      version: "= 1.0.0" }
   - { name: Ssu64xl,      version: "= 1.0.0" }
   - { name: Svade,        version: "= 1.0.0" }
+
+  # --- Hypervisor (K3 device tree; misa.H writable, set by RVMODEL_BOOT) ---
+  - { name: H,            version: "= 1.0.0" }
+  - { name: Sha,          version: "= 1.0.0" }
+  - { name: Shcounterenw, version: "= 1.0.0" }
+  - { name: Shvstvala,    version: "= 1.0.0" }
+  - { name: Shtvala,      version: "= 1.0.0" }
+  - { name: Shvstvecd,    version: "= 1.0.0" }
+  - { name: Shvsatpa,     version: "= 1.0.0" }
+  - { name: Shgatpa,      version: "= 1.0.0" }
 
   # --- Vector subsets (spec-implied from V + F + D, VLEN=256) ---
   - { name: Zve32x,  version: "= 1.0.0" }
@@ -394,7 +404,7 @@ params:
   VECTOR_LS_SEG_PARTIAL_ACCESS: false
   LEGAL_VSTART: "1_stride"
   VECTOR_LS_WHOLEREG_MISALIGNED_LEGAL: false
-  VSSTATUS_VS_EXISTS: false      # H not declared in this config (the hypervisor jobs test it)
+  VSSTATUS_VS_EXISTS: true       # H and V are both implemented
   VECTOR_FF_NO_EXCEPTION_TRIM: false
   VFREDUSUM_NAN: "no_change"
   VFREDUSUM_NODE_ROUNDING_BEHAVIOR: "SEW_precision"
@@ -470,22 +480,23 @@ params:
       false,
       false,
     ]
-  # Same bits as sail.json mideleg.delegatable_bits (0x2222).
+  # sail.json mideleg.delegatable_bits (0x2222) plus the H bits VSSIP, VSTIP, VSEIP (2, 6, 10)
+  # and SGEIP (12, GEILEN 7), which are read-only one with H; Sail sets those itself.
   MIDELEG_DELEGATABLE:
     [
       false,
       true,
-      false,
-      false,
-      false,
       true,
       false,
       false,
-      false,
+      true,
       true,
       false,
       false,
+      true,
+      true,
       false,
+      true,
       true,
       false,
       false,
@@ -538,3 +549,97 @@ params:
       false,
       false,
     ]
+
+  # ---------------- H ----------------
+  # Measured with the CSR probe with misa.H set (runner repo
+  # artifacts/onboarding/spacemit_k3_20261019/observation.md, "Hypervisor CSRs", 2026-10-22):
+  # hgatp Sv39x4 only (Sv48x4/Sv57x4 legalize to Bare), VMID 14 bits, hgeie writable 0xfe
+  # (GEILEN 7), hcounteren writable 0x7ffff (CY, TM, IR, HPM3-18), hstatus.VSXL fixed 64.
+  MUTABLE_MISA_H: true           # the probe sets misa.H; RVMODEL_BOOT does the same
+  VMID_WIDTH: 14
+  NUM_EXTERNAL_GUEST_INTERRUPTS: 7
+  GSTAGE_MODE_BARE: true
+  SV39X4_TRANSLATION: true
+  SV48X4_TRANSLATION: false
+  SV57X4_TRANSLATION: false
+  VSSTAGE_MODE_BARE: true
+  SV39_VSMODE_TRANSLATION: true  # the K3 is Sv39 only
+  SV48_VSMODE_TRANSLATION: false
+  SV57_VSMODE_TRANSLATION: false
+  VSXLEN: [64]
+  VUXLEN: [64]
+  VS_MODE_ENDIANNESS: little
+  VU_MODE_ENDIANNESS: little
+  HCOUNTENABLE_EN:
+    [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+    ]
+  HSTATEEN_ENVCFG_TYPE: rw       # as MSTATEEN_ENVCFG_TYPE, UNVERIFIED on the K3
+  # The parameters below are the upstream sail-RVA23S64 values, UNVERIFIED on the K3.
+  VSTVEC_MODES: [0, 1]
+  TRAP_ON_ECALL_FROM_VS: true
+  IGNORE_INVALID_VSATP_MODE_WRITES_WHEN_V_EQ_ZERO: false   # as the K3 hypervisor config (megrez-hypervisor-sail015); not modelled by Sail
+  REPORT_ENCODING_IN_VSTVAL_ON_ILLEGAL_INSTRUCTION: true
+  REPORT_ENCODING_IN_VSTVAL_ON_VIRTUAL_INSTRUCTION: true
+  REPORT_GPA_IN_HTVAL_ON_GUEST_PAGE_FAULT: true
+  REPORT_GPA_IN_TVAL_ON_INSTRUCTION_GUEST_PAGE_FAULT: true
+  REPORT_GPA_IN_TVAL_ON_INTERMEDIATE_GUEST_PAGE_FAULT: true
+  REPORT_GPA_IN_TVAL_ON_LOAD_GUEST_PAGE_FAULT: true
+  REPORT_GPA_IN_TVAL_ON_STORE_AMO_GUEST_PAGE_FAULT: true
+  REPORT_VA_IN_VSTVAL_ON_BREAKPOINT: true
+  REPORT_VA_IN_VSTVAL_ON_INSTRUCTION_ACCESS_FAULT: true
+  REPORT_VA_IN_VSTVAL_ON_INSTRUCTION_MISALIGNED: true
+  REPORT_VA_IN_VSTVAL_ON_INSTRUCTION_PAGE_FAULT: true
+  REPORT_VA_IN_VSTVAL_ON_LOAD_ACCESS_FAULT: true
+  REPORT_VA_IN_VSTVAL_ON_LOAD_MISALIGNED: true
+  REPORT_VA_IN_VSTVAL_ON_LOAD_PAGE_FAULT: true
+  REPORT_VA_IN_VSTVAL_ON_STORE_AMO_ACCESS_FAULT: true
+  REPORT_VA_IN_VSTVAL_ON_STORE_AMO_MISALIGNED: true
+  REPORT_VA_IN_VSTVAL_ON_STORE_AMO_PAGE_FAULT: true
+  TINST_VALUE_ON_BREAKPOINT: "always zero"
+  TINST_VALUE_ON_FINAL_INSTRUCTION_GUEST_PAGE_FAULT: "always zero"
+  TINST_VALUE_ON_FINAL_LOAD_GUEST_PAGE_FAULT: "always zero"
+  TINST_VALUE_ON_FINAL_STORE_AMO_GUEST_PAGE_FAULT: "always zero"
+  TINST_VALUE_ON_INSTRUCTION_ADDRESS_MISALIGNED: "always zero"
+  TINST_VALUE_ON_LOAD_ACCESS_FAULT: "always zero"
+  TINST_VALUE_ON_LOAD_ADDRESS_MISALIGNED: "always zero"
+  TINST_VALUE_ON_LOAD_PAGE_FAULT: "always zero"
+  TINST_VALUE_ON_MCALL: "always zero"
+  TINST_VALUE_ON_SCALL: "always zero"
+  TINST_VALUE_ON_STORE_AMO_ACCESS_FAULT: "always zero"
+  TINST_VALUE_ON_STORE_AMO_ADDRESS_MISALIGNED: "always zero"
+  TINST_VALUE_ON_STORE_AMO_PAGE_FAULT: "always zero"
+  TINST_VALUE_ON_UCALL: "always zero"
+  TINST_VALUE_ON_VIRTUAL_INSTRUCTION: "always zero"
+  TINST_VALUE_ON_VSCALL: "always zero"

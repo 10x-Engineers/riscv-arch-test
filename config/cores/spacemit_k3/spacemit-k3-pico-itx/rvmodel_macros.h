@@ -214,6 +214,19 @@ rvmodel_runner_mtvec:                    \
 // the K3 implements. Defining them empty told ACT a controller exists and raised nothing
 // (k3-uart-weekly #5: every SEI/SSI test took the timer interrupt instead).
 
+##### Guest External Interrupts #####
+
+// The X100 has 7 guest interrupt files (GEILEN 7, hgeie writable 0xfe), so ACT needs a way to set
+// and clear an hgeip bit. On the K3 that is a write to a guest interrupt file of the AIA IMSIC,
+// whose addresses (hart and guest index bits of the IMSIC at 0xe0400000) are not measured on the
+// board yet. Until then these raise nothing, as in the K3 hypervisor config
+// (megrez-hypervisor-sail015): the Sail reference build replaces them with its own
+// (sail_macros.h), and on the board the few tests that need a guest external interrupt fail
+// visibly instead of blocking every build.
+// TODO: implement via the K3 IMSIC guest interrupt files and verify on the board.
+#define RVMODEL_SET_GUEST_EXT_INT(_GEI, _R1, _R2)
+#define RVMODEL_CLR_GUEST_EXT_INT(_GEI, _R1, _R2)
+
 ##### Sscofpmf #####
 
 // Counter and event for the Sscofpmf tests (required by ACT act4 since the Sscofpmf suites).

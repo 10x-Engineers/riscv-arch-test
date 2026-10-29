@@ -275,7 +275,16 @@ def _instret_case(
 
 
 def _instret_wait_case(test_data: TestData, covergroup: str, name: str, mode: Mode, wait: str) -> list[str]:
-    """Delta around a wait instruction (wfi) that a timer interrupt ends."""
+    """Delta from before a wait instruction (wfi) to the trap entry of the timer interrupt that ends it.
+
+    The window ends at the minstret snapshot the M-mode trap handler takes on entry
+    (rvtest_trap_minstret), not after the handler returns: the rest of the handler is not
+    portable. It waits for MTIP to fall after the mtimecmp write, which the spec allows to take
+    effect "eventually, but not necessarily immediately", and its LA padding depends on the code
+    layout of the reference-model and DUT builds. The wait loop allows an early wake-up; the
+    snapshot's mepc gives the trip position the interrupt was taken at, so the loop's own
+    retirements are removed exactly.
+    """
     csr = "instret" if mode == "U" else "minstret"
     r_before, r_after, r_diff = test_data.int_regs.get_registers(3)
     r_count, r_addr = test_data.int_regs.get_registers(2)
@@ -298,16 +307,31 @@ def _instret_wait_case(test_data: TestData, covergroup: str, name: str, mode: Mo
         f"LREG x{r_count}, 0(x{r_addr})  # trap count before waiting",
         f"LI(x{r_diff}, 0)  # tally of instructions retired by the loop",
         *(["csrsi mstatus, 8  # MIE = 1"] if mode == "M" else []),
+        ".option push",
+        ".option norvc  # 4-byte loop instructions: the trip position is (mepc - loop start) / 4",
         test_data.add_testcase(f"{csr}_{name}", f"cp_instret_{name}", covergroup),
         f"csrr x{r_before}, {csr}",
         "1:",
         *trip,
         f"addi x{r_diff}, x{r_diff}, {insns_per_trip}  # tally this trip",
         "j 1b",
+        ".option pop",
         "2:",
-        f"csrr x{r_after}, {csr}",
-        f"sub x{r_after}, x{r_after}, x{r_diff}  # remove the timing-dependent part",
-        f"sub x{r_diff}, x{r_after}, x{r_before}",
+        # Nothing between the interrupt and here traps, so the snapshot is still the interrupt's
+        f"LA(x{r_count}, 1b)  # loop start",
+        f"LA(x{r_addr}, rvtest_trap_minstret)",
+        f"LREG x{r_after}, 0(x{r_addr})  # minstret at the interrupt's trap entry",
+        f"sub x{r_before}, x{r_after}, x{r_before}  # window: up to the trap entry",
+        f"LREG x{r_after}, 8(x{r_addr})  # mepc: where the interrupt was taken",
+        f"sub x{r_after}, x{r_after}, x{r_count}",
+        f"srli x{r_after}, x{r_after}, 2  # q = trip position the interrupt was taken at",
+        # The tally now includes the trip the interrupt was taken in (the loop finishes it after
+        # the handler returns) unless q = 0, and q of that trip's instructions retired before the trap
+        f"beqz x{r_after}, 3f",
+        f"addi x{r_diff}, x{r_diff}, -{insns_per_trip}",
+        f"add x{r_diff}, x{r_diff}, x{r_after}",
+        "3:",
+        f"sub x{r_diff}, x{r_before}, x{r_diff}  # remove the loop's retirements",
         write_sigupd(r_diff, test_data),
         *(["csrci mstatus, 8  # MIE = 0"] if mode == "M" else []),
         f"RVTEST_CLR_MTIME_INT_{mode}",

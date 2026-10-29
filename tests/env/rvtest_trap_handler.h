@@ -1320,6 +1320,18 @@ common_\__MODE__\()entry:                       // common entry for all traps in
         SREG    T3, trap_sv_off+3*REGWIDTH(sp)  // save T3 (x8)
         SREG    T2, trap_sv_off+2*REGWIDTH(sp)  // save T2 (x7)
         SREG    T1, trap_sv_off+1*REGWIDTH(sp)  // save T1 (x6)
+  .ifc \__MODE__ , M
+    #ifdef ZICNTR_SUPPORTED
+        // Snapshot minstret and mepc at M-mode trap entry, before any code whose length
+        // depends on the platform (LA padding, RVMODEL macros, waiting for a pending bit to
+        // fall). cp_instret_wfi_taken ends its minstret window here. Same in every build.
+        csrr    T4, CSR_MINSTRET
+        LA(     T3, rvtest_trap_minstret)
+        SREG    T4, 0(T3)
+        csrr    T4, CSR_MEPC
+        SREG    T4, 8(T3)
+    #endif
+  .endif
         csrr    T5, CSR_XCAUSE                  // T5 = xcause
 
   // Route M-mode illegal instructions to the invisible trap handler. Keep this

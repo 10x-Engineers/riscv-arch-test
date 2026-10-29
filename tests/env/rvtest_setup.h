@@ -1015,6 +1015,10 @@
   .global rvtest_trap_count
   rvtest_trap_count:
     .dword 0
+  // minstret and mepc at the last M-mode trap entry (rvtest_trap_handler.h)
+  .global rvtest_trap_minstret
+  rvtest_trap_minstret:
+    .dword 0, 0
 
   .p2align 4
 

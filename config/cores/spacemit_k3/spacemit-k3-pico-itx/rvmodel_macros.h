@@ -125,7 +125,18 @@ rvmodel_runner_mtvec:                    \
     li   _R2, 0x03                                   ;\
     sb   _R2, 0x0C(_R1)                              ; /* LCR: 8N1 */
 
+// ACT prints from any mode (a failure seen by the S-mode trap handler is reported from S-mode),
+// but the UART is mapped only in M-mode: under the Sv tests' page tables an S-mode print takes a
+// load page fault on the LSR poll, which re-enters the trap handler and replaces the original
+// failure with that fault (k3-uart-weekly #5: 13 Sv tests). So switch to M-mode first, as ACT's
+// porting guide allows (printing ends in a halt, so the mode is never restored), and clear
+// mstatus.MPRV so an M-mode print in the *_mprv_* tests is not translated either.
 #define RVMODEL_IO_WRITE_STR(_R1, _R2, _R3, _STR_PTR) \
+    mv   _R3, _STR_PTR                               ;\
+    RVTEST_TSBI_GOTO_MMODE                           ;\
+    mv   _STR_PTR, _R3                               ;\
+    li   _R1, 0x20000 /* mstatus.MPRV */             ;\
+    csrc mstatus, _R1                                ;\
 1:                                                    ;\
     lbu  _R1, 0(_STR_PTR)                            ;\
     beqz _R1, 3f                                     ;\

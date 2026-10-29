@@ -96,7 +96,14 @@ rvmodel_runner_mtvec:                    \
     wfi                                               ;\
     j    _rvmodel_halt_pass_loop
 
+// RVMODEL_HALT_FAIL switches to M-mode first: ACT reports a failed check from the mode it ran
+// in, and from S/U-mode the csrc mstatus and csrw mtvec below trap, which re-reported the
+// failure in a loop (k3-uart-weekly #5: ~1500 dumps per test, over the portal's 2 MiB limit).
+// The T-SBI ecall goes to ACT's M-mode handler, which returns here in M-mode. On the fail
+// paths after ACT's epilogs, mtvec is already the runner's, so the ecall ends the case there
+// with tohost still 0, which the runner also reports as FAIL.
 #define RVMODEL_HALT_FAIL                              \
+    RVTEST_TSBI_GOTO_MMODE                            ;\
     li   a1, 0x20000 /* mstatus.MPRV */               ;\
     csrc mstatus, a1                                  ;\
     la   a0, tohost                                   ;\

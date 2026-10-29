@@ -24,9 +24,11 @@
       "len": 32,
       "value": "0x0007_FFFF"
     },
+    // hcounteren keeps counters 0-18 only: all ones reads back 0x7ffff (csr_probe; k3-uart-hypervisor #5
+    // HSm/H_hcsr_access, HSm/H_hcsr_walk-01, bit 19 never sets), the same as mcounteren/scounteren.
     "hcounteren_writable_bits": {
       "len": 32,
-      "value": "0xFFFF_FFFF"
+      "value": "0x0007_FFFF"
     },
     "mtvec": {
       "direct": {

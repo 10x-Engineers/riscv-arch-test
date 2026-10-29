@@ -628,13 +628,13 @@ params:
   REPORT_VA_IN_VSTVAL_ON_STORE_AMO_MISALIGNED: true
   REPORT_VA_IN_VSTVAL_ON_STORE_AMO_PAGE_FAULT: true
   # TINST: transformed instruction measured on the board for load/store page, guest-page and
-  # store access faults (sail.json H.transformed_instruction).
+  # load/store access faults (sail.json H.transformed_instruction).
   TINST_VALUE_ON_BREAKPOINT: "always zero"
   TINST_VALUE_ON_FINAL_INSTRUCTION_GUEST_PAGE_FAULT: "always zero"
   TINST_VALUE_ON_FINAL_LOAD_GUEST_PAGE_FAULT: "always transformed standard instruction"
   TINST_VALUE_ON_FINAL_STORE_AMO_GUEST_PAGE_FAULT: "always transformed standard instruction"
   TINST_VALUE_ON_INSTRUCTION_ADDRESS_MISALIGNED: "always zero"
-  TINST_VALUE_ON_LOAD_ACCESS_FAULT: "always zero"
+  TINST_VALUE_ON_LOAD_ACCESS_FAULT: "always transformed standard instruction"
   TINST_VALUE_ON_LOAD_ADDRESS_MISALIGNED: "always zero"
   TINST_VALUE_ON_LOAD_PAGE_FAULT: "always transformed standard instruction"
   TINST_VALUE_ON_MCALL: "always zero"

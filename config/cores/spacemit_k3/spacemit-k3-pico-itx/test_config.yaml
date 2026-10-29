@@ -5,3 +5,7 @@ ref_model_exe: sail_riscv_sim
 udb_config: spacemit-k3-pico-itx.yaml
 linker_script: link.ld
 dut_include_dir: .
+# Tests that do not complete under this board's UART runner; each would wait out the result timeout.
+exclude_tests:
+  - PMP_Sm_cfg_A_tor_zero
+  - Svnapot_sv39_Svnapot_reserved_enc

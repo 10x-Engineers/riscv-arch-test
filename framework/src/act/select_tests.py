@@ -16,7 +16,7 @@ from rich import print as rprint
 
 from act.certificate_tests import get_certificate_extensions
 from act.config import Config, load_config
-from act.parse_test_constraints import ExtensionRequirement, TestMetadata
+from act.parse_test_constraints import ExtensionRequirement, TestMetadata, _is_excluded
 from act.parse_udb_config import get_config_params, get_implemented_extensions, prepare_dut_outputs
 from act.toolchain import EXPERIMENTAL_EXTENSIONS
 
@@ -229,5 +229,10 @@ def prepare_configs_and_select_tests(
             certificate_tests = filter_tests_by_certificate(selected_tests, certificate)
             _print_skipped_suites(config.name, certificate, selected_tests, certificate_tests)
             selected_tests = certificate_tests
+        if config.exclude_tests:
+            excluded = [name for name in selected_tests if _is_excluded(Path(name), list(config.exclude_tests))]
+            for name in excluded:
+                del selected_tests[name]
+            rprint(f"[bold yellow]{config.name}:[/] skipping {len(excluded)} tests listed in exclude_tests")
         results.append((config, config_params, selected_tests))
     return results

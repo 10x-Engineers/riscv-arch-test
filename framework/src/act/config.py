@@ -53,6 +53,9 @@ class Config(BaseModel):
     ref_model_type: RefModelType  # Inferred from ref_model_exe by model validator
     include_priv_tests: bool = True
     harts: int = Field(default=1, ge=1)
+    # Test groups this DUT never runs, matched like --exclude (a suite directory, or a file-name prefix
+    # followed by _ or -). For tests that cannot complete on the hardware, such as accesses that hang it.
+    exclude_tests: tuple[str, ...] = ()
 
     model_config = {"frozen": True}
 

@@ -123,7 +123,7 @@ params:
   NON_STANDARD_EXTENSION_IMPLEMENTED: true
   # A params
   MISALIGNED_AMO: false
-  LRSC_RESERVATION_STRATEGY: "reserve exactly enough to cover the access"
+  LRSC_RESERVATION_STRATEGY: "reserve naturally-aligned 64-byte region"  # sc to lr+8 succeeds (k3-uart-weekly #5); 64 per Za64rs, UNVERIFIED
   LRSC_FAIL_ON_VA_SYNONYM: false
   LRSC_MISALIGNED_BEHAVIOR: "always raise access fault"
   LRSC_FAIL_ON_NON_EXACT_LRSC: false

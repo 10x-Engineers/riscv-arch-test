@@ -274,8 +274,11 @@
     "impid": 869836288,
     "hartid": 0,
     "cache_block_size_exp": 6,
+    // Reservation set: an sc to the lr address + 8 succeeds on the K3 (k3-uart-weekly #5,
+    // Zalrsc-sc.w/sc.d cp_custom_sc_addresses), so the set is wider than 8 bytes. Za64rs caps it
+    // at 64 bytes; 64 (a cache block) is assumed, UNVERIFIED between 16 and 64.
     "reservation": {
-      "reservation_set_size_exp": 3,
+      "reservation_set_size_exp": 6,
       "require_exact_reservation_addr": false,
       "invalidate_on_same_hart_store": false
     },

@@ -166,8 +166,9 @@ rvmodel_runner_mtvec:                    \
 // the M-level IMSIC interrupt file's indirect CSRs, with no MMIO: enable delivery (eidelivery = 1),
 // accept every priority (eithreshold = 0), enable identity K3_MEXT_IID in eie0 and set it
 // pending in eip0, which raises mip.MEIP. Clearing the eip0 bit drops MEIP again.
-// Not yet measured on the board (k3-uart-weekly #5 ran with empty macros, so every MEI test
-// took the next timer interrupt instead).
+// The _M flavors run in M-mode and reach the CSRs directly (passes on the board). The others are
+// also called from S- and U-mode (rvtest_set_mext_int_su), where miselect/mireg are illegal, so
+// they make the same accesses through T-SBI, which takes its operand in a1 and uses a0.
 #define K3_CSR_MISELECT        0x350
 #define K3_CSR_MIREG           0x351
 #define K3_ISEL_EIDELIVERY     0x70
@@ -176,7 +177,7 @@ rvmodel_runner_mtvec:                    \
 #define K3_ISEL_EIE0           0xC0
 #define K3_MEXT_IID            1
 
-#define RVMODEL_SET_MEXT_INT(_R1, _R2)         \
+#define RVMODEL_SET_MEXT_INT_M(_R1, _R2)       \
     li   _R1, K3_ISEL_EIDELIVERY              ;\
     csrw K3_CSR_MISELECT, _R1                 ;\
     li   _R2, 1                               ;\
@@ -192,11 +193,25 @@ rvmodel_runner_mtvec:                    \
     csrw K3_CSR_MISELECT, _R1                 ;\
     csrs K3_CSR_MIREG, _R2
 
-#define RVMODEL_CLR_MEXT_INT(_R1, _R2)         \
+#define RVMODEL_CLR_MEXT_INT_M(_R1, _R2)       \
     li   _R1, K3_ISEL_EIP0                    ;\
     csrw K3_CSR_MISELECT, _R1                 ;\
     li   _R2, 1 << K3_MEXT_IID                ;\
     csrc K3_CSR_MIREG, _R2
+
+#define RVMODEL_SET_MEXT_INT(_R1, _R2)                                   \
+    RVTEST_TSBI_CSR_WRITE(K3_CSR_MISELECT, K3_ISEL_EIDELIVERY)          ;\
+    RVTEST_TSBI_CSR_WRITE(K3_CSR_MIREG, 1)                              ;\
+    RVTEST_TSBI_CSR_WRITE(K3_CSR_MISELECT, K3_ISEL_EITHRESHOLD)         ;\
+    RVTEST_TSBI_CSR_WRITE(K3_CSR_MIREG, 0)                              ;\
+    RVTEST_TSBI_CSR_WRITE(K3_CSR_MISELECT, K3_ISEL_EIE0)                ;\
+    RVTEST_TSBI_CSR_SET(K3_CSR_MIREG, 1 << K3_MEXT_IID)                 ;\
+    RVTEST_TSBI_CSR_WRITE(K3_CSR_MISELECT, K3_ISEL_EIP0)                ;\
+    RVTEST_TSBI_CSR_SET(K3_CSR_MIREG, 1 << K3_MEXT_IID)
+
+#define RVMODEL_CLR_MEXT_INT(_R1, _R2)                                   \
+    RVTEST_TSBI_CSR_WRITE(K3_CSR_MISELECT, K3_ISEL_EIP0)                ;\
+    RVTEST_TSBI_CSR_CLEAR(K3_CSR_MIREG, 1 << K3_MEXT_IID)
 
 #define RVMODEL_SET_MSW_INT(_R1, _R2)  \
     LOAD_ADDR32(_R2, K3_MSIP_ADDRESS) ;\

@@ -793,14 +793,17 @@
       "supported": false
     },
     "Stateen": {
+      // Smstateen: the K3 gates senvcfg with mstateen0.ENVCFG (k3-uart-weekly #5: S_scsr-00/01 and
+      // Exceptions_ZicboS-00 took illegal-instruction traps on S-mode senvcfg accesses while it was 0).
       "Smstateen": {
-        "supported": false
+        "supported": true
       },
       "Ssstateen": {
         "supported": true
       },
       // Sail 0.16 per-bit masks. SE0 writable for Ssstateen (revision 2, as upstream sail-RVA23S64).
-      "mstateen0": {"SE0": "CSRBit_Writable", "ENVCFG": "CSRBit_ReadOnlyZero", "CONTEXT": "CSRBit_ReadOnlyZero", "P1P13": "CSRBit_ReadOnlyZero", "SRMCFG": "CSRBit_ReadOnlyZero", "FCSR": "CSRBit_ReadOnlyZero", "C": "CSRBit_ReadOnlyZero"},
+      // ENVCFG writable for Smstateen; the other bits are not measured on the K3 yet.
+      "mstateen0": {"SE0": "CSRBit_Writable", "ENVCFG": "CSRBit_Writable", "CONTEXT": "CSRBit_ReadOnlyZero", "P1P13": "CSRBit_ReadOnlyZero", "SRMCFG": "CSRBit_ReadOnlyZero", "FCSR": "CSRBit_ReadOnlyZero", "C": "CSRBit_ReadOnlyZero"},
       "mstateen1": {"SE1": "CSRBit_Writable"},
       "mstateen2": {"SE2": "CSRBit_Writable"},
       "mstateen3": {"SE3": "CSRBit_Writable"},

@@ -93,6 +93,7 @@ implemented_extensions:
   - { name: Zimop,        version: "= 1.0.0" }
   - { name: Zvbb,         version: "= 1.0.0" }
   - { name: Zvkb,         version: "= 1.0.0" }
+  - { name: Smstateen,    version: "= 1.0.0" }   # mstateen0.ENVCFG gates senvcfg (k3-uart-weekly #5)
   - { name: Ssstateen,    version: "= 1.0.0" }
   - { name: Ssccptr,      version: "= 1.0.0" }
   - { name: Sscounterenw, version: "= 1.0.0" }
@@ -146,6 +147,9 @@ params:
   SUPPORTED_PMLEN_SSNPM: [0, 7]
   # Smnpm params: menvcfg.PMM = 2 (PMLEN 7) measured on the K3 (k3-uart-weekly #5); PMLEN 16 UNVERIFIED
   SUPPORTED_PMLEN_SMNPM: [0, 7]
+  # Smstateen params: ENVCFG exists on the K3 (k3-uart-weekly #5: S-mode senvcfg accesses trap
+  # while it is 0); that it is writable is UNVERIFIED until the Smstateen suite runs on the board
+  MSTATEEN_ENVCFG_TYPE: rw
   # Zawrs params (upstream sail-RVA23S64 value, UNVERIFIED on the K3)
   ZAWRS_NTO_IS_NOP: true
   # CBO params

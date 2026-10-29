@@ -58,10 +58,16 @@ rvmodel_runner_mtvec:                    \
 
 // The runner's trap handler, saved before ACT installs its own: the halt macros put it back
 // so their ecall reaches the runner even on failure paths that skip the trap epilogs.
+// The K3 implements H but resets with misa.H = 0, which disables it: the H-only bits
+// (mstatus.MPV/GVA, mip/mie.VSSIP, mhpmevent.VUINH) then read 0, while Sail (sail.json, H
+// supported) has H enabled (k3-uart-weekly #5: Sm_mcsr_*, Sm_shadow, Sscofpmf_*_inhibit_*).
+// misa.H is writable on the K3 (runner repo artifacts/onboarding/spacemit_k3_20261019), so set it.
 #define RVMODEL_BOOT                     \
     csrr T1, mtvec                      ;\
     la   T2, rvmodel_runner_mtvec       ;\
-    sd   T1, 0(T2)
+    sd   T1, 0(T2)                      ;\
+    li   T1, 1 << 7 /* misa.H */        ;\
+    csrs misa, T1
 
 //#define RVMODEL_BOOT_TO_MMODE
 

@@ -12,8 +12,8 @@ description: >
   misaligned scalar loads in hardware. Revision 2 adds the RVA23S64 extensions the board's
   device tree lists in riscv,isa-extensions (runner repo
   artifacts/onboarding/spacemit_k3_20261019/observation.md), except the hypervisor ones: H is
-  present but misa.H = 0 at reset (writable), and the hypervisor jobs test it with their own
-  config. Za128rs follows from Za64rs. Not in the device tree, so not declared: Ziccrse,
+  present but misa.H = 0 at reset (writable; RVMODEL_BOOT sets it, so the hart matches Sail,
+  which has H enabled), and the hypervisor jobs run the H suites with their own config. Za128rs follows from Za64rs. Not in the device tree, so not declared: Ziccrse,
   Zic64b, Supm. Zicclsm (in the device tree) waits for a board check of misaligned vector
   accesses: Sail rejects it while those raise access faults, the K1 value kept here.
   Parameters not listed above are the K1's values, or for the revision 2 extensions upstream's
@@ -390,7 +390,7 @@ params:
   VECTOR_LS_SEG_PARTIAL_ACCESS: false
   LEGAL_VSTART: "1_stride"
   VECTOR_LS_WHOLEREG_MISALIGNED_LEGAL: false
-  VSSTATUS_VS_EXISTS: false      # H not enabled in this revision (misa.H = 0 at reset)
+  VSSTATUS_VS_EXISTS: false      # H not declared in this config (the hypervisor jobs test it)
   VECTOR_FF_NO_EXCEPTION_TRIM: false
   VFREDUSUM_NAN: "no_change"
   VFREDUSUM_NODE_ROUNDING_BEHAVIOR: "SEW_precision"

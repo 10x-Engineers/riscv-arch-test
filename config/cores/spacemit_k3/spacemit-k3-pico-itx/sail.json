@@ -450,10 +450,6 @@
       "mutable_misa": false,
       "supported": true
     },
-    // H: the K3 has the hypervisor but resets with misa.H = 0 and this configuration does not
-    // declare H (the K3 hypervisor job uses its own config). With H here Sail expected the
-    // H-only CSR bits (mstatus.MPV/GVA, mip/mie.VSSIP, mhpmevent.VUINH) to be writable
-    // (k3-uart-weekly #5: Sm_mcsr_*, Sm_shadow, Sscofpmf_*_inhibit_*).
     "H": {
       "mutable_misa": false,
       "implicit_vs_pte_access_sets_gstage_d": false,
@@ -467,7 +463,7 @@
         "samo_page_fault": false,
         "samo_guest_page_fault": false
       },
-      "supported": false,
+      "supported": true,
       "geilen": 63,
       "guest_page_fault_writes_htval": true,
       "hgatp_modes": {
@@ -709,33 +705,32 @@
     "Sscofpmf": {
       "supported": true
     },
-    // The Sh* extensions need H, which is off in this configuration (see "H" above).
     "Sha": {
       "supported": false
     },
     "Shcounterenw": {
-      "supported": false
+      "supported": true
     },
     "Sscounterenw": {
       "supported": true
     },
     "Shvsatpa": {
-      "supported": false
+      "supported": true
     },
     "Shvstvala": {
-      "supported": false
+      "supported": true
     },
     "Shvstvecd": {
-      "supported": false
+      "supported": true
     },
     "Sstc": {
       "supported": true
     },
     "Shgatpa": {
-      "supported": false
+      "supported": true
     },
     "Shtvala": {
-      "supported": false
+      "supported": true
     },
     "Sstvala": {
       "supported": true

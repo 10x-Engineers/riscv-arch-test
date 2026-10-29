@@ -458,15 +458,19 @@
     "H": {
       "mutable_misa": true,
       "implicit_vs_pte_access_sets_gstage_d": false,
+      // The K3 writes the transformed trapping instruction to mtinst/htinst (e.g. 0x00e02023 for
+      // sw x14 on a store page fault, 0x0040200f for cbo.zero) on these five causes: k3-uart-hypervisor
+      // #5 (PMPH_*, SvH*, H_trap) and riscv-uart-single-elf #136 (Sv_Zicbo zicboz U). The other
+      // causes were not seen with a nonzero value; ACT accepts zero in any case.
       "transformed_instruction": {
         "load_address_misaligned": false,
         "load_access_fault": false,
-        "load_page_fault": false,
-        "load_guest_page_fault": false,
+        "load_page_fault": true,
+        "load_guest_page_fault": true,
         "samo_address_misaligned": false,
-        "samo_access_fault": false,
-        "samo_page_fault": false,
-        "samo_guest_page_fault": false
+        "samo_access_fault": true,
+        "samo_page_fault": true,
+        "samo_guest_page_fault": true
       },
       "supported": true,
       "geilen": 7,

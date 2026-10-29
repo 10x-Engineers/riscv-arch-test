@@ -62,12 +62,47 @@ rvmodel_runner_mtvec:                    \
 // (mstatus.MPV/GVA, mip/mie.VSSIP, mhpmevent.VUINH) then read 0, while Sail (sail.json, H
 // supported) has H enabled (k3-uart-weekly #5: Sm_mcsr_*, Sm_shadow, Sscofpmf_*_inhibit_*).
 // misa.H is writable on the K3 (runner repo artifacts/onboarding/spacemit_k3_20261019), so set it.
+//
+// mtvec is then pointed at rvmodel_k3_mtvec, which ACT's prolog saves as the original handler and
+// its epilog restores. After the epilogs the test is in M-mode with no ACT handler, but the print
+// and fail macros still do RVTEST_TSBI_GOTO_MMODE: rvmodel_k3_mtvec answers that ecall (a0 = 1
+// from M-mode) by returning, instead of the runner ending the case on it with tohost = 0
+// (portal runs 101-107: every test that passed was reported FAIL at the "passed" print).
+// Any other trap is retaken in the runner's handler: mtval holds a0 meanwhile, since retaking
+// the trap rewrites it. mtvec is writable on the K3, so ACT never copies its trampoline over
+// this code.
 #define RVMODEL_BOOT                     \
     csrr T1, mtvec                      ;\
     la   T2, rvmodel_runner_mtvec       ;\
     sd   T1, 0(T2)                      ;\
+    la   T1, rvmodel_k3_mtvec           ;\
+    csrw mtvec, T1                      ;\
     li   T1, 1 << 7 /* misa.H */        ;\
-    csrs misa, T1
+    csrs misa, T1                       ;\
+    .pushsection .text,"ax",@progbits   ;\
+    .option push                        ;\
+    .option norvc                       ;\
+    .p2align 6                          ;\
+rvmodel_k3_mtvec:                       ;\
+    addi a0, a0, -1                     ;\
+    bnez a0, 2f /* not GOTO_MMODE */    ;\
+    csrr a0, mcause                     ;\
+    addi a0, a0, -11 /* ecall from M */ ;\
+    bnez a0, 1f                         ;\
+    csrr a0, mepc                       ;\
+    addi a0, a0, 4                      ;\
+    csrw mepc, a0                       ;\
+    mret /* MPP = M: stays in M-mode */ ;\
+1:  li   a0, 0                          ;\
+2:  addi a0, a0, 1                      ;\
+    csrw mtval, a0                      ;\
+    la   a0, rvmodel_runner_mtvec       ;\
+    ld   a0, 0(a0)                      ;\
+    csrw mtvec, a0                      ;\
+    csrr a0, mtval                      ;\
+    mret /* retake the trap at mepc */  ;\
+    .option pop                         ;\
+    .popsection
 
 //#define RVMODEL_BOOT_TO_MMODE
 
@@ -100,8 +135,7 @@ rvmodel_runner_mtvec:                    \
 // in, and from S/U-mode the csrc mstatus and csrw mtvec below trap, which re-reported the
 // failure in a loop (k3-uart-weekly #5: ~1500 dumps per test, over the portal's 2 MiB limit).
 // The T-SBI ecall goes to ACT's M-mode handler, which returns here in M-mode. On the fail
-// paths after ACT's epilogs, mtvec is already the runner's, so the ecall ends the case there
-// with tohost still 0, which the runner also reports as FAIL.
+// paths after ACT's epilogs, rvmodel_k3_mtvec (RVMODEL_BOOT) returns from it instead.
 #define RVMODEL_HALT_FAIL                              \
     RVTEST_TSBI_GOTO_MMODE                            ;\
     li   a1, 0x20000 /* mstatus.MPRV */               ;\

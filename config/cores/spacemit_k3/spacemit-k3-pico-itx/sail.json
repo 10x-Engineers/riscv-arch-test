@@ -58,10 +58,11 @@
         "base_alignment": 2
       }
     },
+    // With H: bit 10 (ecall from VS) and bits 20-23 (guest page faults) are delegatable too.
     "medeleg": {
       "delegatable_bits": {
         "len": 64,
-        "value": "0x0000_0000_0000_b3FF"
+        "value": "0x0000_0000_00F0_B7FF"
       }
     },
     "mideleg": {

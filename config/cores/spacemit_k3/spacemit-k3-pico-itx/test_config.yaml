@@ -9,3 +9,42 @@ dut_include_dir: .
 exclude_tests:
   - PMP_Sm_cfg_A_tor_zero
   - Svnapot_sv39_Svnapot_reserved_enc
+# Run 2026-10-30 only (not for the main branch): unpriv suites that passed in k3-uart-weekly #5
+# (2934/2940; Zalrsc sc.w/sc.d pass since round 5). The run keeps priv and the unpriv suites added since #5.
+  - D
+  - F
+  - I
+  - M
+  - Vf16
+  - Vf32
+  - Vf64
+  - Vf8
+  - Vls16
+  - Vls32
+  - Vls64
+  - Vls8
+  - Vx16
+  - Vx32
+  - Vx64
+  - Vx8
+  - Zaamo
+  - Zalrsc
+  - Zba
+  - Zbb
+  - Zbc
+  - Zbkc
+  - Zbs
+  - Zca
+  - Zcd
+  - Zfh
+  - Zfhmin
+  - Zicbom
+  - Zicboz
+  - Zicntr
+  - Zicond
+  - Zicsr
+  - Zifencei
+  - Zihintpause
+  - Zihpm
+  - Zmmul
+  - Zvfhmin

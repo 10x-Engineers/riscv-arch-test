@@ -95,6 +95,12 @@ implemented_extensions:
   - { name: Zvkb,         version: "= 1.0.0" }
   - { name: Smstateen,    version: "= 1.0.0" }   # mstateen0.ENVCFG gates senvcfg (k3-uart-weekly #5)
   - { name: Ssstateen,    version: "= 1.0.0" }
+  # AIA and indirect CSR access: siselect, stopi, hvien and vstopi exist on the K3 (k3-uart-weekly #6,
+  # H_vucsr-00/02/04/05: VU-mode reads raise virtual-instruction, not illegal-instruction)
+  - { name: Smaia,        version: "= 1.0.0" }
+  - { name: Ssaia,        version: "= 1.0.0" }
+  - { name: Smcsrind,     version: "= 1.0.0" }
+  - { name: Sscsrind,     version: "= 1.0.0" }
   - { name: Ssccptr,      version: "= 1.0.0" }
   - { name: Sscounterenw, version: "= 1.0.0" }
   - { name: Ssnpm,        version: "= 1.0.0" }
@@ -160,6 +166,13 @@ params:
   # Smstateen params: ENVCFG exists on the K3 (k3-uart-weekly #5: S-mode senvcfg accesses trap
   # while it is 0); that it is writable is UNVERIFIED until the Smstateen suite runs on the board
   MSTATEEN_ENVCFG_TYPE: rw
+  # k3-uart-weekly #6: mstateen0 bit 57 (CONTEXT) is writable (Smstateen-02); hstateen0 bits 57-60
+  # (CONTEXT, IMSIC, AIA, CSRIND) read back set (Smstateen-01)
+  MSTATEEN_CSRIND_TYPE: rw
+  MSTATEEN_AIA_TYPE: rw
+  MSTATEEN_IMSIC_TYPE: rw
+  # CONTEXT (bit 57) is writable on the K3 too, but UDB and Sail 0.16 allow it only with Sdtrig, which is
+  # not declared for this board yet (scontext exists: H_vucsr-01), so Smstateen-02 still expects 0.
   # Zawrs params (upstream sail-RVA23S64 value, UNVERIFIED on the K3)
   ZAWRS_NTO_IS_NOP: true
   # CBO params
@@ -607,6 +620,9 @@ params:
       false,
     ]
   HSTATEEN_ENVCFG_TYPE: rw       # as MSTATEEN_ENVCFG_TYPE, UNVERIFIED on the K3
+  HSTATEEN_CSRIND_TYPE: rw       # as the MSTATEEN_*_TYPE above (k3-uart-weekly #6, Smstateen-01)
+  HSTATEEN_AIA_TYPE: rw
+  HSTATEEN_IMSIC_TYPE: rw
   # The parameters below are the upstream sail-RVA23S64 values, UNVERIFIED on the K3.
   VSTVEC_MODES: [0, 1]
   TRAP_ON_ECALL_FROM_VS: true

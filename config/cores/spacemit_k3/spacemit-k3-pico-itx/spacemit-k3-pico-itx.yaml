@@ -95,6 +95,8 @@ implemented_extensions:
   - { name: Zvkb,         version: "= 1.0.0" }
   - { name: Smstateen,    version: "= 1.0.0" }   # mstateen0.ENVCFG gates senvcfg (k3-uart-weekly #5)
   - { name: Ssstateen,    version: "= 1.0.0" }
+  # Triggers: 4 (sdtrig_probe v1-v3, single-ELF #191, #192, #194; parameters below)
+  - { name: Sdtrig,       version: "= 1.0.0" }
   # AIA and indirect CSR access: siselect, stopi, hvien and vstopi exist on the K3 (k3-uart-weekly #6,
   # H_vucsr-00/02/04/05: VU-mode reads raise virtual-instruction, not illegal-instruction)
   - { name: Smaia,        version: "= 1.0.0" }
@@ -166,13 +168,63 @@ params:
   # Smstateen params: ENVCFG exists on the K3 (k3-uart-weekly #5: S-mode senvcfg accesses trap
   # while it is 0); that it is writable is UNVERIFIED until the Smstateen suite runs on the board
   MSTATEEN_ENVCFG_TYPE: rw
-  # k3-uart-weekly #6: mstateen0 bit 57 (CONTEXT) is writable (Smstateen-02); hstateen0 bits 57-60
-  # (CONTEXT, IMSIC, AIA, CSRIND) read back set (Smstateen-01)
+  # sdtrig_probe v2 (single-ELF #192): mstateen0 and hstateen0 both read 0xde00000000000000 after
+  # writing all ones: SE0, ENVCFG, CSRIND, AIA, IMSIC and CONTEXT are writable (k3-uart-weekly #6:
+  # Smstateen-01/02)
   MSTATEEN_CSRIND_TYPE: rw
   MSTATEEN_AIA_TYPE: rw
   MSTATEEN_IMSIC_TYPE: rw
-  # CONTEXT (bit 57) is writable on the K3 too, but UDB and Sail 0.16 allow it only with Sdtrig, which is
-  # not declared for this board yet (scontext exists: H_vucsr-01), so Smstateen-02 still expects 0.
+  MSTATEEN_CONTEXT_TYPE: rw
+  # Sdtrig, measured by sdtrig_probe v1-v3 (single-ELF #191, #192, #194; M-mode, misa.H set):
+  # tselect stops at 3. Triggers 0-2: tinfo 0x40 (mcontrol6 only). Trigger 3: tinfo 0x38 (icount,
+  # itrigger, etrigger). mcontrol6: match 0/1, size 0/1/2/3/5, action 0/2/3/4, NAPOT tdata2 keeps 7
+  # trailing ones (maskmax6 8), chain holds on trigger 0 but not on trigger 1 (length 2), m/s/u/vs/vu,
+  # execute/load/store and select writable. icount count reads 1 whatever is written. tcontrol reads 0.
+  # textra64 (tdata3): mhvalue 13 bits, svalue 34 bits; mhselect/sselect read 0 after writing all ones (reserved
+  # values), so which context matches exist is UNVERIFIED and they are declared unsupported.
+  SDTRIG_NUM_TRIGGERS: 4
+  SDTRIG_BREAKPOINT_REENTRANCY: Use_interrupt_enables   # UNVERIFIED; medeleg[3] is delegatable, so not Use_tcontrol
+  TCONTROL_IMPLEMENTED: false   # reads 0 without a trap; writability not measured
+  TDATA2_IMPLEMENTED: true
+  TDATA3_IMPLEMENTED: true
+  SDTRIG_M_WRITABLE: true
+  SDTRIG_S_WRITABLE: true
+  SDTRIG_U_WRITABLE: true
+  SDTRIG_VS_WRITABLE: true
+  SDTRIG_VU_WRITABLE: true
+  MCONTEXT_IMPLEMENTED: true
+  HCONTEXT_IMPLEMENTED: true
+  SCONTEXT_IMPLEMENTED: true
+  DBG_HCONTEXT_WIDTH: 13
+  DBG_SCONTEXT_WIDTH: 32
+  SDTRIG_MCONTROL6_SUPPORTED_TRIGGERS: [true, true, true, false]
+  SDTRIG_ICOUNT_SUPPORTED_TRIGGERS: [false, false, false, true]
+  SDTRIG_ITRIGGER_SUPPORTED_TRIGGERS: [false, false, false, true]
+  SDTRIG_ETRIGGER_SUPPORTED_TRIGGERS: [false, false, false, true]
+  SDTRIG_MCONTROL6_MASKMAX6: 8
+  SDTRIG_MAX_CHAIN_LENGTH: 2
+  SDTRIG_MCONTROL6_MATCH_LEGAL_VALUES: [0, 1]
+  SDTRIG_MCONTROL6_SIZE_LEGAL_VALUES: [0, 1, 2, 3, 5]
+  SDTRIG_MCONTROL6_SELECT_WRITABLE: true
+  SDTRIG_MCONTROL6_EXECUTE_WRITABLE: true
+  SDTRIG_MCONTROL6_LOAD_WRITABLE: true
+  SDTRIG_MCONTROL6_STORE_WRITABLE: true
+  SDTRIG_ICOUNT_COUNT_HARDWIRED_1: true
+  SDTRIG_ICOUNT_SELF_WRITE_SETS_PENDING: false   # UNVERIFIED
+  # itrigger tdata2 0x80800803eee, etrigger tdata2 0xf0bffe after writing all ones
+  SDTRIG_ITRIGGER_SUPPORTED_INTERRUPTS: [1, 2, 3, 5, 6, 7, 9, 10, 11, 12, 13, 23, 35, 43]
+  SDTRIG_ETRIGGER_SUPPORTED_EXCEPTIONS: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 20, 21, 22, 23]
+  SDTRIG_TEXTRA_MHVALUE_LEN: 13
+  SDTRIG_TEXTRA_SVALUE_LEN: 32   # K3 has 34 writable svalue bits (35:2); UDB and Sail 0.16 allow at most 32
+  SDTRIG_TEXTRA_MHSELECT_MCONTEXT_MATCH: false
+  SDTRIG_TEXTRA_MHSELECT_VMID_MATCH: false
+  SDTRIG_TEXTRA_SSELECT_SCONTEXT_MATCH: false
+  SDTRIG_TEXTRA_SSELECT_ASID_MATCH: false
+  # Sdtrig debug-mode fields (not reachable from ACT).
+  DCSR_MPRVEN_TYPE: rw
+  DCSR_STEPIE_TYPE: rw
+  DCSR_STOPCOUNT_TYPE: rw
+  DCSR_STOPTIME_TYPE: rw
   # Zawrs params (upstream sail-RVA23S64 value, UNVERIFIED on the K3)
   ZAWRS_NTO_IS_NOP: true
   # CBO params
@@ -623,6 +675,7 @@ params:
   HSTATEEN_CSRIND_TYPE: rw       # as the MSTATEEN_*_TYPE above (k3-uart-weekly #6, Smstateen-01)
   HSTATEEN_AIA_TYPE: rw
   HSTATEEN_IMSIC_TYPE: rw
+  HSTATEEN_CONTEXT_TYPE: rw      # sdtrig_probe v2: hstateen0 bit 57 writable
   # The parameters below are the upstream sail-RVA23S64 values, UNVERIFIED on the K3.
   VSTVEC_MODES: [0, 1]
   TRAP_ON_ECALL_FROM_VS: true

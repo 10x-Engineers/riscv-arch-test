@@ -9,3 +9,10 @@ dut_include_dir: .
 exclude_tests:
   - PMP_Sm_cfg_A_tor_zero
   - Svnapot_sv39_Svnapot_reserved_enc
+  # Need RVMODEL_ACCESS_FAULT_ADDRESS, which the K3 has none of (afault_probe; HW-7: high physical
+  # address bits alias to memory): they do not link.
+  - SdtrigS_etrigger_s
+  - SdtrigSm_etrigger_m
+  - SdtrigSm_etrigger_cross_priv_s
+  - SdtrigSm_etrigger_cross_priv_u
+  - SdtrigU_etrigger_u

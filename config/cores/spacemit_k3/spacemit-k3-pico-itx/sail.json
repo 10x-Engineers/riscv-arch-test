@@ -320,53 +320,57 @@
   "extensions": {
     // Sail 0.15/0.16 extension blocks (C: misa mutability; the others are not implemented or not tested).
     "C": { "mutable_misa": false },
-    // Sdtrig not tested on this board; block from cvw-rv64gc (Sail 0.16 layout).
+    // Sdtrig: values from sdtrig_probe v1-v3 (single-ELF #191, #192, #194), see the K3 UDB config.
+    // Sail 0.16 gives every trigger the same types. On the K3 triggers 0-2 are mcontrol6 only and
+    // trigger 3 is icount/itrigger/etrigger only, so all four types are enabled here; tests that read
+    // tinfo or write an unsupported type to a trigger expect the Sail behaviour (Sail limitation).
+    // Sail also has no legal-value lists for match/size/action (K3: match 0/1, size 0/1/2/3/5, action 0/2/3/4).
     "Sdtrig": {
-      "supported": false,
+      "supported": true,
       // `breakpoint_reentrancy` must be one of the below strings:
       // . `Use_tcontrol`: use the `mte` and `mpte` bits in the `tcontrol` CSR (this also makes the `tcontrol` CSR available)
       // . `Use_interrupt_enables`: use `mstatus.MIE` and the `SIE` bits in `sstatus` and `vsstatus`
       // . `No_reentrancy_support`: no specific support for reentrancy
       // Note: `Use_tcontrol` hardwires medeleg[3] to 0, which breaks the
       // `sbreak` test in `riscv-tests`.
-      "breakpoint_reentrancy": "No_reentrancy_support",
+      "breakpoint_reentrancy": "Use_interrupt_enables",
       "etrigger": {
-        "supported": false,
+        "supported": true,
         // A bit set to 1 in this value specifies that the
         // corresponding exception is supported by the trigger.
         // Triggers for reserved exceptions are not supported.  This
         // value is ignored when `etrigger` is not supported.
-        "supported_exceptions": { "len": "xlen", "value": "0" }
+        "supported_exceptions": { "len": "xlen", "value": "0xf0bffe" }
       },
-      "hcontext": { "supported": false },
+      "hcontext": { "supported": true },
       // Triggers
       "icount": {
-        "supported": false,
-        "count_hardwired_one": false,
+        "supported": true,
+        "count_hardwired_one": true,
         // Whether a `tdata1` write to an `icount` trigger with
         // `count`=1 also makes it pending when that write's instruction
         // matches the trigger.
         "self_write_sets_pending": false
       },
       "itrigger": {
-        "supported": false,
+        "supported": true,
         // A bit set to 1 in this value specifies that the
         // corresponding interrupt is supported by the trigger.
         // Triggers for reserved interrupts are not supported.  This
         // value is ignored when `itrigger` is not supported.
-        "supported_interrupts": { "len": "xlen", "value": "0" }
+        "supported_interrupts": { "len": "xlen", "value": "0x80800803eee" }
       },
       "mcontrol6": {
-        "supported": false,
+        "supported": true,
         // If `mcontrol6` is supported, this value needs to be in the range
         // 0 < `maskmax6` < XLEN.
-        "maskmax6": 63,
+        "maskmax6": 8,
         // Whether an address selection matches all the accessed addresses.
         // If set to `false`, it matches only the lowest address.
         "address_select_matches_all_addresses": true,
         // Maximum length of a chain. This cannot exceed the number of
         // triggers.  A value of 0 implies chains are not supported.
-        "max_chain_length": 4
+        "max_chain_length": 2
       },
       "textra": {
         // Which context matches are supported. Writes of unsupported
@@ -383,21 +387,21 @@
           // CSR.
           "scontext_match": false,
           // Value 2, match on the ASID in `satp` or `vsatp`. Requires S.
-          "asid_match": true
+          "asid_match": false
         },
         // The number of implemented `mhvalue` and `svalue` bits. Bits
         // above these are read only zero. At most 6 and 16 on RV32,
         // 13 and 32 on RV64.
         "mhvalue_len": 13,
-        "svalue_len": 32
+        "svalue_len": 32   // K3 has 34 writable svalue bits (35:2); Sail 0.16 allows at most 32
       },
       // CSRs
-      "mcontext": { "supported": false },
+      "mcontext": { "supported": true },
       // The number of supported triggers.  This has to be
       // non-negative, and greater than 0 if Sdtrig is supported.
       // The model does not support more than 16 triggers.
-      "num_triggers": 0,
-      "scontext": { "supported": false }
+      "num_triggers": 4,
+      "scontext": { "supported": true }
     },
     "Smdbltrp": { "supported": false },
     "Ssdbltrp": { "supported": false },
@@ -819,12 +823,12 @@
         "supported": true
       },
       // Sail 0.16 per-bit masks. SE0 writable for Ssstateen (revision 2, as upstream sail-RVA23S64).
-      // ENVCFG writable for Smstateen; the other bits are not measured on the K3 yet.
-      "mstateen0": {"SE0": "CSRBit_Writable", "ENVCFG": "CSRBit_Writable", "CONTEXT": "CSRBit_ReadOnlyZero", "P1P13": "CSRBit_ReadOnlyZero", "SRMCFG": "CSRBit_ReadOnlyZero", "FCSR": "CSRBit_ReadOnlyZero", "C": "CSRBit_ReadOnlyZero"},
+      // ENVCFG writable for Smstateen; CONTEXT writable in mstateen0 and hstateen0 (sdtrig_probe v2).
+      "mstateen0": {"SE0": "CSRBit_Writable", "ENVCFG": "CSRBit_Writable", "CONTEXT": "CSRBit_Writable", "P1P13": "CSRBit_ReadOnlyZero", "SRMCFG": "CSRBit_ReadOnlyZero", "FCSR": "CSRBit_ReadOnlyZero", "C": "CSRBit_ReadOnlyZero"},
       "mstateen1": {"SE1": "CSRBit_Writable"},
       "mstateen2": {"SE2": "CSRBit_Writable"},
       "mstateen3": {"SE3": "CSRBit_Writable"},
-      "hstateen0": {"ENVCFG": "CSRBit_Writable", "CONTEXT": "CSRBit_ReadOnlyZero", "FCSR": "CSRBit_ReadOnlyZero", "C": "CSRBit_ReadOnlyZero"},
+      "hstateen0": {"ENVCFG": "CSRBit_Writable", "CONTEXT": "CSRBit_Writable", "FCSR": "CSRBit_ReadOnlyZero", "C": "CSRBit_ReadOnlyZero"},
       "sstateen0": {"FCSR": "CSRBit_ReadOnlyZero", "C": "CSRBit_ReadOnlyZero"}
     },
     "Ssqosid": {

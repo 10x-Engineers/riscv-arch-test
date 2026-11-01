@@ -62,6 +62,10 @@ class Config(BaseModel):
     # Cases to drop from tests before they are built (act/exclude_cases.py): tab-separated test name,
     # case-label regex and reason. For cases that stop at a known hardware deviation.
     exclude_cases_file: FilePath | None = None
+    # Final-ELF shrinking for boards that stream ELFs over a slow link (act/slim_elf.py): drop debug info and
+    # local symbols, and cap the signature range a runner dumps on failure (bytes, 0 = unchanged).
+    final_elf_discard_locals: bool = False
+    final_elf_signature_dump_bytes: int = Field(default=0, ge=0)
 
     model_config = {"frozen": True}
 

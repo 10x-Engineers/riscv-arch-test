@@ -19,6 +19,11 @@ exclude_tests:
   # Every case has a tag above the 40-bit physical width that Bare mode does not mask (HW-7).
   - Smnpm_S_bare_pmm00_sweep_hightags
   - Ssnpm_bare_pmm00_sweep_hightags
+# The runner streams each ELF over 115200-baud UART and dumps the signature region on failure:
+# drop debug info and local symbols (~30% smaller), and dump at most 4 KiB (k3-act-loop #2: the full
+# [SIGQ] dump was 97% of the ~51 s a failing test adds).
+final_elf_discard_locals: true
+final_elf_signature_dump_bytes: 4096
 # Cases that stop at a known K3 hardware deviation; the rest of each test still runs.
 exclude_cases_file: exclude_cases.tsv
 # Board debug loop (k3-act-loop job): the only tests this branch runs. Iteration 1: the suites the

@@ -16,6 +16,11 @@ exclude_tests:
   - SdtrigSm_etrigger_cross_priv_s
   - SdtrigSm_etrigger_cross_priv_u
   - SdtrigU_etrigger_u
+  # Every case has a tag above the 40-bit physical width that Bare mode does not mask (HW-7).
+  - Smnpm_S_bare_pmm00_sweep_hightags
+  - Ssnpm_bare_pmm00_sweep_hightags
+# Cases that stop at a known K3 hardware deviation; the rest of each test still runs.
+exclude_cases_file: exclude_cases.tsv
 # Board debug loop (k3-act-loop job): the only tests this branch runs. Iteration 1: the suites the
 # AIA, Sdtrig and stateen CONTEXT config changes affect (k3-uart-weekly #6 follow-up).
 include_tests:

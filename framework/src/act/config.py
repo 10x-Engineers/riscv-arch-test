@@ -59,6 +59,9 @@ class Config(BaseModel):
     # When set, the only tests this DUT runs: entries match like exclude_tests, or name one test exactly
     # (H_vucsr-01). For board debug loops that rerun just the tests still being worked on.
     include_tests: tuple[str, ...] = ()
+    # Cases to drop from tests before they are built (act/exclude_cases.py): tab-separated test name,
+    # case-label regex and reason. For cases that stop at a known hardware deviation.
+    exclude_cases_file: FilePath | None = None
 
     model_config = {"frozen": True}
 
@@ -107,7 +110,7 @@ class Config(BaseModel):
                 raise ValueError(f"Unable to infer reference model type from ref_model_exe: {ref_model_exe}")
         return data
 
-    @field_validator("udb_config", "linker_script", "dut_include_dir", mode="before")
+    @field_validator("udb_config", "linker_script", "dut_include_dir", "exclude_cases_file", mode="before")
     @classmethod
     def resolve_relative_paths(cls, v: str | None, info: ValidationInfo) -> Path | None:
         """Resolve relative paths relative to config file."""

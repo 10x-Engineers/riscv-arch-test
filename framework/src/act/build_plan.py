@@ -17,6 +17,7 @@ import pyjson5
 from act.build_types import COVERAGE_STEP_TIMEOUT_SECONDS, BuildTask, PythonAction, SubprocessAction, SymlinkAction
 from act.config import Config, CoverageSimulator, RefModelType
 from act.coverreport import generate_report, merge_summaries
+from act.exclude_cases import drop_cases, load_exclude_cases
 from act.parse_test_constraints import TestMetadata
 from act.sail_to_rvvi import sailLog2Trace
 from act.sig_modify import process_signature_file
@@ -182,6 +183,21 @@ def gen_compile_tasks(
     )
     test_flen = test_metadata.flen
     test_path = test_metadata.test_path
+    exclude_inputs: tuple[Path, ...] = ()
+    if config.exclude_cases_file is not None:
+        patterns = load_exclude_cases(config.exclude_cases_file).get(test_name.stem)
+        if patterns:
+            # Build a copy without the excluded cases; rewrite it only when it changes, so the
+            # build stays incremental.
+            source, dropped = drop_cases(test_path.read_text(), patterns, test_name.stem)
+            if not dropped:
+                raise ValueError(f"{test_name.stem}: no case matches its exclude_cases_file entries")
+            trimmed = build_dir / test_name.with_suffix(".cases.S")
+            trimmed.parent.mkdir(parents=True, exist_ok=True)
+            if not trimmed.exists() or trimmed.read_text() != source:
+                trimmed.write_text(source)
+            exclude_inputs = (test_path, config.exclude_cases_file)
+            test_path = trimmed
     mabi = f"{'i' if xlen == 32 else ''}lp{xlen}{'e' if test_metadata.e_ext else ''}"
     c_compile_flags = (
         ["-ffreestanding", "-fno-builtin", "-msmall-data-limit=0", "-std=gnu99"] if test_metadata.is_c_test else []
@@ -194,7 +210,7 @@ def gen_compile_tasks(
     test_sources = [str(test_path)]
     if test_metadata.is_c_test:
         test_sources = [str(source) for source in c_runtime_sources] + test_sources
-    test_inputs = (test_path, *compile_inputs)
+    test_inputs = (test_path, *exclude_inputs, *compile_inputs)
 
     if test_metadata.needs_signature:
         # 1. sig.elf – compile with -DSIGNATURE

@@ -165,8 +165,8 @@ params:
   SUPPORTED_PMLEN_SSNPM: [0, 7]
   # Smnpm params: menvcfg.PMM = 2 (PMLEN 7) measured on the K3 (k3-uart-weekly #5); PMLEN 16 UNVERIFIED
   SUPPORTED_PMLEN_SMNPM: [0, 7]
-  # Smstateen params: ENVCFG exists on the K3 (k3-uart-weekly #5: S-mode senvcfg accesses trap
-  # while it is 0); that it is writable is UNVERIFIED until the Smstateen suite runs on the board
+  # Smstateen params: ENVCFG gates senvcfg on the K3 (k3-uart-weekly #5: S-mode senvcfg accesses trap
+  # while it is 0) and is writable (sdtrig_probe v2, below)
   MSTATEEN_ENVCFG_TYPE: rw
   # sdtrig_probe v2 (single-ELF #192): mstateen0 and hstateen0 both read 0xde00000000000000 after
   # writing all ones: SE0, ENVCFG, CSRIND, AIA, IMSIC and CONTEXT are writable (k3-uart-weekly #6:
@@ -671,7 +671,7 @@ params:
       false,
       false,
     ]
-  HSTATEEN_ENVCFG_TYPE: rw       # as MSTATEEN_ENVCFG_TYPE, UNVERIFIED on the K3
+  HSTATEEN_ENVCFG_TYPE: rw       # sdtrig_probe v2: hstateen0 bit 62 writable
   HSTATEEN_CSRIND_TYPE: rw       # as the MSTATEEN_*_TYPE above (k3-uart-weekly #6, Smstateen-01)
   HSTATEEN_AIA_TYPE: rw
   HSTATEEN_IMSIC_TYPE: rw

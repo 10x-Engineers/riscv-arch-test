@@ -36,7 +36,9 @@ pipeline {
             description: 'Optional override; blank uses ci/runner_inventory.json.')
         string(name: 'UART_READY_TIMEOUT', defaultValue: '120',
             description: 'Seconds allowed for each power-cycled K3 to advertise READY.')
-        string(name: 'UART_RESULT_TIMEOUT', defaultValue: '900',
+        // Tests reach their verdict in under a second (k3-act-loop #2: max 0.3 s) and the capped dump takes a few
+        // seconds, so a longer wait only delays a hung test.
+        string(name: 'UART_RESULT_TIMEOUT', defaultValue: '120',
             description: 'Seconds allowed for each ELF to finish after transfer.')
     }
 
@@ -48,6 +50,8 @@ pipeline {
         TEST_SCOPE = 'all'
         INSTALLED_RUNNER_BUILD = "${params.INSTALLED_RUNNER_BUILD ?: ''}"
         UART_DEVICE_NAME = "${params.POWER_DEVICE_NAME ?: 'MELECTRO:4'}"
+        // Largest signature region an ELF may give the runner to dump on failure (see the stage below).
+        MAX_SIG_DUMP_BYTES = '4096'
         PATH = '/data/ci/bin:/data/ci/toolchains/riscv64/bin:/usr/local/bin:/usr/bin:/bin'
     }
 
@@ -107,6 +111,36 @@ pipeline {
 
         stage('Generate Selected Tests + Sail') {
             steps { sh 'ci/jenkins/uart_weekly_k3.sh prepare' }
+        }
+
+        // The runner dumps begin_signature..end_signature over UART when a test fails: ~1 h per MB at 115200
+        // baud. The ACT config caps the range (final_elf_signature_dump_bytes); stop before the board if an
+        // ELF was built without it.
+        stage('Check Signature Dump Size') {
+            steps {
+                sh '''#!/usr/bin/env bash
+                    set -euo pipefail
+                    nm_exe=""
+                    for c in riscv64-unknown-elf-nm riscv64-linux-gnu-nm nm; do
+                      if command -v "$c" >/dev/null; then nm_exe=$c; break; fi
+                    done
+                    [[ -n "$nm_exe" ]] || { echo 'no nm found' >&2; exit 1; }
+                    total=0; bad=0
+                    while IFS= read -r -d '' elf; do
+                      total=$((total + 1))
+                      read -r b e < <("$nm_exe" "$elf" | awk '$3 == "begin_signature" { b = $1 } $3 == "end_signature" { e = $1 }
+                                         END { print (b == "" ? 0 : b), (e == "" ? 0 : e) }')
+                      span=$(( 0x$e - 0x$b ))
+                      if (( span > MAX_SIG_DUMP_BYTES )); then
+                        echo "signature dump $span bytes > $MAX_SIG_DUMP_BYTES: $elf" >&2
+                        bad=$((bad + 1))
+                      fi
+                    done < <(find external/riscv-arch-test -path '*/elfs/*' -name '*.elf' \
+                               ! -name '*.sig.elf' ! -name '*.full.elf' -print0)
+                    echo "Checked $total ELFs: $bad with a signature dump above $MAX_SIG_DUMP_BYTES bytes"
+                    (( total > 0 && bad == 0 ))
+                '''
+            }
         }
 
         stage('Build Candidate K3 UART Runner') {

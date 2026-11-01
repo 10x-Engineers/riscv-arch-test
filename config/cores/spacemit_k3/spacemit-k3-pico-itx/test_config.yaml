@@ -16,3 +16,12 @@ exclude_tests:
   - SdtrigSm_etrigger_cross_priv_s
   - SdtrigSm_etrigger_cross_priv_u
   - SdtrigU_etrigger_u
+# Board debug loop (k3-act-loop job): the only tests this branch runs. Iteration 1: the suites the
+# AIA, Sdtrig and stateen CONTEXT config changes affect (k3-uart-weekly #6 follow-up).
+include_tests:
+  - SdtrigS
+  - SdtrigSm
+  - SdtrigU
+  - Smstateen
+  - Ssstateen
+  - H

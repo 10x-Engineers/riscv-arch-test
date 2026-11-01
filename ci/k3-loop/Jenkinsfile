@@ -1,0 +1,144 @@
+// K3 ACT debug loop: k3-uart-weekly without Spike, triage, portal publishing or bulk archiving.
+// Runs the tests the ACT branch's K3 test_config.yaml selects (include_tests) and reports pass/fail only.
+// Same runner scripts and hardware lock as k3-uart-weekly; its own workspace so the two never share files.
+pipeline {
+    agent {
+        node {
+            label 'riscv-hw-agent'
+            customWorkspace '/data/ci/agent/workspace/k3-act-loop'
+        }
+    }
+
+    options {
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '30', artifactNumToKeepStr: '30'))
+        timeout(time: 48, unit: 'HOURS')
+        timestamps()
+        skipDefaultCheckout(true)
+    }
+
+    parameters {
+        string(name: 'ACT_REMOTE_URL', defaultValue: 'https://github.com/10x-Engineers/riscv-arch-test.git',
+            description: 'ACT repository with the K3 loop branch.')
+        string(name: 'ACT_BRANCH', defaultValue: 'k3/loop',
+            description: 'ACT branch; its K3 test_config.yaml include_tests selects the tests to run.')
+        string(name: 'ACT_REVISION_OVERRIDE', defaultValue: '',
+            description: 'Optional exact ACT commit.')
+        string(name: 'RUNNER_BRANCH', defaultValue: 'vf2-uart-stream-jenkins',
+            description: 'Runner branch resolved once at checkout.')
+        string(name: 'RUNNER_REVISION_OVERRIDE', defaultValue: '',
+            description: 'Optional exact runner commit.')
+        string(name: 'SERIAL_DEV', defaultValue: '/dev/ttyCI-k3',
+            description: 'K3 Pico-ITX USB-TTL adapter.')
+        string(name: 'POWER_DEVICE_NAME', defaultValue: 'MELECTRO:4',
+            description: 'K3 smart-outlet name in devices.json.')
+        string(name: 'INSTALLED_RUNNER_BUILD', defaultValue: '',
+            description: 'Optional override; blank uses ci/runner_inventory.json.')
+        string(name: 'UART_READY_TIMEOUT', defaultValue: '120',
+            description: 'Seconds allowed for each power-cycled K3 to advertise READY.')
+        string(name: 'UART_RESULT_TIMEOUT', defaultValue: '900',
+            description: 'Seconds allowed for each ELF to finish after transfer.')
+    }
+
+    environment {
+        RUNNER_REMOTE_URL = 'https://github.com/farazahmad204/ACT-Runner-for-Vision-Five-2-RISC-V-Board-.git'
+        LOCAL_TOOLS_SOURCE = '/data/ci/tools'
+        LOCAL_TUYA_DEVICES_SOURCE = '/data/ci/devices.json'
+        REGENERATE_TESTS = 'true'
+        TEST_SCOPE = 'all'
+        INSTALLED_RUNNER_BUILD = "${params.INSTALLED_RUNNER_BUILD ?: ''}"
+        UART_DEVICE_NAME = "${params.POWER_DEVICE_NAME ?: 'MELECTRO:4'}"
+        PATH = '/data/ci/bin:/data/ci/toolchains/riscv64/bin:/usr/local/bin:/usr/bin:/bin'
+    }
+
+    stages {
+        stage('Clean Checkout') {
+            steps {
+                deleteDir()
+                sh '''#!/usr/bin/env bash
+                    set -euo pipefail
+                    runner_branch="${RUNNER_BRANCH:-vf2-uart-stream-jenkins}"
+                    runner_revision_override="${RUNNER_REVISION_OVERRIDE:-}"
+                    git check-ref-format --branch "$runner_branch" >/dev/null
+                    git init .
+                    git remote add origin "$RUNNER_REMOTE_URL"
+                    runner_ref="refs/remotes/origin/$runner_branch"
+                    fetch_ok=false
+                    for attempt in 1 2 3 4; do
+                      echo "Runner fetch attempt ${attempt}/4"
+                      if timeout 180 git -c http.lowSpeedLimit=1 -c http.lowSpeedTime=30 \
+                        fetch --force --prune origin "+refs/heads/$runner_branch:$runner_ref"; then
+                        fetch_ok=true
+                        break
+                      fi
+                      [[ "$attempt" -eq 4 ]] || sleep "$((attempt * 15))"
+                    done
+                    [[ "$fetch_ok" == true ]] || { echo "Runner fetch failed: $runner_branch" >&2; exit 1; }
+                    fetched="$(git rev-parse --verify "${runner_ref}^{commit}")"
+                    selected="${runner_revision_override:-$fetched}"
+                    selected="$(git rev-parse --verify "$selected^{commit}")"
+                    git checkout --detach "$selected"
+                    submodule_ok=false
+                    for attempt in 1 2 3 4; do
+                      if timeout 300 git -c http.lowSpeedLimit=1 -c http.lowSpeedTime=30 \
+                        submodule update --init external/riscv-arch-test; then
+                        submodule_ok=true
+                        break
+                      fi
+                      [[ "$attempt" -eq 4 ]] || sleep "$((attempt * 15))"
+                    done
+                    [[ "$submodule_ok" == true ]] || { echo 'ACT submodule update failed' >&2; exit 1; }
+                    mkdir -p tools
+                    cp -a "$LOCAL_TOOLS_SOURCE/." tools/
+                    install -m 0600 "$LOCAL_TUYA_DEVICES_SOURCE" devices.json
+                    {
+                      echo "Runner branch: $runner_branch"
+                      echo "Runner SHA:    $selected"
+                      echo "Checkout:      detached"
+                    } | tee .jenkins_runner_resolution.txt
+                    test -x ci/jenkins/uart_weekly_k3.sh
+                '''
+            }
+        }
+
+        stage('K3 ACT Preflight') {
+            steps { sh 'ci/jenkins/uart_weekly_k3.sh preflight' }
+        }
+
+        stage('Generate Selected Tests + Sail') {
+            steps { sh 'ci/jenkins/uart_weekly_k3.sh prepare' }
+        }
+
+        stage('Build Candidate K3 UART Runner') {
+            steps { sh 'ci/jenkins/uart_weekly_k3.sh verify-runner-image' }
+        }
+
+        stage('K3 UART Execute') {
+            steps {
+                lock(resource: 'k3-hardware') {
+                    catchError(buildResult: 'UNSTABLE', stageResult: 'UNSTABLE') {
+                        sh '''#!/usr/bin/env bash
+                            SERIAL_DEV="$SERIAL_DEV" \
+                            UART_READY_TIMEOUT="$UART_READY_TIMEOUT" \
+                            UART_RESULT_TIMEOUT="$UART_RESULT_TIMEOUT" \
+                              ci/jenkins/uart_weekly_k3.sh run
+                        '''
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            // Verdicts only: the console carries every [CASE] RESULT and RVCP report. Keep the two summary
+            // files, not the per-test logs (k3-uart-weekly #6 spent hours fingerprinting ~18,000 of them).
+            sh 'test ! -x ci/jenkins/uart_weekly_k3.sh || ci/jenkins/uart_weekly_k3.sh finalize || true'
+            junit testResults: "logs/runs/jenkins_k3_uart_weekly_${env.BUILD_NUMBER}/junit.xml",
+                  allowEmptyResults: true
+            archiveArtifacts artifacts: "logs/runs/jenkins_k3_uart_weekly_${env.BUILD_NUMBER}/summary.json, logs/runs/jenkins_k3_uart_weekly_${env.BUILD_NUMBER}/junit.xml",
+                             allowEmptyArchive: true,
+                             fingerprint: false
+        }
+    }
+}

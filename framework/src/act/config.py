@@ -56,6 +56,9 @@ class Config(BaseModel):
     # Test groups this DUT never runs, matched like --exclude (a suite directory, or a file-name prefix
     # followed by _ or -). For tests that cannot complete on the hardware, such as accesses that hang it.
     exclude_tests: tuple[str, ...] = ()
+    # When set, the only tests this DUT runs: entries match like exclude_tests, or name one test exactly
+    # (H_vucsr-01). For board debug loops that rerun just the tests still being worked on.
+    include_tests: tuple[str, ...] = ()
 
     model_config = {"frozen": True}
 

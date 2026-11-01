@@ -229,6 +229,15 @@ def prepare_configs_and_select_tests(
             certificate_tests = filter_tests_by_certificate(selected_tests, certificate)
             _print_skipped_suites(config.name, certificate, selected_tests, certificate_tests)
             selected_tests = certificate_tests
+        if config.include_tests:
+            entries = list(config.include_tests)
+            kept = {
+                name: meta
+                for name, meta in selected_tests.items()
+                if Path(name).stem in entries or _is_excluded(Path(name), entries)
+            }
+            rprint(f"[bold yellow]{config.name}:[/] running {len(kept)} of {len(selected_tests)} tests listed in include_tests")
+            selected_tests = kept
         if config.exclude_tests:
             excluded = [name for name in selected_tests if _is_excluded(Path(name), list(config.exclude_tests))]
             for name in excluded:

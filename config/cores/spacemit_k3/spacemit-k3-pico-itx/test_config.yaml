@@ -16,6 +16,16 @@ exclude_tests:
   - SdtrigSm_etrigger_cross_priv_s
   - SdtrigSm_etrigger_cross_priv_u
   - SdtrigU_etrigger_u
+  # Every case stops at a confirmed K3 deviation (sdtrig_probe v5, single-ELF #196): triggers do not see AMOs,
+  # lr or sc. tselect_trigs: Sail gives every trigger the same types (Sail limitation).
+  - SdtrigS_amo
+  - SdtrigSm_amo
+  - SdtrigU_amo
+  - SdtrigS_lrsc_addr
+  - SdtrigSm_lrsc_addr
+  - SdtrigU_lrsc_addr
+  - SdtrigS_tselect_trigs
+  - SdtrigSm_tselect_trigs
   # Every case has a tag above the 40-bit physical width that Bare mode does not mask (HW-7).
   - Smnpm_S_bare_pmm00_sweep_hightags
   - Ssnpm_bare_pmm00_sweep_hightags
@@ -27,12 +37,10 @@ final_elf_discard_locals: true
 final_elf_signature_dump_bytes: 64
 # Cases that stop at a known K3 hardware deviation; the rest of each test still runs.
 exclude_cases_file: exclude_cases.tsv
-# Board debug loop (k3-act-loop job): the only tests this branch runs. Iteration 1: the suites the
-# AIA, Sdtrig and stateen CONTEXT config changes affect (k3-uart-weekly #6 follow-up).
+# Board debug loop (k3-act-loop job): the only tests this branch runs. Iteration 3: the M-mode trigger suite
+# with tcontrol reentrancy, and the stateen tests with the hcontext-width cases dropped. SdtrigS/SdtrigU boot with
+# medeleg[3] = 1, which Sail cannot model together with Use_tcontrol, so they are not run with this config.
 include_tests:
-  - SdtrigS
   - SdtrigSm
-  - SdtrigU
   - Smstateen
   - Ssstateen
-  - H

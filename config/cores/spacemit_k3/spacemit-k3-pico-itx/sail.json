@@ -59,10 +59,12 @@
       }
     },
     // With H: bit 10 (ecall from VS) and bits 20-23 (guest page faults) are delegatable too.
+    // Bit 3 (breakpoint) is delegatable on the K3, but Sail requires it hard-wired to 0 with Use_tcontrol
+    // reentrancy (Sail limitation): suites that boot with medeleg[3] = 1 (SdtrigS, SdtrigU) do not match here.
     "medeleg": {
       "delegatable_bits": {
         "len": 64,
-        "value": "0x0000_0000_00F0_B7FF"
+        "value": "0x0000_0000_00F0_B7F7"
       }
     },
     "mideleg": {
@@ -333,7 +335,8 @@
       // . `No_reentrancy_support`: no specific support for reentrancy
       // Note: `Use_tcontrol` hardwires medeleg[3] to 0, which breaks the
       // `sbreak` test in `riscv-tests`.
-      "breakpoint_reentrancy": "Use_interrupt_enables",
+      // K3: tcontrol (sdtrig_probe v5, single-ELF #196).
+      "breakpoint_reentrancy": "Use_tcontrol",
       "etrigger": {
         "supported": true,
         // A bit set to 1 in this value specifies that the

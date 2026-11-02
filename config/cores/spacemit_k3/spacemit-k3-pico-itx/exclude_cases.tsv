@@ -2374,3 +2374,5 @@ H_VF_VU-00	H_VF_cg_cp_vectorfp_vsstatus_fs_state_affecting_csr_vmflt_nan_fs2_hs2
 H_VF_VU-00	H_VF_cg_cp_vectorfp_vsstatus_fs_state_affecting_csr_vmflt_nan_fs2_hs3	HW-8 vsstatus.FS not set Dirty in VU
 H_hcsr_access-00	H_hscsr_cg_cp_hcsr_access_hedeleg_p113_writable	HW-10 hedeleg[19:18] read-only zero
 Sm_H_hcsr_access-00	Sm_H_mcsr_cg_cp_hcsr_access_hedeleg_p113_writable	HW-10 hedeleg[19:18] read-only zero
+Smstateen-00	\w+_cg_cp_context_\w+_hcontext_(csrrw1|csrs_all|csrrc_all)	Sail limitation: hcontext is 14 bits in Sail, 13 on the K3
+Ssstateen-01	\w+_cg_cp_hstateen_context_\w+_hcontext_(csrrw1|csrs_all|csrrc_all)	Sail limitation: hcontext is 14 bits in Sail, 13 on the K3

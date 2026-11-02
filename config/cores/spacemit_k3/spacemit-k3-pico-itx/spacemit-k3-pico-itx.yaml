@@ -180,11 +180,14 @@ params:
   # itrigger, etrigger). mcontrol6: match 0/1, size 0/1/2/3/5, action 0/2/3/4, NAPOT tdata2 keeps 7
   # trailing ones (maskmax6 8), chain holds on trigger 0 but not on trigger 1 (length 2), m/s/u/vs/vu,
   # execute/load/store and select writable. icount count reads 1 whatever is written. tcontrol reads 0.
+  # sdtrig_probe v4/v5 (single-ELF #195, #196): M-mode triggers do not fire with mstatus.MIE = 1 and tcontrol.mte = 0;
+  # tcontrol mte/mpte are writable (0x88) and with mte = 1 a store trigger fires with MIE = 0: tcontrol reentrancy.
   # textra64 (tdata3): mhvalue 13 bits, svalue 34 bits; mhselect/sselect read 0 after writing all ones (reserved
   # values), so which context matches exist is UNVERIFIED and they are declared unsupported.
   SDTRIG_NUM_TRIGGERS: 4
-  SDTRIG_BREAKPOINT_REENTRANCY: Use_interrupt_enables   # UNVERIFIED; medeleg[3] is delegatable, so not Use_tcontrol
-  TCONTROL_IMPLEMENTED: false   # reads 0 without a trap; writability not measured
+  # medeleg[3] is delegatable on the K3 as well; Sail 0.16 cannot model that with Use_tcontrol (see sail.json).
+  SDTRIG_BREAKPOINT_REENTRANCY: Use_tcontrol
+  TCONTROL_IMPLEMENTED: true
   TDATA2_IMPLEMENTED: true
   TDATA3_IMPLEMENTED: true
   SDTRIG_M_WRITABLE: true
@@ -477,14 +480,15 @@ params:
   VFREDUSUM_FINAL_NODE_ELEMENT_BEHAVIOR: "additive_identity"
   IMPRECISE_VECTOR_TRAP_SETTABLE: false
   RVV_VL_WHEN_AVL_LT_DOUBLE_VLMAX: VLMAX
-  # Same bits as sail.json medeleg.delegatable_bits (0xf0b7ff). With H: bit 10 (ecall from VS) and 20-23
+  # Same bits as sail.json medeleg.delegatable_bits (0xf0b7f7). With H: bit 10 (ecall from VS) and 20-23
   # (guest page faults) are delegatable too, as on k3-uart-hypervisor #5 (megrez-hypervisor-sail015 config).
+  # Bit 3 (breakpoint) is delegatable on the K3, but UDB and Sail require it false with Use_tcontrol reentrancy.
   MEDELEG_DELEGATABLE:
     [
       true,
       true,
       true,
-      true,
+      false,
       true,
       true,
       true,

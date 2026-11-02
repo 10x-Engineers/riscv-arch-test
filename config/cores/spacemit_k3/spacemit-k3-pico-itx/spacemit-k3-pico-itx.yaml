@@ -93,6 +93,17 @@ implemented_extensions:
   - { name: Zimop,        version: "= 1.0.0" }
   - { name: Zvbb,         version: "= 1.0.0" }
   - { name: Zvkb,         version: "= 1.0.0" }
+  # BF16 and vector crypto: in the K3 device tree (riscv,isa-extensions), not declared before (coverage audit 2026-11-02)
+  - { name: Zfbfmin,      version: "= 1.0.0" }
+  - { name: Zvfbfmin,     version: "= 1.0.0" }
+  - { name: Zvfbfwma,     version: "= 1.0.0" }
+  - { name: Zvbc,         version: "= 1.0.0" }
+  - { name: Zvkg,         version: "= 1.0.0" }
+  - { name: Zvkned,       version: "= 1.0.0" }
+  - { name: Zvknha,       version: "= 1.0.0" }
+  - { name: Zvknhb,       version: "= 1.0.0" }
+  - { name: Zvksed,       version: "= 1.0.0" }
+  - { name: Zvksh,        version: "= 1.0.0" }
   - { name: Smstateen,    version: "= 1.0.0" }   # mstateen0.ENVCFG gates senvcfg (k3-uart-weekly #5)
   - { name: Ssstateen,    version: "= 1.0.0" }
   # Triggers: 4 (sdtrig_probe v1-v3, single-ELF #191, #192, #194; parameters below)

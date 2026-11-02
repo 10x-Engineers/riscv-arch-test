@@ -37,10 +37,18 @@ final_elf_discard_locals: true
 final_elf_signature_dump_bytes: 64
 # Cases that stop at a known K3 hardware deviation; the rest of each test still runs.
 exclude_cases_file: exclude_cases.tsv
-# Board debug loop (k3-act-loop job): the only tests this branch runs. Iteration 3: the M-mode trigger suite
-# with tcontrol reentrancy, and the stateen tests with the hcontext-width cases dropped. SdtrigS/SdtrigU boot with
-# medeleg[3] = 1, which Sail cannot model together with Use_tcontrol, so they are not run with this config.
+# Board debug loop (k3-act-loop job): the only tests this branch runs. Iteration 4: BF16 and vector crypto, which
+# the K3 device tree lists but the config did not declare, and Smstateen with the widened hcontext exclusion.
 include_tests:
-  - SdtrigSm
+  - Zfbfmin
+  - Zvfbfmin
+  - Zvfbfwma
+  - Zvbc64
+  - Zvkg
+  - Zvkned
+  - Zvknha
+  - Zvknhb32
+  - Zvknhb64
+  - Zvksed
+  - Zvksh
   - Smstateen
-  - Ssstateen

@@ -597,7 +597,7 @@
       "supported": true
     },
     "Zfbfmin": {
-      "supported": false
+      "supported": true
     },
     "Zfh": {
       "supported": true
@@ -682,10 +682,10 @@
       "supported": false
     },
     "Zvfbfmin": {
-      "supported": false
+      "supported": true
     },
     "Zvfbfwma": {
-      "supported": false
+      "supported": true
     },
     "Zvfh": {
       "supported": true
@@ -697,28 +697,28 @@
       "supported": true
     },
     "Zvbc": {
-      "supported": false
+      "supported": true
     },
     "Zvkb": {
       "supported": true
     },
     "Zvkg": {
-      "supported": false
+      "supported": true
     },
     "Zvkned": {
-      "supported": false
+      "supported": true
     },
     "Zvknha": {
-      "supported": false
+      "supported": true
     },
     "Zvknhb": {
-      "supported": false
+      "supported": true
     },
     "Zvksed": {
-      "supported": false
+      "supported": true
     },
     "Zvksh": {
-      "supported": false
+      "supported": true
     },
     "Zvkt": {
       "supported": true

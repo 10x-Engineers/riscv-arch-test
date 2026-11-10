@@ -5,3 +5,63 @@ ref_model_exe: sail_riscv_sim
 udb_config: visionfive2-rv64gc.yaml
 linker_script: link.ld
 dut_include_dir: .
+# The runner streams each ELF over 115200-baud UART and dumps the whole signature region on failure (~1 h per
+# MB). Self-checking tests report the failure in the RVCP/[FAILQ]/[REGS] lines, so keep 64 bytes of the dump;
+# ci/vf2-loop/Jenkinsfile refuses ELFs above 4 KiB before the board.
+final_elf_discard_locals: true
+final_elf_signature_dump_bytes: 64
+# Cases dropped before build (Sail cannot model the board; see the reason column).
+exclude_cases_file: exclude_cases.tsv
+# Board debug loop (vf2-act-loop job): the only tests this branch runs. Iteration 1: the 45 tests that failed in
+# vf2-uart-weekly #14, rerun with the corrected config (sail.json without H, asidlen 0, 40-bit HPM counters,
+# 64-byte reservation set; no SSW interrupt macro; misaligned invalid-PTE cases dropped), plus the three
+# interrupt tests upstream act4 added since. The other 548 tests keep the same Sail signature.
+include_tests:
+  - InterruptsS_enable_S-00
+  - InterruptsS_enable_U-00
+  - InterruptsS_priority_sie_S-00
+  - InterruptsS_priority_sie_U-00
+  - InterruptsS_priority_sip_S-00
+  - InterruptsS_priority_sip_U-00
+  - InterruptsS_trigger_S-00
+  - InterruptsS_trigger_U-00
+  - InterruptsS_trigger_vsti_sstc_S-00
+  - InterruptsS_trigger_vsti_sstc_U-00
+  - InterruptsSm_enable_M-00
+  - InterruptsSm_enable_S-00
+  - InterruptsSm_enable_U-00
+  - InterruptsSm_priority_mideleg_M-00
+  - InterruptsSm_priority_mideleg_S-00
+  - InterruptsSm_priority_mideleg_U-00
+  - InterruptsSm_priority_mie_M-00
+  - InterruptsSm_priority_mie_S-00
+  - InterruptsSm_priority_mie_U-00
+  - InterruptsSm_priority_mip_M-00
+  - InterruptsSm_priority_mip_S-00
+  - InterruptsSm_priority_mip_U-00
+  - InterruptsSm_trigger_M-00
+  - InterruptsSm_trigger_S-00
+  - InterruptsSm_trigger_U-00
+  - InterruptsSm_trigger_vsti_sstc_M-00
+  - Sm_Zicntr-00
+  - Sm_mcsr_access-00
+  - Sm_mcsr_cntr-00
+  - Sm_mcsr_walk-00
+  - Sm_mcsr_walk-01
+  - Sm_mcsr_walk-02
+  - Sm_shadow-00
+  - Sv_ExceptionsSm_sv39_exceptions_mprv_S_Mmode-00
+  - Sv_ExceptionsSm_sv39_exceptions_mprv_U_Mmode-00
+  - Sv_ExceptionsZaamoSm_sv39_exceptions_Zaamo_mprv_S_Mmode-00
+  - Sv_ExceptionsZaamo_sv39_exceptions_Zaamo_Smode-00
+  - Sv_ExceptionsZaamo_sv39_exceptions_Zaamo_Umode-00
+  - Sv_ExceptionsZalrscSm_sv39_exceptions_Zalrsc_mprv_S_Mmode-00
+  - Sv_ExceptionsZalrsc_sv39_exceptions_Zalrsc_Smode-00
+  - Sv_ExceptionsZalrsc_sv39_exceptions_Zalrsc_Umode-00
+  - Sv_Exceptions_sv39_exceptions_Smode-00
+  - Sv_Exceptions_sv39_exceptions_Umode-00
+  - Sv_Sm_sv39_satp_access_Mmode-00
+  - Sv_sv39_satp_access_Smode-00
+  - U_Zicntr-00
+  - Zalrsc-sc.d-00
+  - Zalrsc-sc.w-00

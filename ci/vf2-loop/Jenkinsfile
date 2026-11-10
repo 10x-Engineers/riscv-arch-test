@@ -1,0 +1,180 @@
+// VF2 ACT debug loop: vf2-uart-weekly without Spike, triage, portal publishing or bulk archiving.
+// Runs the tests the ACT branch's VF2 test_config.local.yaml selects (include_tests) and reports pass/fail only.
+// Same runner scripts and hardware lock as vf2-uart-weekly; its own workspace so the two never share files.
+pipeline {
+    agent {
+        node {
+            label 'riscv-hw-agent'
+            customWorkspace '/data/ci/agent/workspace/vf2-act-loop'
+        }
+    }
+
+    options {
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '30', artifactNumToKeepStr: '30'))
+        timeout(time: 48, unit: 'HOURS')
+        timestamps()
+        skipDefaultCheckout(true)
+    }
+
+    parameters {
+        string(name: 'ACT_REMOTE_URL', defaultValue: 'https://github.com/10x-Engineers/riscv-arch-test.git',
+            description: 'ACT repository with the VF2 loop branch.')
+        string(name: 'ACT_BRANCH', defaultValue: 'vf2/loop',
+            description: 'ACT branch; its VF2 test_config.local.yaml include_tests selects the tests to run.')
+        string(name: 'ACT_REVISION_OVERRIDE', defaultValue: '',
+            description: 'Optional exact ACT commit.')
+        string(name: 'RUNNER_BRANCH', defaultValue: 'vf2-uart-stream-jenkins',
+            description: 'Runner branch resolved once at checkout.')
+        string(name: 'RUNNER_REVISION_OVERRIDE', defaultValue: '',
+            description: 'Optional exact runner commit.')
+        string(name: 'SERIAL_DEV', defaultValue: '/dev/ttyCI-vf2',
+            description: 'VisionFive 2 USB-TTL adapter.')
+        string(name: 'POWER_DEVICE_NAME', defaultValue: 'MELECTRO:2',
+            description: 'VF2 smart-outlet name in devices.json.')
+        string(name: 'INSTALLED_RUNNER_BUILD', defaultValue: '',
+            description: 'Optional override; blank uses ci/runner_inventory.json.')
+        // vf2-uart-weekly default: the VF2 takes longer than the K3 to boot to READY after a power cycle.
+        string(name: 'UART_READY_TIMEOUT', defaultValue: '180',
+            description: 'Seconds allowed for each power-cycled VF2 to advertise READY.')
+        // K3 tests reach their verdict in under a second (k3-act-loop #2: max 0.3 s) and the capped dump takes a few
+        // seconds. The U74 is slower and the PLIC interrupt tests poll with long latency loops: 300 s until the
+        // first loop run measures it.
+        string(name: 'UART_RESULT_TIMEOUT', defaultValue: '300',
+            description: 'Seconds allowed for each ELF to finish after transfer.')
+    }
+
+    environment {
+        RUNNER_REMOTE_URL = 'https://github.com/farazahmad204/ACT-Runner-for-Vision-Five-2-RISC-V-Board-.git'
+        LOCAL_TOOLS_SOURCE = '/data/ci/tools'
+        LOCAL_TUYA_DEVICES_SOURCE = '/data/ci/devices.json'
+        REGENERATE_TESTS = 'true'
+        TEST_SCOPE = 'all'
+        INSTALLED_RUNNER_BUILD = "${params.INSTALLED_RUNNER_BUILD ?: ''}"
+        UART_DEVICE_NAME = "${params.POWER_DEVICE_NAME ?: 'MELECTRO:2'}"
+        // Largest signature region an ELF may give the runner to dump on failure (see the stage below).
+        MAX_SIG_DUMP_BYTES = '4096'
+        PATH = '/data/ci/bin:/data/ci/toolchains/riscv64/bin:/usr/local/bin:/usr/bin:/bin'
+    }
+
+    stages {
+        stage('Clean Checkout') {
+            steps {
+                deleteDir()
+                sh '''#!/usr/bin/env bash
+                    set -euo pipefail
+                    runner_branch="${RUNNER_BRANCH:-vf2-uart-stream-jenkins}"
+                    runner_revision_override="${RUNNER_REVISION_OVERRIDE:-}"
+                    git check-ref-format --branch "$runner_branch" >/dev/null
+                    git init .
+                    git remote add origin "$RUNNER_REMOTE_URL"
+                    runner_ref="refs/remotes/origin/$runner_branch"
+                    fetch_ok=false
+                    for attempt in 1 2 3 4; do
+                      echo "Runner fetch attempt ${attempt}/4"
+                      if timeout 180 git -c http.lowSpeedLimit=1 -c http.lowSpeedTime=30 \
+                        fetch --force --prune origin "+refs/heads/$runner_branch:$runner_ref"; then
+                        fetch_ok=true
+                        break
+                      fi
+                      [[ "$attempt" -eq 4 ]] || sleep "$((attempt * 15))"
+                    done
+                    [[ "$fetch_ok" == true ]] || { echo "Runner fetch failed: $runner_branch" >&2; exit 1; }
+                    fetched="$(git rev-parse --verify "${runner_ref}^{commit}")"
+                    selected="${runner_revision_override:-$fetched}"
+                    selected="$(git rev-parse --verify "$selected^{commit}")"
+                    git checkout --detach "$selected"
+                    submodule_ok=false
+                    for attempt in 1 2 3 4; do
+                      if timeout 300 git -c http.lowSpeedLimit=1 -c http.lowSpeedTime=30 \
+                        submodule update --init external/riscv-arch-test; then
+                        submodule_ok=true
+                        break
+                      fi
+                      [[ "$attempt" -eq 4 ]] || sleep "$((attempt * 15))"
+                    done
+                    [[ "$submodule_ok" == true ]] || { echo 'ACT submodule update failed' >&2; exit 1; }
+                    mkdir -p tools
+                    cp -a "$LOCAL_TOOLS_SOURCE/." tools/
+                    install -m 0600 "$LOCAL_TUYA_DEVICES_SOURCE" devices.json
+                    {
+                      echo "Runner branch: $runner_branch"
+                      echo "Runner SHA:    $selected"
+                      echo "Checkout:      detached"
+                    } | tee .jenkins_runner_resolution.txt
+                    test -x ci/jenkins/uart_weekly_vf2.sh
+                '''
+            }
+        }
+
+        stage('VF2 ACT Preflight') {
+            steps { sh 'ci/jenkins/uart_weekly_vf2.sh preflight' }
+        }
+
+        stage('Generate Selected Tests + Sail') {
+            steps { sh 'ci/jenkins/uart_weekly_vf2.sh prepare' }
+        }
+
+        // The runner dumps begin_signature..end_signature over UART when a test fails: ~1 h per MB at 115200
+        // baud. The ACT config caps the range (final_elf_signature_dump_bytes); stop before the board if an
+        // ELF was built without it.
+        stage('Check Signature Dump Size') {
+            steps {
+                sh '''#!/usr/bin/env bash
+                    set -euo pipefail
+                    nm_exe=""
+                    for c in riscv64-unknown-elf-nm riscv64-linux-gnu-nm nm; do
+                      if command -v "$c" >/dev/null; then nm_exe=$c; break; fi
+                    done
+                    [[ -n "$nm_exe" ]] || { echo 'no nm found' >&2; exit 1; }
+                    total=0; bad=0
+                    while IFS= read -r -d '' elf; do
+                      total=$((total + 1))
+                      read -r b e < <("$nm_exe" "$elf" | awk '$3 == "begin_signature" { b = $1 } $3 == "end_signature" { e = $1 }
+                                         END { print (b == "" ? 0 : b), (e == "" ? 0 : e) }')
+                      span=$(( 0x$e - 0x$b ))
+                      if (( span > MAX_SIG_DUMP_BYTES )); then
+                        echo "signature dump $span bytes > $MAX_SIG_DUMP_BYTES: $elf" >&2
+                        bad=$((bad + 1))
+                      fi
+                    done < <(find external/riscv-arch-test -path '*/elfs/*' -name '*.elf' \
+                               ! -name '*.sig.elf' ! -name '*.full.elf' -print0)
+                    echo "Checked $total ELFs: $bad with a signature dump above $MAX_SIG_DUMP_BYTES bytes"
+                    (( total > 0 && bad == 0 ))
+                '''
+            }
+        }
+
+        stage('Build Candidate VF2 UART Runner') {
+            steps { sh 'ci/jenkins/uart_weekly_vf2.sh verify-runner-image' }
+        }
+
+        stage('VF2 UART Execute') {
+            steps {
+                lock(resource: 'vf2-hardware') {
+                    catchError(buildResult: 'UNSTABLE', stageResult: 'UNSTABLE') {
+                        sh '''#!/usr/bin/env bash
+                            SERIAL_DEV="$SERIAL_DEV" \
+                            UART_READY_TIMEOUT="$UART_READY_TIMEOUT" \
+                            UART_RESULT_TIMEOUT="$UART_RESULT_TIMEOUT" \
+                              ci/jenkins/uart_weekly_vf2.sh run
+                        '''
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            // Verdicts only: the console carries every [CASE] RESULT and RVCP report. Keep the two summary
+            // files, not the per-test logs (k3-uart-weekly #6 spent hours fingerprinting ~18,000 of them).
+            sh 'test ! -x ci/jenkins/uart_weekly_vf2.sh || ci/jenkins/uart_weekly_vf2.sh finalize || true'
+            junit testResults: "logs/runs/jenkins_uart_weekly_${env.BUILD_NUMBER}/junit.xml",
+                  allowEmptyResults: true
+            archiveArtifacts artifacts: "logs/runs/jenkins_uart_weekly_${env.BUILD_NUMBER}/summary.json, logs/runs/jenkins_uart_weekly_${env.BUILD_NUMBER}/junit.xml",
+                             allowEmptyArchive: true,
+                             fingerprint: false
+        }
+    }
+}

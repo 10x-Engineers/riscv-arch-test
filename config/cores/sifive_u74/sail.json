@@ -4,7 +4,7 @@
     "E": false,
     // Sail 0.15/0.16 (ACT act4 sync, 2026-10-22): HPM widths and the self-write increment keep
     // the Sail 0.14.1 behavior; mcountinhibit covers CY, IR and the writable HPM counters.
-    "hpmcounter_width_bits": 64,
+    "hpmcounter_width_bits": 40,  // U74 mhpmcounter3/4 are 40 bits (UDB HPM_COUNTER3/4_WIDTH)
     "hpmevent_width_bits": 56,
     "hpmcounter_increments_in_self_hpmevent_write": false,
     "mcountinhibit": {
@@ -108,7 +108,7 @@
       "None": null
     },
     "physaddr_bits": 36,
-    "asidlen": 16,
+    "asidlen": 0,  // satp.ASID reads 0 on the board (Sv satp_access; UDB ASID_WIDTH 0)
     "vmidlen": 14,
     "pmp": {
       "grain": 10,
@@ -304,7 +304,7 @@
     "hartid": 0,
     "cache_block_size_exp": 6,
     "reservation": {
-      "reservation_set_size_exp": 3,
+      "reservation_set_size_exp": 6,  // naturally aligned 64-byte set (UDB LRSC_RESERVATION_STRATEGY; board SC at +8 succeeds)
       "require_exact_reservation_addr": false,
       "invalidate_on_same_hart_store": true
     },
@@ -492,7 +492,7 @@
         "samo_page_fault": false,
         "samo_guest_page_fault": false
       },
-      "supported": true,
+      "supported": false,
       "geilen": 63,
       "guest_page_fault_writes_htval": true,
       "hgatp_modes": {
@@ -566,7 +566,7 @@
       "supported": true
     },
     "Zilx": {
-      "supported": true
+      "supported": false
     },
     "Zimop": {
       "supported": false
@@ -738,28 +738,28 @@
       "supported": false
     },
     "Shcounterenw": {
-      "supported": true
+      "supported": false
     },
     "Sscounterenw": {
       "supported": true
     },
     "Shvsatpa": {
-      "supported": true
+      "supported": false
     },
     "Shvstvala": {
-      "supported": true
+      "supported": false
     },
     "Shvstvecd": {
-      "supported": true
+      "supported": false
     },
     "Sstc": {
       "supported": false
     },
     "Shgatpa": {
-      "supported": true
+      "supported": false
     },
     "Shtvala": {
-      "supported": true
+      "supported": false
     },
     "Sstvala": {
       "supported": false
@@ -783,10 +783,10 @@
       "supported": false
     },
     "Svukte": {
-      "supported": true
+      "supported": false
     },
     "Ssnpm": {
-      "supported": true,
+      "supported": false,
       "supported_pmlen_7": true,
       "supported_pmlen_16": false
     },

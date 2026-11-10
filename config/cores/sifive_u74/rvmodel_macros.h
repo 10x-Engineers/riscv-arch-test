@@ -178,9 +178,7 @@
 // race the CLINT after programming mtimecmp.
 #define RVMODEL_MAX_CYCLES_PER_TIMER_TICK 512
 
-// Sail's simple interrupt generator remains in use for the software-interrupt
-// macros below.  External interrupts use the real UART0 -> PLIC backend.
-#define SIG_ADDRESS  (0x0c000000 + 0x4)
+// External interrupts use the real UART0 -> PLIC backend.
 
 // Interrupt latency configuration. Real UART/PLIC delivery is asynchronous.
 #define RVMODEL_INTERRUPT_LATENCY 6000
@@ -440,14 +438,7 @@
 6:                                                                  \
   fence iorw, iorw
 
-#define RVMODEL_SET_SSW_INT(_R1, _R2)        \
-  li _R1, (1 << 31) | (1 << 1);               \
-  li _R2, SIG_ADDRESS;    \
-  sw _R1, 0(_R2)            ; /* Set SSW interrupt */ \
-
-#define RVMODEL_CLR_SSW_INT(_R1, _R2)        \
-  li _R1, (1 << 1);               \
-  li _R2, SIG_ADDRESS;    \
-  sw _R1, 0(_R2)            ; /* Clear SSW interrupt */ \
+// No RVMODEL_SET/CLR_SSW_INT: the JH7110 has no supervisor software-interrupt controller (0x0c000004, Sail's
+// interrupt generator, is PLIC priority[1] here). ACT then sets mip.SSIP itself, directly or through T-SBI.
 
 #endif // _RVMODEL_MACROS_H

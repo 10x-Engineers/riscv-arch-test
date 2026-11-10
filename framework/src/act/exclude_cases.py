@@ -26,6 +26,37 @@ _MODE_SWITCH = re.compile(r"\bRVTEST_(TSBI_)?GOTO_\w+")
 _DIRECTIVE = re.compile(r"^\s*#\s*(if|ifdef|ifndef|elif|else|endif|define|undef|include)\b")
 
 
+def _depth(lines) -> int:
+    """#if nesting depth left open at the end of the lines (negative: an #endif closes an outer block)."""
+    depth = 0
+    for line in lines:
+        m = _DIRECTIVE.match(line)
+        if m and m.group(1) in ("if", "ifdef", "ifndef"):
+            depth += 1
+        elif m and m.group(1) == "endif":
+            depth -= 1
+    return depth
+
+
+def _balanced(lines) -> bool:
+    """True if the lines hold no preprocessor directive, or only whole #if ... #endif blocks."""
+    depth = 0
+    for line in lines:
+        m = _DIRECTIVE.match(line)
+        if not m:
+            continue
+        kind = m.group(1)
+        if kind in ("if", "ifdef", "ifndef"):
+            depth += 1
+        elif kind == "endif":
+            depth -= 1
+        elif depth == 0:  # elif/else/define/undef/include outside a block of its own
+            return False
+        if depth < 0:
+            return False
+    return depth == 0
+
+
 @lru_cache(maxsize=8)
 def _load(path: Path, mtime_ns: int) -> dict[str, tuple[re.Pattern[str], ...]]:
     table: dict[str, list[re.Pattern[str]]] = {}
@@ -73,8 +104,11 @@ def drop_cases(source: str, patterns: tuple[re.Pattern[str], ...], test_name: st
                     if i > 0 and lines[i - 1].lstrip().startswith("# Check"):
                         span.append(i - 1)
                     span.append(i)
-        if any(_DIRECTIVE.match(lines[i]) for i in span):
-            raise ValueError(f"{test_name}: case {label} spans a preprocessor line; it cannot be dropped")
+        # A check inside "#if __riscv_xlen == 32 ... #endif" ends the case before the #endif: take it too
+        while _depth(lines[i] for i in sorted(span)) > 0 and span[-1] + 1 < len(lines) and span == list(range(start, span[-1] + 1)):
+            span.append(span[-1] + 1)
+        if not _balanced(lines[i] for i in sorted(span)):
+            raise ValueError(f"{test_name}: case {label} spans an unbalanced preprocessor block; it cannot be dropped")
         for i in span:
             drop[i] = True
         dropped.append(label)

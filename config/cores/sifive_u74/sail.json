@@ -257,13 +257,15 @@
         "include_in_device_tree": false
       },
       {
+        // JH7110 DRAM window (probe single-ELF #206): 8 GB at 0x4000_0000, aliased above it; loads up to at least
+        // 0x8_0000_0000 do not fault, 0xf_ffff_fff0 does. M-mode accesses there read memory, not an access fault.
         "base": {
           "len": 64,
-          "value": "0x80000000"
+          "value": "0x40000000"
         },
         "size": {
           "len": 64,
-          "value": "0x80000000"
+          "value": "0x800000000"
         },
         "attributes": {
           "mem_type": "MainMemory",

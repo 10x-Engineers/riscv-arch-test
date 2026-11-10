@@ -67,6 +67,8 @@ def run_act(
         bool, typer.Option(help="Implies --debug, serializes builds (jobs=1), and prints each command as it runs")
     ] = False,
     keep_going: Annotated[bool, typer.Option("--keep-going", "-k", help="Continue building after failures")] = False,
+    # Accepted and ignored: the board runner scripts still pass --fast, whose behavior is now the default (#3144).
+    _fast: Annotated[bool, typer.Option("--fast", hidden=True)] = False,
     dry_run: Annotated[
         bool, typer.Option("--dry-run", "-n", help="Show what would be built without executing")
     ] = False,

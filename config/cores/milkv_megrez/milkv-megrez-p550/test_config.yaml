@@ -5,4 +5,7 @@ ref_model_exe: sail_riscv_sim  # resolved on PATH (Jenkins pins Sail 0.14.1)
 udb_config: milkv-megrez-p550.yaml
 linker_script: link.ld
 dut_include_dir: . # Directory containing DUT specific rvmodel_macros.h header/
-
+# The runner streams each ELF over UART and dumps the signature region on failure (~1 h per MB); the RVCP lines
+# already report the failure, so keep 64 bytes of the dump.
+final_elf_discard_locals: true
+final_elf_signature_dump_bytes: 64

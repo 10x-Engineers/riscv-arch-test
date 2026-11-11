@@ -5,3 +5,5 @@ ref_model_exe: sail_riscv_sim
 udb_config: milkv-megrez-p550.yaml
 linker_script: link.ld
 dut_include_dir: .
+final_elf_discard_locals: true
+final_elf_signature_dump_bytes: 64

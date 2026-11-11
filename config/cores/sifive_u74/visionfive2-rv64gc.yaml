@@ -231,13 +231,14 @@ params:
   HPM_COUNTER3_WIDTH: 40
   HPM_COUNTER4_WIDTH: 40
   HPM_EVENTS: [0]
+  # mcountinhibit reads 0x1d after writing all ones (CY, IR, HPM3, HPM4 inhibitable; measured on the board).
   COUNTINHIBIT_EN:
     [
       true,
       false,
       true,
-      false,
-      false,
+      true,
+      true,
       false,
       false,
       false,

@@ -27,7 +27,9 @@ implemented_extensions:
   - { name: Zba, version: "= 1.0.0" }
   - { name: Zbb, version: "= 1.0.0" }
   - { name: Sscounterenw, version: "= 1.0.0" }
-  #- { name: Ssstrict, version: "= 1.0.0" } Not Supported by Vision Five 2 board
+  # Not Ssstrict (measured): CSRs 0x350-0x353 are implemented (SiFive RNMI mnscratch/mnepc/mncause/mnstatus,
+  # the pre-Smrnmi layout; 0x350 is now Smcsrind miselect), and 0x30500073 is SiFive CEASE (stops the hart).
+  # Every other Ssstrict check passes (283 of 285 tests).
   - { name: Sstvecd, version: "= 1.0.0" }
   - { name: Ssu64xl, version: "= 1.0.0" }
   - { name: Sv39, version: "= 1.0.0" }

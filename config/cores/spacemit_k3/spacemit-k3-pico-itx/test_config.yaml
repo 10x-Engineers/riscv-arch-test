@@ -37,18 +37,7 @@ final_elf_discard_locals: true
 final_elf_signature_dump_bytes: 64
 # Cases that stop at a known K3 hardware deviation; the rest of each test still runs.
 exclude_cases_file: exclude_cases.tsv
-# Board debug loop (k3-act-loop job): the only tests this branch runs. Iteration 4: BF16 and vector crypto, which
-# the K3 device tree lists but the config did not declare, and Smstateen with the widened hcontext exclusion.
+# Board debug loop (k3-act-loop job): the only tests this branch runs. Check of the riscv-arch-test#3209 fix:
+# the VU-mode CSR sweep with the AIA and Sscsrind CSRs skipped on this hart.
 include_tests:
-  - Zfbfmin
-  - Zvfbfmin
-  - Zvfbfwma
-  - Zvbc64
-  - Zvkg
-  - Zvkned
-  - Zvknha
-  - Zvknhb32
-  - Zvknhb64
-  - Zvksed
-  - Zvksh
-  - Smstateen
+  - H_vucsr

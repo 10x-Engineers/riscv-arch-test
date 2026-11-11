@@ -12,10 +12,13 @@ final_elf_discard_locals: true
 final_elf_signature_dump_bytes: 64
 # Cases dropped before build (Sail cannot model the board; see the reason column).
 exclude_cases_file: exclude_cases.tsv
-# Board debug loop (vf2-act-loop job): the only tests this branch runs. Iteration 2 (after vf2-act-loop #3, 42/48
-# pass): the six tests whose remaining cases changed: the instret read skew (Zicntr, minstret_wrap), mhartid on
-# hart 1, and the M-mode fetch cases that hit DRAM (sail.json now maps the 8 GB at 0x4000_0000).
+# Coverage audit trial: the tests that extensions missing from the config would add (Ssstrict and six
+# RVA profile extensions). Each one that passes is declared; each failure is triaged before declaring.
 include_tests:
-  - S_Zicntr-00
-  - Sv_ExceptionsSm_sv39_exceptions_mprv_S_Mmode-00
-  - Sv_ExceptionsSm_sv39_exceptions_mprv_U_Mmode-00
+  - Ssstrict
+  - Za64rs
+  - Ziccif
+  - Ziccrse
+  - Ziccamoa
+  - Ssccptr
+  - Zihintpause

@@ -530,10 +530,12 @@ def csr_insufficient_priv_tests(
     description: str,
     mode: str | None = None,
     csrs_per_chunk: int = 1,
+    csr_gates: dict[int, str] | None = None,
 ) -> None:
     """Attempt to read each higher-privilege CSR; every read must raise illegal instruction.
 
     Each chunk of csrs_per_chunk CSRs enters mode ("VS" or "VU") from HS-mode first, if mode is given.
+    csr_gates maps a CSR number to the preprocessor condition under which it is tested.
     """
     coverpoint = "cp_csr_insufficient_priv"
     tc = test_data.new_test_chunk(test_chunks, chunk_name)
@@ -542,15 +544,13 @@ def csr_insufficient_priv_tests(
         tc = test_data.new_test_chunk(test_chunks, chunk_name)
         temp_reg = test_data.int_regs.get_register()
         for csr in csrs:
-            tc.code.extend(
-                [
-                    test_data.add_testcase(f"{csr:03x}", coverpoint, covergroup),
-                    f"LI(x{temp_reg}, 42)           # known value; the trapping csrr must leave it unchanged",
-                    f"csrr x{temp_reg}, 0x{csr:03x}    # attempt to read CSR {csr:03x}; should get illegal instruction",
-                    write_sigupd(temp_reg, test_data),
-                    "",
-                ]
-            )
+            body = [
+                test_data.add_testcase(f"{csr:03x}", coverpoint, covergroup),
+                f"LI(x{temp_reg}, 42)           # known value; the trapping csrr must leave it unchanged",
+                f"csrr x{temp_reg}, 0x{csr:03x}    # attempt to read CSR {csr:03x}; should get illegal instruction",
+                write_sigupd(temp_reg, test_data),
+            ]
+            tc.code.extend([*gated(body, (csr_gates or {}).get(csr)), ""])
         tc.code[:] = _in_mode(tc.code, mode)
         test_data.int_regs.return_register(temp_reg)
 

@@ -68,6 +68,20 @@ NONUSER_CSR_RANGES = [
     range(0x900, 0xC00),
     range(0xD00, 0x1000),
 ]
+# TODO: Remove once the Sail used here models Smaia/Ssaia and Sscsrind (riscv-arch-test#3209)
+# From VU-mode, a supervisor or hypervisor CSR that exists raises virtual instruction. Sail does not model these
+# AIA and indirect-access CSRs, so it expects illegal instruction; skip them only when the DUT implements them.
+# stopei, vstopei, hvien, hvictl, hviprio1, hviprio2, stopi, vstopi
+SSAIA_CSRS = (0x15C, 0x25C, 0x608, 0x609, 0x646, 0x647, 0xDB0, 0xEB0)
+# sieh, siph, vsieh, vsiph, hvienh, hviph, hviprio1h, hviprio2h
+SSAIA_RV32_CSRS = (0x114, 0x154, 0x214, 0x254, 0x618, 0x655, 0x656, 0x657)
+# siselect, sireg, sireg2-6, vsiselect, vsireg, vsireg2-6
+SSCSRIND_CSRS = (*range(0x150, 0x154), *range(0x155, 0x158), *range(0x250, 0x254), *range(0x255, 0x258))
+VU_UNMODELED_CSR_GATES = {
+    **dict.fromkeys(SSAIA_CSRS, "!defined(SSAIA_SUPPORTED)"),
+    **dict.fromkeys(SSAIA_RV32_CSRS, "!defined(SSAIA_SUPPORTED) || __riscv_xlen == 64"),
+    **dict.fromkeys(SSCSRIND_CSRS, "!defined(SSCSRIND_SUPPORTED)"),
+}
 USER_RO_CSR_RANGES = [range(0xC00, 0xD00)]
 # Each VS-mode and VU-mode chunk of the CSR sweeps enters the mode once
 CSRS_PER_CHUNK = 16
@@ -257,6 +271,7 @@ def _vu_csr_tests(test_data: TestData, test_chunks: list[TestChunk]) -> None:
         "In VU-mode, attempt to read each CSR that is not a user CSR.  Should throw illegal or virtual instruction",
         mode="VU",
         csrs_per_chunk=CSRS_PER_CHUNK,
+        csr_gates=VU_UNMODELED_CSR_GATES,
     )
     csr_ro_write_tests(
         test_data, test_chunks, VU_CG, USER_RO_CSR_RANGES, "vucsr_ro", mode="VU", csrs_per_chunk=CSRS_PER_CHUNK

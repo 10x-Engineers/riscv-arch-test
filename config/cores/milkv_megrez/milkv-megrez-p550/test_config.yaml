@@ -9,20 +9,6 @@ dut_include_dir: . # Directory containing DUT specific rvmodel_macros.h header/
 # already report the failure, so keep 64 bytes of the dump.
 final_elf_discard_locals: true
 final_elf_signature_dump_bytes: 64
-# Rerun of the 40 failures of full run 18 (remove for a full run).
+exclude_cases_file: exclude_cases.tsv
 include_tests:
-  - Exceptions_S
-  - Exceptions_Sm
-  - Exceptions_U
-  - Sv_ExceptionsSm_sv39_exceptions_mprv_S_Mmode
-  - Sv_ExceptionsSm_sv39_exceptions_mprv_U_Mmode
-  - Sv_Exceptions_sv39_exceptions_Smode
-  - Sv_Exceptions_sv39_exceptions_Umode
-  - InterruptsS
-  - InterruptsSm
   - Sm_mcsr_access
-  - Sm_mcsr_walk
-  - Sm_shadow
-  - Sscofpmf_S_interrupt
-  - Sscofpmf_Sm_interrupt
-  - Sscofpmf_Sm_overflow

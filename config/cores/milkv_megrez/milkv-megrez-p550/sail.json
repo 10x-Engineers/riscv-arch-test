@@ -121,10 +121,11 @@
       "napot_supported": true
     },
     "misaligned": {
-      // Board (feature extractor): misaligned loads/stores raise address-misaligned before access and page faults.
+      // Not AlignmentException: the extractor reported misaligned-first, but board run 18 (Exceptions, Sv_Exceptions)
+      // took the access fault on a misaligned access to an inaccessible address.
       "exceptions": {
         "load_store": {
-          "Some": "AlignmentException"
+          "None": null
         },
         "vector": {
           "None": null

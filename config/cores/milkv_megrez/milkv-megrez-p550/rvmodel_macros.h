@@ -60,6 +60,8 @@
 # DUT-specific behavior such as turning on a memory controller or
 # initializing custom state.
 #define RVMODEL_BOOT                                                \
+  csrw 0x645, zero;            /* hvip and hgeie: misa.H is 1 but H is */ \
+  csrw 0x607, zero;            /* not declared, so ACT does not clear them */ \
   csrr T1, mhartid;                                                 \
   la T2, rvmodel_boot_hartid;                                      \
   SREG T1, 0(T2);                                                  \
@@ -193,9 +195,8 @@
 // RVTEST_IDLE_FOR_TIMER_INTERRUPT does not race the CLINT.
 #define RVMODEL_MAX_CYCLES_PER_TIMER_TICK 2048
 
-// Sail's simple interrupt generator remains in use for the software-interrupt
-// macros below.  External interrupts use the real UART0 -> PLIC backend.
-#define SIG_ADDRESS  (0x0c000000 + 0x4)
+// No RVMODEL_{SET,CLR}_SSW_INT: 0x0c000004 is Sail's interrupt generator but the PLIC priority of source 1 on the
+// EIC7700X, so the framework's mip.SSIP writes are used. External interrupts use the real UART0 -> PLIC backend.
 
 // Interrupt latency configuration. Real UART/PLIC delivery is asynchronous.
 #define RVMODEL_INTERRUPT_LATENCY 6000
@@ -462,16 +463,6 @@
   bnez _R1, 5b;                                                     \
 6:                                                                  \
   fence iorw, iorw
-
-#define RVMODEL_SET_SSW_INT(_R1, _R2)        \
-  li _R1, (1 << 31) | (1 << 1);               \
-  li _R2, SIG_ADDRESS;    \
-  sw _R1, 0(_R2)            ; /* Set SSW interrupt */ \
-
-#define RVMODEL_CLR_SSW_INT(_R1, _R2)        \
-  li _R1, (1 << 1);               \
-  li _R2, SIG_ADDRESS;    \
-  sw _R1, 0(_R2)            ; /* Clear SSW interrupt */ \
 
 ##### Sscofpmf #####
 

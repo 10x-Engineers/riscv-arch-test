@@ -42,7 +42,7 @@ board), `RV64GC_Zba_Zbb_Sscofpmf` + H (TRM), Sv48 (TRM, DTB).
 | mtvec alignment | Direct 4 B, Vectored 256 B | confirmed | TRM Table 3-46 |
 | stvec alignment | Vectored 128 B | confirmed | TRM Table 3-58 |
 | medeleg writable | `0xF0B55D` | confirmed | csr_probe 2026-10-05 (`medeleg <- ~0`); TRM Table 3-52 lists `0xF0B7FF`, but access faults 1/5/7 are not delegatable on the board |
-| mideleg writable | `0x2222` in Sail | partial | TRM Table 3-51 lists `0x3666`; Sail's ratified-H model fixes the VS/SGEI bits itself and rejects them here |
+| mideleg writable | `0x2222` in Sail | partial | the board reads `0x2666` after writing all ones (TRM Table 3-51 lists `0x3666`; no SGEI bit, GEILEN 0); Sail fixes the VS bits itself |
 | HPM counters | mhpmcounter3-6 | confirmed | OpenSBI "MHPM Info 4 (0x00000078)" |
 | Misaligned load/store | traps (software emulation) | confirmed | TRM 3.4 mcause note |
 | Cache block | 64 B | confirmed | DTB `d-cache-block-size` |

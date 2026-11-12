@@ -507,7 +507,8 @@
         "samo_guest_page_fault": false
       },
       "supported": true,
-      "geilen": 63,
+      // GEILEN 0 on the board: mideleg reads 0x2666 after writing all ones, mie bit 12 reads 0.
+      "geilen": 0,
       "guest_page_fault_writes_htval": true,
       "hgatp_modes": {
         "Sv32x4": false,

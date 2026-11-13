@@ -10,5 +10,13 @@ dut_include_dir: . # Directory containing DUT specific rvmodel_macros.h header/
 final_elf_discard_locals: true
 final_elf_signature_dump_bytes: 64
 exclude_cases_file: exclude_cases.tsv
+# Coverage audit trial: the tests that extensions missing from the config would add (Ssstrict and six
+# RVA profile extensions). Each one that passes is declared; each failure is triaged before declaring.
 include_tests:
-  - Sm_mcsr_access
+  - Ssstrict
+  - Za64rs
+  - Ziccif
+  - Ziccrse
+  - Ziccamoa
+  - Ssccptr
+  - Zihintpause

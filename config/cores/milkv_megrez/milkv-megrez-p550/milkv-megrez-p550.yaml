@@ -40,6 +40,15 @@ implemented_extensions:
   - { name: Sscounterenw, version: "= 1.0.0" }
   # Sscounterenw / Sstvecd: UNVERIFIED for P550 (kept from the RVA-style base).
   - { name: Sstvecd, version: "= 1.0.0" }
+  # Coverage audit candidates (not in the device tree; trial run on the board):
+  - { name: Za64rs, version: "= 1.0.0" }
+  - { name: Za128rs, version: "= 1.0.0" }
+  - { name: Ziccif, version: "= 1.0.0" }
+  - { name: Ziccrse, version: "= 1.0.0" }
+  - { name: Ziccamoa, version: "= 1.0.0" }
+  - { name: Ssccptr, version: "= 1.0.0" }
+  - { name: Zihintpause, version: "= 2.0.0" }
+  - { name: Ssstrict, version: "= 1.0.0" }
   - { name: Ssu64xl, version: "= 1.0.0" }
   - { name: Sv39, version: "= 1.0.0" }
   - { name: Sv48, version: "= 1.0.0" }

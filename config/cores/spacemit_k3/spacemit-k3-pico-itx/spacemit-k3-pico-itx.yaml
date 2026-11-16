@@ -114,6 +114,10 @@ implemented_extensions:
   - { name: Ssaia,        version: "= 1.0.0" }
   - { name: Smcsrind,     version: "= 1.0.0" }
   - { name: Sscsrind,     version: "= 1.0.0" }
+  # Coverage audit trial (RVA23-mandatory or possible, not declared before): run on the board first.
+  - { name: Zicclsm,      version: "= 1.0.0" }
+  - { name: Zic64b,       version: "= 1.0.0" }
+  - { name: Ziccrse,      version: "= 1.0.0" }
   - { name: Ssccptr,      version: "= 1.0.0" }
   - { name: Sscounterenw, version: "= 1.0.0" }
   - { name: Ssnpm,        version: "= 1.0.0" }

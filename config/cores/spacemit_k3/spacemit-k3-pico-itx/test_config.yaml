@@ -40,15 +40,9 @@ exclude_cases_file: exclude_cases.tsv
 # Board debug loop (k3-act-loop job): the only tests this branch runs. Iteration 4: BF16 and vector crypto, which
 # the K3 device tree lists but the config did not declare, and Smstateen with the widened hcontext exclusion.
 include_tests:
-  - Zfbfmin
-  - Zvfbfmin
-  - Zvfbfwma
-  - Zvbc64
-  - Zvkg
-  - Zvkned
-  - Zvknha
-  - Zvknhb32
-  - Zvknhb64
-  - Zvksed
-  - Zvksh
-  - Smstateen
+  - Zicclsm
+  - ZicclsmD
+  - ZicclsmF
+  - ZicclsmZca
+  - Zic64b
+  - Ziccrse

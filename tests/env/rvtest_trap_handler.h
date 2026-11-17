@@ -1288,6 +1288,38 @@ common_\__MODE__\()entry:                       // common entry for all traps in
         SREG    T2, trap_sv_off+2*REGWIDTH(sp)  // save T2 (x7)
         SREG    T1, trap_sv_off+1*REGWIDTH(sp)  // save T1 (x6)
         csrr    T5, CSR_XCAUSE                  // T5 = xcause
+  .ifc \__MODE__ , M
+  #if defined(K3_WATCHDOG_TICKS) && !defined(_SAIL_MACROS_H)
+        LI(     T4, 0x8000000000000007)         // M-timer interrupt: the watchdog
+        bne     T5, T4, 8765f
+        LA(     T4, begin_signature)
+        csrr    T3, mepc
+        SREG    T3, 0(T4)
+        SREG    T5, 8(T4)
+        csrr    T3, mtval
+        SREG    T3, 16(T4)
+        csrr    T3, mstatus
+        SREG    T3, 24(T4)
+        csrr    T3, 0x600                       // hstatus
+        SREG    T3, 32(T4)
+        csrr    T3, 0x200                       // vsstatus
+        SREG    T3, 40(T4)
+        csrr    T3, 0x34a                       // mtinst
+        SREG    T3, 48(T4)
+        SREG    x15, 56(T4)
+        LI(     T3, 0x20000)
+        csrc    mstatus, T3              // MPRV off
+        LA(     T4, tohost)
+        LI(     T3, 3)
+        SREG    T3, 0(T4)
+        LA(     T4, rvmodel_runner_mtvec)
+        LREG    T4, 0(T4)
+        csrw    mtvec, T4
+        fence   rw, rw
+        ecall
+8765:
+  #endif
+  .endif
 
   // Route M-mode illegal instructions to the invisible trap handler. Keep this
   // sequence the same size when emulation is disabled. The Sail signature build

@@ -13,9 +13,9 @@ description: >
   device tree lists in riscv,isa-extensions (runner repo
   artifacts/onboarding/spacemit_k3_20261019/observation.md), including the hypervisor ones:
   H is present with misa.H = 0 at reset (writable; RVMODEL_BOOT sets it). The H parameters
-  are the K3 values measured with the CSR probe (observation.md, "Hypervisor CSRs"). Za128rs follows from Za64rs. Not in the device tree, so not declared: Ziccrse,
-  Zic64b, Supm. Zicclsm (in the device tree) waits for a board check of misaligned vector
-  accesses: Sail rejects it while those raise access faults, the K1 value kept here.
+  are the K3 values measured with the CSR probe (observation.md, "Hypervisor CSRs"). Za128rs follows from Za64rs. Zicclsm (in the device tree), Zic64b and Ziccrse
+  (not in it) are declared after the coverage-audit trial: all 22 of their tests pass on the
+  board (k3-act-loop #6). Supm is not declared (no device-tree entry, no ACT tests).
   Parameters not listed above are the K1's values, or for the revision 2 extensions upstream's
   sail-RVA23S64 values, and UNVERIFIED on the K3.
 
@@ -114,6 +114,9 @@ implemented_extensions:
   - { name: Ssaia,        version: "= 1.0.0" }
   - { name: Smcsrind,     version: "= 1.0.0" }
   - { name: Sscsrind,     version: "= 1.0.0" }
+  - { name: Zicclsm,      version: "= 1.0.0" }  # 20/20 pass (k3-act-loop #6)
+  - { name: Zic64b,       version: "= 1.0.0" }  # 1/1 pass (k3-act-loop #6); cache block 64 B
+  - { name: Ziccrse,      version: "= 1.0.0" }  # 1/1 pass (k3-act-loop #6)
   - { name: Ssccptr,      version: "= 1.0.0" }
   - { name: Sscounterenw, version: "= 1.0.0" }
   - { name: Ssnpm,        version: "= 1.0.0" }

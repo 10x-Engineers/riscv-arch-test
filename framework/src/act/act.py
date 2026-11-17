@@ -62,6 +62,8 @@ def run_act(
     *,
     coverage: Annotated[bool, typer.Option(help="Enable coverage generation")] = False,
     debug: Annotated[bool, typer.Option(help="Enable debug output (objdumps, trace files, and trap reports)")] = False,
+    # Accepted and ignored: the board runner still passes --fast (10x-Engineers/ACT-Runner#30); objdumps are off by default now (#3144).
+    fast: Annotated[bool, typer.Option(hidden=True, help="Ignored; kept for older callers")] = False,
     clean_intermediates: Annotated[bool, typer.Option(help="Delete intermediate build/ dirs")] = False,
     verbose: Annotated[
         bool, typer.Option(help="Implies --debug, serializes builds (jobs=1), and prints each command as it runs")

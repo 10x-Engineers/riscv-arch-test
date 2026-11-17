@@ -133,7 +133,7 @@
           "None": null
         },
         "vector": {
-          "Some": "AccessFault"
+          "None": null
         },
         "amo": {
           "None": null
@@ -174,7 +174,7 @@
               "None": null
             },
             "vector": {
-              "Some": "AccessFault"
+              "None": null
             },
             "amo": "AccessFault",
             "lrsc": "AccessFault"
@@ -212,7 +212,7 @@
               "None": null
             },
             "vector": {
-              "Some": "AccessFault"
+              "None": null
             },
             "amo": "AccessFault",
             "lrsc": "AccessFault"
@@ -250,7 +250,7 @@
               "None": null
             },
             "vector": {
-              "Some": "AccessFault"
+              "None": null
             },
             "amo": "AccessFault",
             "lrsc": "AccessFault"

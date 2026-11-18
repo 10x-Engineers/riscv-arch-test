@@ -299,9 +299,3 @@ rvmodel_k3_mtvec:                       ;\
     lw _R2, 0(_R1)
 
 #endif // _RVMODEL_MACROS_H
-
-// Hang locator (k3/new-tests only): M-timer watchdog armed after ACT's M-mode setup. On expiry the M
-// handler stores mepc, mcause, mtval, mstatus, hstatus, vsstatus, mtinst, x15 at begin_signature and
-// halts FAIL, so the runner's 64-byte dump shows where the payload was. 0x20000000 ticks is >= 0.3 s at
-// any plausible timebase and well under the 120 s result timeout at 24 MHz.
-#define K3_WATCHDOG_TICKS 24  // 1 us at 24 MHz: UART trail interval (debug only)

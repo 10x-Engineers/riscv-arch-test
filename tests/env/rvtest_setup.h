@@ -1473,19 +1473,6 @@
         sw zero, 0(t0)
       #endif
 
-      // Armed after the prologs and the mtimecmp/msip init, which park mtimecmp at all ones.
-      #if defined(K3_WATCHDOG_TICKS) && !defined(_SAIL_MACROS_H)
-        LI(T1, RVMODEL_MTIME_ADDRESS)
-        ld T2, 0(T1)
-        LI(T1, K3_WATCHDOG_TICKS)
-        add T2, T2, T1
-        LI(T1, RVMODEL_MTIMECMP_ADDRESS)
-        sd T2, 0(T1)
-        LI(T1, 0x80)
-        csrs mie, T1  // MTIE only
-        csrsi mstatus, 0x8  // MIE too, so an M-mode loop is interrupted as well
-      #endif
-
       // make counters accessible to a lower privilege mode if one exists
       #ifdef U_SUPPORTED
         li t0, -1

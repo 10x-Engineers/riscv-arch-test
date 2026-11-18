@@ -1288,67 +1288,6 @@ common_\__MODE__\()entry:                       // common entry for all traps in
         SREG    T2, trap_sv_off+2*REGWIDTH(sp)  // save T2 (x7)
         SREG    T1, trap_sv_off+1*REGWIDTH(sp)  // save T1 (x6)
         csrr    T5, CSR_XCAUSE                  // T5 = xcause
-  .ifc \__MODE__ , M
-  #if defined(K3_WATCHDOG_TICKS) && !defined(_SAIL_MACROS_H)
-        // Debug trail: on each M-timer interrupt print "W<mepc> <mstatus>" on the UART, re-arm the
-        // timer and return to the interrupted code. The last line before a hang shows where it is.
-        LI(     T4, 0x8000000000000007)         // M-timer interrupt: the watchdog
-        bne     T5, T4, 8765f
-        LI(     T5, 0x57)                       // W
-        jal     x15, 8770f
-        csrr    T3, mepc
-        jal     x15, 8772f
-        LI(     T5, 0x20)                       //  
-        jal     x15, 8770f
-        csrr    T3, mstatus
-        jal     x15, 8772f
-        LI(     T5, 0x0a)                       // n
-        jal     x15, 8770f
-        LI(     T4, RVMODEL_MTIME_ADDRESS)
-        ld      T3, 0(T4)
-        LI(     T4, K3_WATCHDOG_TICKS)
-        add     T3, T3, T4
-        LI(     T4, RVMODEL_MTIMECMP_ADDRESS)
-        sd      T3, 0(T4)
-8776:   csrr    T3, mip                         // the mtimecmp write reaches mip.MTIP only later:
-        andi    T3, T3, 0x80                    // without this wait mret re-traps at the same PC
-        bnez    T3, 8776b
-        LREG    T1, trap_sv_off+1*REGWIDTH(sp)  // undo the trampoline and the saves above
-        LREG    T2, trap_sv_off+2*REGWIDTH(sp)
-        LREG    T3, trap_sv_off+3*REGWIDTH(sp)
-        LREG    T4, trap_sv_off+4*REGWIDTH(sp)
-        LREG    T5, trap_sv_off+5*REGWIDTH(sp)
-        LREG    x15, trap_sv_off+6*REGWIDTH(sp)
-        LREG    sp, trap_sv_off+7*REGWIDTH(sp)
-        mret
-8772:   // print T3 as 16 hex digits (T1 = shift, putc inline); returns through x15
-        LI(     T1, 60)
-8773:   srl     T5, T3, T1
-        andi    T5, T5, 0xf
-        addi    T5, T5, 0x30
-        LI(     T4, 0x3a)
-        blt     T5, T4, 8774f
-        addi    T5, T5, 0x27                    // a..f
-8774:   LI(     T4, 0xD4017014)
-8775:   lbu     T2, 0(T4)
-        andi    T2, T2, 0x20
-        beqz    T2, 8775b
-        LI(     T4, 0xD4017000)
-        sb      T5, 0(T4)
-        addi    T1, T1, -4
-        bgez    T1, 8773b
-        jr      x15
-8770:   // putc T5 on the K3 UART (THR 0xD4017000, LSR +0x14 bit 5); returns through x15
-        LI(     T4, 0xD4017014)
-8771:   lbu     T2, 0(T4)
-        andi    T2, T2, 0x20
-        beqz    T2, 8771b
-        LI(     T4, 0xD4017000)
-        sb      T5, 0(T4)
-        jr      x15
-8765:
-  #endif
-  .endif
 
   // Route M-mode illegal instructions to the invisible trap handler. Keep this
   // sequence the same size when emulation is disabled. The Sail signature build

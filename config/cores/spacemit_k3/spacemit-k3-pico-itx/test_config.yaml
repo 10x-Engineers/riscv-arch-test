@@ -41,4 +41,3 @@ exclude_cases_file: exclude_cases.tsv
 include_tests:
   - Sv_H_sv39_vs_perm_vs
   - Sv_H_sv39_vs_perm_vu
-  - Sv_H_sv39_vs_pte  # positive control for the watchdog: passes without it (k3-act-loop #9)

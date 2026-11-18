@@ -1310,6 +1310,9 @@ common_\__MODE__\()entry:                       // common entry for all traps in
         add     T3, T3, T4
         LI(     T4, RVMODEL_MTIMECMP_ADDRESS)
         sd      T3, 0(T4)
+8776:   csrr    T3, mip                         // the mtimecmp write reaches mip.MTIP only later:
+        andi    T3, T3, 0x80                    // without this wait mret re-traps at the same PC
+        bnez    T3, 8776b
         LREG    T1, trap_sv_off+1*REGWIDTH(sp)  // undo the trampoline and the saves above
         LREG    T2, trap_sv_off+2*REGWIDTH(sp)
         LREG    T3, trap_sv_off+3*REGWIDTH(sp)

@@ -304,4 +304,4 @@ rvmodel_k3_mtvec:                       ;\
 // handler stores mepc, mcause, mtval, mstatus, hstatus, vsstatus, mtinst, x15 at begin_signature and
 // halts FAIL, so the runner's 64-byte dump shows where the payload was. 0x20000000 ticks is >= 0.3 s at
 // any plausible timebase and well under the 120 s result timeout at 24 MHz.
-#define K3_WATCHDOG_TICKS 24000  // 1 ms at 24 MHz: positive control (0x20000000 = 22 s never fired, k3-act-loop #12)
+#define K3_WATCHDOG_TICKS 240  // 10 us at 24 MHz: UART trail interval (debug only)

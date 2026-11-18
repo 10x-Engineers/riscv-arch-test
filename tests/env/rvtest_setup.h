@@ -1483,6 +1483,7 @@
         sd T2, 0(T1)
         LI(T1, 0x80)
         csrs mie, T1  // MTIE only
+        csrsi mstatus, 0x8  // MIE too, so an M-mode loop is interrupted as well
       #endif
 
       // make counters accessible to a lower privilege mode if one exists

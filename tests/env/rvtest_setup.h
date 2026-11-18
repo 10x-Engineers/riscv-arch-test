@@ -1473,6 +1473,24 @@
         sw zero, 0(t0)
       #endif
 
+      // Debug only, off by default: PC trail for locating hangs on a board (see docs/pc_trail.md).
+      // Armed here, after the trap prologs and the mtimecmp init above, which park mtimecmp at all ones.
+      #if defined(RVTEST_PC_TRAIL_TICKS) && !defined(_SAIL_MACROS_H)
+        #if !defined(RVMODEL_MTIME_ADDRESS) || !defined(RVMODEL_MTIMECMP_ADDRESS) || \
+            !defined(RVMODEL_DEBUG_UART_THR) || !defined(RVMODEL_DEBUG_UART_LSR) || UDB_MXLEN != 64
+          #error "RVTEST_PC_TRAIL_TICKS needs RV64, RVMODEL_MTIME/MTIMECMP_ADDRESS and RVMODEL_DEBUG_UART_THR/LSR"
+        #endif
+        LI(T1, RVMODEL_MTIME_ADDRESS)
+        ld T2, 0(T1)
+        LI(T1, RVTEST_PC_TRAIL_TICKS)
+        add T2, T2, T1
+        LI(T1, RVMODEL_MTIMECMP_ADDRESS)
+        sd T2, 0(T1)
+        LI(T1, 0x80)
+        csrs mie, T1        // MTIE
+        csrsi mstatus, 0x8  // MIE, so M-mode loops are sampled too
+      #endif
+
       // make counters accessible to a lower privilege mode if one exists
       #ifdef U_SUPPORTED
         li t0, -1

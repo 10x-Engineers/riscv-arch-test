@@ -197,6 +197,12 @@ rvmodel_k3_mtvec:                       ;\
 #define RVMODEL_CLINT_ABSOLUTE 1
 #define RVMODEL_MTIMECMP_ADDRESS K3_MTIMECMP_ADDRESS
 
+// Debug UART for the opt-in PC trail (docs/pc_trail.md): the K3 console UART, 16550-style.
+#define RVMODEL_DEBUG_UART_THR 0xD4017000
+#define RVMODEL_DEBUG_UART_LSR 0xD4017014
+// Uncomment to print the PC every 24 ticks (1 us at 24 MHz) to locate a hang. Never for a real run.
+// #define RVTEST_PC_TRAIL_TICKS 24
+
 ##### Machine Interrupts #####
 
 #define RVMODEL_INTERRUPT_LATENCY 50

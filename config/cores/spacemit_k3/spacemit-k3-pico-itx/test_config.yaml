@@ -37,7 +37,14 @@ final_elf_discard_locals: true
 final_elf_signature_dump_bytes: 64
 # Cases that stop at a known K3 hardware deviation; the rest of each test still runs.
 exclude_cases_file: exclude_cases.tsv
-# Board debug loop (k3-act-loop job): the only tests this branch runs. Check of the riscv-arch-test#3209 fix:
-# the VU-mode CSR sweep with the AIA and Sscsrind CSRs skipped on this hart.
+# Board debug loop (k3-act-loop job): the only tests this branch runs. Rerun of the four failure groups
+# SpacemiT asked for logs on (trigger 0 execute + load/store, icount arming, itrigger.u, non-leaf PTE).
 include_tests:
-  - H_vucsr
+  - SdtrigS_mcontrol6_execute_adr
+  - SdtrigU_mcontrol6_execute_adr
+  - SdtrigS_mcontrol6_execute_adr_size
+  - SdtrigSm_mcontrol6_execute_adr_size
+  - SdtrigU_mcontrol6_execute_adr_size
+  - SdtrigSm_icount_trap
+  - SdtrigSm_itrigger
+  - Sv_sv39_nleaf_pte_reserved_Smode

@@ -70,7 +70,7 @@
     "mideleg": {
       "delegatable_bits": {
         "len": "xlen",
-        "value": "0x0000_0000_0000_2222"
+        "value": "0x0000_0808_0080_2222"
       }
     },
     "xtval_nonzero": {
@@ -133,7 +133,7 @@
           "None": null
         },
         "vector": {
-          "Some": "AccessFault"
+          "None": null
         },
         "amo": {
           "None": null
@@ -174,7 +174,7 @@
               "None": null
             },
             "vector": {
-              "Some": "AccessFault"
+              "None": null
             },
             "amo": "AccessFault",
             "lrsc": "AccessFault"
@@ -212,7 +212,7 @@
               "None": null
             },
             "vector": {
-              "Some": "AccessFault"
+              "None": null
             },
             "amo": "AccessFault",
             "lrsc": "AccessFault"
@@ -250,7 +250,7 @@
               "None": null
             },
             "vector": {
-              "Some": "AccessFault"
+              "None": null
             },
             "amo": "AccessFault",
             "lrsc": "AccessFault"
@@ -353,7 +353,7 @@
         // Whether a `tdata1` write to an `icount` trigger with
         // `count`=1 also makes it pending when that write's instruction
         // matches the trigger.
-        "self_write_sets_pending": false
+        "self_write_sets_pending": true
       },
       "itrigger": {
         "supported": true,
@@ -381,16 +381,16 @@
         "mhselect": {
           // Values 1, 4 and 5, match on `mcontext`. Requires the
           // `mcontext` CSR. Values 1 and 5 also require H.
-          "mcontext_match": false,
+          "mcontext_match": true,
           // Values 2 and 6, match on the VMID in `hgatp`. Requires H.
-          "vmid_match": false
+          "vmid_match": true
         },
         "sselect": {
           // Value 1, match on `scontext`. Requires S and the `scontext`
           // CSR.
-          "scontext_match": false,
+          "scontext_match": true,
           // Value 2, match on the ASID in `satp` or `vsatp`. Requires S.
-          "asid_match": false
+          "asid_match": true
         },
         // The number of implemented `mhvalue` and `svalue` bits. Bits
         // above these are read only zero. At most 6 and 16 on RV32,
@@ -420,7 +420,7 @@
     "F": {
       "mutable_misa": false,
       "supported": true,
-      "fflags_dirty_policy": "Fflags_Dirty_Precise"
+      "fflags_dirty_policy": "Fflags_Dirty_Flag"
     },
     "D": {
       "mutable_misa": false,
@@ -435,7 +435,7 @@
         "illegal_vtype": "IllegalVtype_SetVill",
         "vstart_out_of_bounds": "Vstart_Illegal"
       },
-      "vl_use_ceil": false,
+      "vl_use_ceil": true,
       "max_index_eew_exp": 6,
       "vstart": {
         "zero_required": {
@@ -507,7 +507,7 @@
       "supported": false
     },
     "Zic64b": {
-      "supported": false
+      "supported": true
     },
     "Zicbom": {
       "supported": true
@@ -528,10 +528,10 @@
       "supported": true
     },
     "Zicclsm": {
-      "supported": false
+      "supported": true
     },
     "Ziccrse": {
-      "supported": false
+      "supported": true
     },
     "Zicfilp": {
       "supported": false
@@ -642,7 +642,7 @@
       "supported": false
     },
     "Zbkc": {
-      "supported": false
+      "supported": true
     },
     "Zbkx": {
       "supported": false

@@ -1,0 +1,3 @@
+# Cases dropped before build, so the rest of each test still runs. <test>	<case-label regex>	<reason>
+# The regex is a fullmatch on the whole case label.
+Sm_mcsr_access-00	\w+_cg_cp_mcsr_access_mhartid_\w+	The payload runs on hart 1 (runner), Sail on hart 0: mhartid reads 1. Test environment, not hardware

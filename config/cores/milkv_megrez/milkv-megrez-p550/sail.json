@@ -4,7 +4,8 @@
     "E": false,
     // Sail 0.15/0.16 (ACT act4 sync, 2026-10-22): HPM widths and the self-write increment keep
     // the Sail 0.14.1 behavior; mcountinhibit covers CY, IR and the writable HPM counters.
-    "hpmcounter_width_bits": 64,
+    // mhpmcounter3-6 have 48 bits (CSR probe: mhpmcounter3 <- ~0).
+    "hpmcounter_width_bits": 48,
     "hpmevent_width_bits": 56,
     "hpmcounter_increments_in_self_hpmevent_write": false,
     "mcountinhibit": {
@@ -42,9 +43,10 @@
       "direct": {
         "supported": true
       },
+      // Board (feature extractor): 256-byte alignment for vectored stvec.
       "vectored": {
         "supported": true,
-        "base_alignment": 7
+        "base_alignment": 8
       }
     },
     "vstvec": {
@@ -59,7 +61,7 @@
     "medeleg": {
       "delegatable_bits": {
         "len": 64,
-        "value": "0x0000_0000_00f0_b55d"
+        "value": "0x0000_0000_0000_b15d"
       }
     },
     "mideleg": {
@@ -119,6 +121,8 @@
       "napot_supported": true
     },
     "misaligned": {
+      // Not AlignmentException: the extractor reported misaligned-first, but board run 18 (Exceptions, Sv_Exceptions)
+      // took the access fault on a misaligned access to an inaccessible address.
       "exceptions": {
         "load_store": {
           "None": null
@@ -313,7 +317,8 @@
     "hartid": 0,
     "cache_block_size_exp": 6,
     "reservation": {
-      "reservation_set_size_exp": 3,
+      // 64-byte reservation set (UDB LRSC_RESERVATION_STRATEGY; sc.d/sc.w at the LR address + 8).
+      "reservation_set_size_exp": 6,
       "require_exact_reservation_addr": false,
       "invalidate_on_same_hart_store": true
     },
@@ -441,7 +446,7 @@
     "F": {
       "mutable_misa": false,
       "supported": true,
-      "fflags_dirty_policy": "Fflags_Dirty_Instruction"
+      "fflags_dirty_policy": "Fflags_Dirty_Precise"
     },
     "D": {
       "mutable_misa": false,
@@ -501,8 +506,9 @@
         "samo_page_fault": false,
         "samo_guest_page_fault": false
       },
-      "supported": true,
-      "geilen": 63,
+      "supported": false,
+      // GEILEN 0 on the board: mideleg reads 0x2666 after writing all ones, mie bit 12 reads 0.
+      "geilen": 0,
       "guest_page_fault_writes_htval": true,
       "hgatp_modes": {
         "Sv32x4": false,
@@ -533,19 +539,19 @@
       "supported": false
     },
     "Ziccamoa": {
-      "supported": false
+      "supported": true
     },
     "Ziccamoc": {
       "supported": false
     },
     "Ziccif": {
-      "supported": false
+      "supported": true
     },
     "Zicclsm": {
       "supported": false
     },
     "Ziccrse": {
-      "supported": false
+      "supported": true
     },
     "Zicfilp": {
       "supported": false
@@ -569,7 +575,7 @@
       "supported": false
     },
     "Zihintpause": {
-      "supported": false
+      "supported": true
     },
     "Zihpm": {
       "supported": true
@@ -738,7 +744,7 @@
       "supported": false
     },
     "Ssccptr": {
-      "supported": false
+      "supported": true
     },
     "Sscofpmf": {
       "supported": true

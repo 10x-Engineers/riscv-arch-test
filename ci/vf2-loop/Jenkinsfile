@@ -45,7 +45,7 @@ pipeline {
     }
 
     environment {
-        RUNNER_REMOTE_URL = 'https://github.com/farazahmad204/ACT-Runner-for-Vision-Five-2-RISC-V-Board-.git'
+        RUNNER_REMOTE_URL = 'https://github.com/10x-Engineers/ACT-Runner.git'
         LOCAL_TOOLS_SOURCE = '/data/ci/tools'
         LOCAL_TUYA_DEVICES_SOURCE = '/data/ci/devices.json'
         REGENERATE_TESTS = 'true'

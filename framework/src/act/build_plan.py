@@ -17,9 +17,11 @@ import pyjson5
 from act.build_types import COVERAGE_STEP_TIMEOUT_SECONDS, BuildTask, PythonAction, SubprocessAction, SymlinkAction
 from act.config import Config, CoverageSimulator, RefModelType
 from act.coverreport import generate_report, merge_summaries
+from act.exclude_cases import drop_cases, load_exclude_cases
 from act.parse_test_constraints import TestMetadata
 from act.sail_to_rvvi import sailLog2Trace
 from act.sig_modify import process_signature_file
+from act.slim_elf import slim_elf
 from act.toolchain import Toolchain
 from act.trap_report import generate_trap_report
 
@@ -177,6 +179,21 @@ def gen_compile_tasks(
     )
     test_flen = test_metadata.flen
     test_path = test_metadata.test_path
+    exclude_inputs: tuple[Path, ...] = ()
+    if config.exclude_cases_file is not None:
+        patterns = load_exclude_cases(config.exclude_cases_file).get(test_name.stem)
+        if patterns:
+            # Build a copy without the excluded cases; rewrite it only when it changes, so the
+            # build stays incremental.
+            source, dropped = drop_cases(test_path.read_text(), patterns, test_name.stem)
+            if not dropped:
+                raise ValueError(f"{test_name.stem}: no case matches its exclude_cases_file entries")
+            trimmed = build_dir / test_name.with_suffix(".cases.S")
+            trimmed.parent.mkdir(parents=True, exist_ok=True)
+            if not trimmed.exists() or trimmed.read_text() != source:
+                trimmed.write_text(source)
+            exclude_inputs = (test_path, config.exclude_cases_file)
+            test_path = trimmed
     mabi = f"{'i' if xlen == 32 else ''}lp{xlen}{'e' if test_metadata.e_ext else ''}"
     c_compile_flags = (
         ["-ffreestanding", "-fno-builtin", "-msmall-data-limit=0", "-std=gnu99"] if test_metadata.is_c_test else []
@@ -189,7 +206,7 @@ def gen_compile_tasks(
     test_sources = [str(test_path)]
     if test_metadata.is_c_test:
         test_sources = [str(source) for source in c_runtime_sources] + test_sources
-    test_inputs = (test_path, *compile_inputs)
+    test_inputs = (test_path, *exclude_inputs, *compile_inputs)
 
     if test_metadata.needs_signature:
         # 1. sig.elf – compile with -DSIGNATURE
@@ -274,13 +291,15 @@ def gen_compile_tasks(
         )
 
     # Non-signature tests start here
-    # 4. final.elf – compile with -DRVTEST_SELFCHECK
+    # 4. final.elf – compile with -DRVTEST_SELFCHECK (to a full ELF first when it is slimmed afterwards)
+    slim = config.final_elf_discard_locals or config.final_elf_signature_dump_bytes > 0
+    linked_elf = build_dir / test_name.with_suffix(".full.elf") if slim else final_elf
     final_elf_cmd = [
         *compile_prefix,
         *c_compile_flags,
         *stack_flags,
         "-o",
-        str(final_elf),
+        str(linked_elf),
         *march_flags,
         f"-mabi={mabi}",
         "-DRVTEST_SELFCHECK",
@@ -292,12 +311,36 @@ def gen_compile_tasks(
     ]
     tasks.append(
         BuildTask(
-            outputs=(final_elf,),
+            outputs=(linked_elf,),
             extra_inputs=test_inputs,
             deps=(result_file,) if test_metadata.needs_signature else (),
             action=SubprocessAction(cmd=final_elf_cmd),
+            intermediate=slim,
         )
     )
+    if slim:
+        if config.objdump_exe is None:
+            raise ValueError("final_elf_discard_locals/final_elf_signature_dump_bytes need objdump_exe (objcopy, nm)")
+        objdump_exe = config.objdump_exe
+        objcopy_exe = objdump_exe.with_name(objdump_exe.name.replace("objdump", "objcopy"))
+        nm_exe = objdump_exe.with_name(objdump_exe.name.replace("objdump", "nm"))
+        tasks.append(
+            BuildTask(
+                outputs=(final_elf,),
+                deps=(linked_elf,),
+                action=PythonAction(
+                    fn=slim_elf,
+                    args=(
+                        linked_elf,
+                        final_elf,
+                        objcopy_exe,
+                        nm_exe,
+                        config.final_elf_discard_locals,
+                        config.final_elf_signature_dump_bytes,
+                    ),
+                ),
+            )
+        )
 
     # 4a. final.elf.objdump (optional, debug only)
     if debug and config.objdump_exe is not None:

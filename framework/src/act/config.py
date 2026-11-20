@@ -53,6 +53,19 @@ class Config(BaseModel):
     ref_model_type: RefModelType  # Inferred from ref_model_exe by model validator
     include_priv_tests: bool = True
     harts: int = Field(default=1, ge=1)
+    # Test groups this DUT never runs, matched like --exclude (a suite directory, or a file-name prefix
+    # followed by _ or -). For tests that cannot complete on the hardware, such as accesses that hang it.
+    exclude_tests: tuple[str, ...] = ()
+    # When set, the only tests this DUT runs: entries match like exclude_tests, or name one test exactly
+    # (H_vucsr-01). For board debug loops that rerun just the tests still being worked on.
+    include_tests: tuple[str, ...] = ()
+    # Cases to drop from tests before they are built (act/exclude_cases.py): tab-separated test name,
+    # case-label regex and reason. For cases that stop at a known hardware deviation.
+    exclude_cases_file: FilePath | None = None
+    # Final-ELF shrinking for boards that stream ELFs over a slow link (act/slim_elf.py): drop debug info and
+    # local symbols, and cap the signature range a runner dumps on failure (bytes, 0 = unchanged).
+    final_elf_discard_locals: bool = False
+    final_elf_signature_dump_bytes: int = Field(default=0, ge=0)
 
     model_config = {"frozen": True}
 
@@ -101,7 +114,7 @@ class Config(BaseModel):
                 raise ValueError(f"Unable to infer reference model type from ref_model_exe: {ref_model_exe}")
         return data
 
-    @field_validator("udb_config", "linker_script", "dut_include_dir", mode="before")
+    @field_validator("udb_config", "linker_script", "dut_include_dir", "exclude_cases_file", mode="before")
     @classmethod
     def resolve_relative_paths(cls, v: str | None, info: ValidationInfo) -> Path | None:
         """Resolve relative paths relative to config file."""

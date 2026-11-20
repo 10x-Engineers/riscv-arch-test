@@ -507,7 +507,7 @@
       "supported": false
     },
     "Zic64b": {
-      "supported": false
+      "supported": true
     },
     "Zicbom": {
       "supported": true
@@ -528,10 +528,10 @@
       "supported": true
     },
     "Zicclsm": {
-      "supported": false
+      "supported": true
     },
     "Ziccrse": {
-      "supported": false
+      "supported": true
     },
     "Zicfilp": {
       "supported": false
@@ -642,7 +642,7 @@
       "supported": false
     },
     "Zbkc": {
-      "supported": false
+      "supported": true
     },
     "Zbkx": {
       "supported": false

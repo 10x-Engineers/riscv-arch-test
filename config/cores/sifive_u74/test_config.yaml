@@ -9,5 +9,24 @@ dut_include_dir: .
 # check (RVCP/[FAILQ]/[REGS]), so keep 64 bytes. Loop pipelines refuse ELFs whose dump exceeds 4 KiB.
 final_elf_discard_locals: true
 final_elf_signature_dump_bytes: 64
-# boards/main is the baseline: every selected test runs. Debug-loop branches add include_tests, exclude_tests
-# and exclude_cases_file (exclude_cases.tsv is kept here for them; it is not read on this branch).
+# Cases dropped before build (Sail cannot model the board, or a known board deviation; see the reason column).
+exclude_cases_file: exclude_cases.tsv
+# Board debug loop (vf2-act-loop job): the only tests this branch runs. Exclusion rerun after baseline
+# vf2-uart-weekly #18 (boards/main 6c0b18764, tag baseline/2026-11-20): 581/596 pass, these 15 fail, every
+# failure on a case exclude_cases.tsv already drops. Goal: the rest of each test passes with those cases dropped.
+include_tests:
+  - S_Zicntr-00
+  - Sm_Zicntr-00
+  - U_Zicntr-00
+  - Sm_mcsr_access-00
+  - Sm_mcsr_cntr-00
+  - Sv_ExceptionsSm_sv39_exceptions_mprv_S_Mmode-00
+  - Sv_ExceptionsSm_sv39_exceptions_mprv_U_Mmode-00
+  - Sv_ExceptionsZaamoSm_sv39_exceptions_Zaamo_mprv_S_Mmode-00
+  - Sv_ExceptionsZaamo_sv39_exceptions_Zaamo_Smode-00
+  - Sv_ExceptionsZaamo_sv39_exceptions_Zaamo_Umode-00
+  - Sv_ExceptionsZalrscSm_sv39_exceptions_Zalrsc_mprv_S_Mmode-00
+  - Sv_ExceptionsZalrsc_sv39_exceptions_Zalrsc_Smode-00
+  - Sv_ExceptionsZalrsc_sv39_exceptions_Zalrsc_Umode-00
+  - Sv_Exceptions_sv39_exceptions_Smode-00
+  - Sv_Exceptions_sv39_exceptions_Umode-00

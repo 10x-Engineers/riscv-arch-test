@@ -70,7 +70,7 @@
     "mideleg": {
       "delegatable_bits": {
         "len": "xlen",
-        "value": "0x0000_0000_0000_2222"
+        "value": "0x0000_0808_0080_2222"
       }
     },
     "xtval_nonzero": {
@@ -133,7 +133,7 @@
           "None": null
         },
         "vector": {
-          "Some": "AccessFault"
+          "None": null
         },
         "amo": {
           "None": null
@@ -174,7 +174,7 @@
               "None": null
             },
             "vector": {
-              "Some": "AccessFault"
+              "None": null
             },
             "amo": "AccessFault",
             "lrsc": "AccessFault"
@@ -212,7 +212,7 @@
               "None": null
             },
             "vector": {
-              "Some": "AccessFault"
+              "None": null
             },
             "amo": "AccessFault",
             "lrsc": "AccessFault"
@@ -250,7 +250,7 @@
               "None": null
             },
             "vector": {
-              "Some": "AccessFault"
+              "None": null
             },
             "amo": "AccessFault",
             "lrsc": "AccessFault"
@@ -420,7 +420,7 @@
     "F": {
       "mutable_misa": false,
       "supported": true,
-      "fflags_dirty_policy": "Fflags_Dirty_Precise"
+      "fflags_dirty_policy": "Fflags_Dirty_Flag"
     },
     "D": {
       "mutable_misa": false,

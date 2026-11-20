@@ -124,18 +124,18 @@
           "None": null
         },
         "vector": {
-          "Some": "AccessFault"
+          "None": null
         },
         "amo": {
-          "Some": "AccessFault"
+          "None": null
         },
         "lrsc": {
-          "Some": "AccessFault"
+          "None": null
         }
       },
       "order_decreasing": false,
       "default_allowed_within_exp": 0,
-      "byte_by_byte": false
+      "byte_by_byte": true
     },
     "dtb_address": {
       "len": 64,
@@ -425,7 +425,7 @@
         "samo_page_fault": false,
         "samo_guest_page_fault": false
       },
-      "supported": true,
+      "supported": false,
       "geilen": 63,
       "guest_page_fault_writes_htval": true,
       "hgatp_modes": {
@@ -499,7 +499,7 @@
       "supported": true
     },
     "Zilx": {
-      "supported": true
+      "supported": false
     },
     "Zimop": {
       "supported": false
@@ -580,7 +580,7 @@
       "supported": false
     },
     "Zbkc": {
-      "supported": false
+      "supported": true
     },
     "Zbkx": {
       "supported": false
@@ -671,34 +671,34 @@
       "supported": false
     },
     "Shcounterenw": {
-      "supported": true
+      "supported": false
     },
     "Sscounterenw": {
       "supported": false
     },
     "Shvsatpa": {
-      "supported": true
+      "supported": false
     },
     "Shvstvala": {
-      "supported": true
+      "supported": false
     },
     "Shvstvecd": {
-      "supported": true
+      "supported": false
     },
     "Sstc": {
       "supported": true
     },
     "Shgatpa": {
-      "supported": true
+      "supported": false
     },
     "Shtvala": {
-      "supported": true
+      "supported": false
     },
     "Sstvala": {
       "supported": false
     },
     "Sstvecd": {
-      "supported": true
+      "supported": false
     },
     "Svade": {
       "supported": false
@@ -716,7 +716,7 @@
       "supported": true
     },
     "Svukte": {
-      "supported": true
+      "supported": false
     },
     "Ssnpm": {
       "supported": false,

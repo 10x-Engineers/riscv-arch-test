@@ -37,14 +37,9 @@ final_elf_discard_locals: true
 final_elf_signature_dump_bytes: 64
 # Cases that stop at a known K3 hardware deviation; the rest of each test still runs.
 exclude_cases_file: exclude_cases.tsv
-# Board debug loop (k3-act-loop job): the only tests this branch runs. Rerun of the four failure groups
-# SpacemiT asked for logs on (trigger 0 execute + load/store, icount arming, itrigger.u, non-leaf PTE).
+# Board rerun for SpacemiT: the hvip.VSTIP (Sstc under H) and vsstatus.MXR hang (Sv_H vs_perm) groups.
 include_tests:
-  - SdtrigS_mcontrol6_execute_adr
-  - SdtrigU_mcontrol6_execute_adr
-  - SdtrigS_mcontrol6_execute_adr_size
-  - SdtrigSm_mcontrol6_execute_adr_size
-  - SdtrigU_mcontrol6_execute_adr_size
-  - SdtrigSm_icount_trap
-  - SdtrigSm_itrigger
-  - Sv_sv39_nleaf_pte_reserved_Smode
+  - Sstc_H_vstip
+  - Sstc_HSm_vstip
+  - Sv_H_sv39_vs_perm_vs
+  - Sv_H_sv39_vs_perm_vu

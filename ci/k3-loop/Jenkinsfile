@@ -24,7 +24,7 @@ pipeline {
             description: 'ACT branch; its K3 test_config.yaml include_tests selects the tests to run.')
         string(name: 'ACT_REVISION_OVERRIDE', defaultValue: '',
             description: 'Optional exact ACT commit.')
-        string(name: 'RUNNER_BRANCH', defaultValue: 'vf2-uart-stream-jenkins',
+        string(name: 'RUNNER_BRANCH', defaultValue: 'main',
             description: 'Runner branch resolved once at checkout.')
         string(name: 'RUNNER_REVISION_OVERRIDE', defaultValue: '',
             description: 'Optional exact runner commit.')
@@ -61,7 +61,7 @@ pipeline {
                 deleteDir()
                 sh '''#!/usr/bin/env bash
                     set -euo pipefail
-                    runner_branch="${RUNNER_BRANCH:-vf2-uart-stream-jenkins}"
+                    runner_branch="${RUNNER_BRANCH:-main}"
                     runner_revision_override="${RUNNER_REVISION_OVERRIDE:-}"
                     git check-ref-format --branch "$runner_branch" >/dev/null
                     git init .

@@ -1,14 +1,13 @@
 name: milkv-megrez-p550
-compiler_exe: riscv64-unknown-elf-gcc # executable name on $PATH or full path to executable
-objdump_exe: riscv64-unknown-elf-objdump # executable name on $PATH or full path to executable, optional
-ref_model_exe: sail_riscv_sim  # resolved on PATH (Jenkins pins Sail 0.14.1)
+compiler_exe: riscv64-unknown-elf-gcc
+objdump_exe: riscv64-unknown-elf-objdump
+ref_model_exe: sail_riscv_sim
 udb_config: milkv-megrez-p550.yaml
 linker_script: link.ld
-dut_include_dir: . # Directory containing DUT specific rvmodel_macros.h header/
-# The runner streams each ELF over UART and dumps the signature region on failure (~1 h per MB); the RVCP lines
-# already report the failure, so keep 64 bytes of the dump.
+dut_include_dir: .
+# The board runner prints the signature region on a failure; self-checking tests already report the failing
+# check (RVCP/[FAILQ]/[REGS]), so keep 64 bytes. Loop pipelines refuse ELFs whose dump exceeds 4 KiB.
 final_elf_discard_locals: true
 final_elf_signature_dump_bytes: 64
-exclude_cases_file: exclude_cases.tsv
-include_tests:
-  - Sm_mcsr_access
+# boards/main is the baseline: every selected test runs. Debug-loop branches add include_tests, exclude_tests
+# and exclude_cases_file (exclude_cases.tsv is kept here for them; it is not read on this branch).

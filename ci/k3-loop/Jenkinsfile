@@ -24,7 +24,7 @@ pipeline {
             description: 'ACT branch; its K3 test_config.yaml include_tests selects the tests to run.')
         string(name: 'ACT_REVISION_OVERRIDE', defaultValue: '',
             description: 'Optional exact ACT commit.')
-        string(name: 'RUNNER_BRANCH', defaultValue: 'vf2-uart-stream-jenkins',
+        string(name: 'RUNNER_BRANCH', defaultValue: 'main',
             description: 'Runner branch resolved once at checkout.')
         string(name: 'RUNNER_REVISION_OVERRIDE', defaultValue: '',
             description: 'Optional exact runner commit.')
@@ -43,7 +43,7 @@ pipeline {
     }
 
     environment {
-        RUNNER_REMOTE_URL = 'https://github.com/farazahmad204/ACT-Runner-for-Vision-Five-2-RISC-V-Board-.git'
+        RUNNER_REMOTE_URL = 'https://github.com/10x-Engineers/ACT-Runner.git'
         LOCAL_TOOLS_SOURCE = '/data/ci/tools'
         LOCAL_TUYA_DEVICES_SOURCE = '/data/ci/devices.json'
         REGENERATE_TESTS = 'true'
@@ -52,6 +52,12 @@ pipeline {
         UART_DEVICE_NAME = "${params.POWER_DEVICE_NAME ?: 'MELECTRO:4'}"
         // Largest signature region an ELF may give the runner to dump on failure (see the stage below).
         MAX_SIG_DUMP_BYTES = '4096'
+        // Speedups for short debug runs (runner settings, off by default elsewhere): gem/uv caches survive
+        // deleteDir(), testgen builds only the suites include_tests needs, the board stays on after the batch.
+        ACT_AGENT_CACHE_DIR = '/data/ci/agent/cache/k3-act-loop'
+        ACT_MIRROR_DIR = '/data/ci/agent/cache/k3-act-loop-act.git'
+        ACT_GENERATOR_EXTENSIONS = 'auto'
+        UART_LEAVE_POWER_ON = 'true'
         PATH = '/data/ci/bin:/data/ci/toolchains/riscv64/bin:/usr/local/bin:/usr/bin:/bin'
     }
 
@@ -61,7 +67,7 @@ pipeline {
                 deleteDir()
                 sh '''#!/usr/bin/env bash
                     set -euo pipefail
-                    runner_branch="${RUNNER_BRANCH:-vf2-uart-stream-jenkins}"
+                    runner_branch="${RUNNER_BRANCH:-main}"
                     runner_revision_override="${RUNNER_REVISION_OVERRIDE:-}"
                     git check-ref-format --branch "$runner_branch" >/dev/null
                     git init .
@@ -71,7 +77,7 @@ pipeline {
                     for attempt in 1 2 3 4; do
                       echo "Runner fetch attempt ${attempt}/4"
                       if timeout 180 git -c http.lowSpeedLimit=1 -c http.lowSpeedTime=30 \
-                        fetch --force --prune origin "+refs/heads/$runner_branch:$runner_ref"; then
+                        fetch --depth 1 --force --prune origin "+refs/heads/$runner_branch:$runner_ref"; then
                         fetch_ok=true
                         break
                       fi
@@ -79,20 +85,32 @@ pipeline {
                     done
                     [[ "$fetch_ok" == true ]] || { echo "Runner fetch failed: $runner_branch" >&2; exit 1; }
                     fetched="$(git rev-parse --verify "${runner_ref}^{commit}")"
+                    if [[ -n "$runner_revision_override" ]]; then
+                      # The branch fetch is shallow: fetch an override commit (full SHA) by itself.
+                      git cat-file -e "${runner_revision_override}^{commit}" 2>/dev/null ||
+                        timeout 180 git fetch --depth 1 origin "$runner_revision_override"
+                    fi
                     selected="${runner_revision_override:-$fetched}"
                     selected="$(git rev-parse --verify "$selected^{commit}")"
                     git checkout --detach "$selected"
-                    submodule_ok=false
+                    # ACT: an empty repository borrowing objects from a mirror kept outside the workspace.
+                    # Preflight's shallow fetch of ACT_BRANCH then finds the commit locally and transfers
+                    # nothing; a full submodule clone took ~2 min of every build.
+                    act_mirror="$ACT_MIRROR_DIR"
+                    [[ -d "$act_mirror" ]] || git init -q --bare "$act_mirror"
+                    mirror_ok=false
                     for attempt in 1 2 3 4; do
-                      if timeout 300 git -c http.lowSpeedLimit=1 -c http.lowSpeedTime=30 \
-                        submodule update --init external/riscv-arch-test; then
-                        submodule_ok=true
+                      if timeout 600 git -C "$act_mirror" -c http.lowSpeedLimit=1 -c http.lowSpeedTime=30 \
+                        fetch -q --force "$ACT_REMOTE_URL" "+refs/heads/$ACT_BRANCH:refs/heads/$ACT_BRANCH"; then
+                        mirror_ok=true
                         break
                       fi
                       [[ "$attempt" -eq 4 ]] || sleep "$((attempt * 15))"
                     done
-                    [[ "$submodule_ok" == true ]] || { echo 'ACT submodule update failed' >&2; exit 1; }
-                    mkdir -p tools
+                    [[ "$mirror_ok" == true ]] || { echo "ACT mirror fetch failed: $ACT_BRANCH" >&2; exit 1; }
+                    git init -q external/riscv-arch-test
+                    echo "$act_mirror/objects" > external/riscv-arch-test/.git/objects/info/alternates
+                    mkdir -p tools "$ACT_AGENT_CACHE_DIR"
                     cp -a "$LOCAL_TOOLS_SOURCE/." tools/
                     install -m 0600 "$LOCAL_TUYA_DEVICES_SOURCE" devices.json
                     {
@@ -105,19 +123,14 @@ pipeline {
             }
         }
 
-        stage('K3 ACT Preflight') {
-            steps { sh 'ci/jenkins/uart_weekly_k3.sh preflight' }
-        }
-
-        stage('Generate Selected Tests + Sail') {
-            steps { sh 'ci/jenkins/uart_weekly_k3.sh prepare' }
-        }
-
-        // The runner dumps begin_signature..end_signature over UART when a test fails: ~1 h per MB at 115200
-        // baud. The ACT config caps the range (final_elf_signature_dump_bytes); stop before the board if an
-        // ELF was built without it.
-        stage('Check Signature Dump Size') {
+        // One stage for the four build steps: each Jenkins stage costs ~10 s on this agent.
+        stage('Preflight, Generate + Sail, Runner Image') {
             steps {
+                sh 'ci/jenkins/uart_weekly_k3.sh preflight'
+                sh 'ci/jenkins/uart_weekly_k3.sh prepare'
+                // The runner dumps begin_signature..end_signature over UART when a test fails: ~1 h per MB at
+                // 115200 baud. The ACT config caps the range (final_elf_signature_dump_bytes); stop before the
+                // board if an ELF was built without it.
                 sh '''#!/usr/bin/env bash
                     set -euo pipefail
                     nm_exe=""
@@ -140,11 +153,8 @@ pipeline {
                     echo "Checked $total ELFs: $bad with a signature dump above $MAX_SIG_DUMP_BYTES bytes"
                     (( total > 0 && bad == 0 ))
                 '''
+                sh 'ci/jenkins/uart_weekly_k3.sh verify-runner-image'
             }
-        }
-
-        stage('Build Candidate K3 UART Runner') {
-            steps { sh 'ci/jenkins/uart_weekly_k3.sh verify-runner-image' }
         }
 
         stage('K3 UART Execute') {

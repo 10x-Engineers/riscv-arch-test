@@ -446,7 +446,7 @@
     "F": {
       "mutable_misa": false,
       "supported": true,
-      "fflags_dirty_policy": "Fflags_Dirty_Instruction"
+      "fflags_dirty_policy": "Fflags_Dirty_Precise"
     },
     "D": {
       "mutable_misa": false,
@@ -506,6 +506,9 @@
         "samo_page_fault": false,
         "samo_guest_page_fault": false
       },
+      // Known difference from the UDB config, kept on purpose: the P550 implements draft H 0.6, so the UDB
+      // yaml does not declare H, but its H state exists (mstatus.MPV/GVA writable, mip.VSSIP, mhpmevent
+      // VSINH). With H off Sail makes those read 0 and 11 Sm/Sscofpmf tests fail (megrez-uart-weekly #24).
       "supported": true,
       // GEILEN 0 on the board: mideleg reads 0x2666 after writing all ones, mie bit 12 reads 0.
       "geilen": 0,
@@ -539,19 +542,19 @@
       "supported": false
     },
     "Ziccamoa": {
-      "supported": false
+      "supported": true
     },
     "Ziccamoc": {
       "supported": false
     },
     "Ziccif": {
-      "supported": false
+      "supported": true
     },
     "Zicclsm": {
       "supported": false
     },
     "Ziccrse": {
-      "supported": false
+      "supported": true
     },
     "Zicfilp": {
       "supported": false
@@ -575,7 +578,7 @@
       "supported": false
     },
     "Zihintpause": {
-      "supported": false
+      "supported": true
     },
     "Zihpm": {
       "supported": true
@@ -744,7 +747,7 @@
       "supported": false
     },
     "Ssccptr": {
-      "supported": false
+      "supported": true
     },
     "Sscofpmf": {
       "supported": true

@@ -61,13 +61,35 @@ M_CSR_RANGES = [
 ]
 # The CSR numbers that are not user CSRs, and the user read-only CSRs, as in U (cp_csr_insufficient_priv, cp_csr_ro).
 # 0x7AA mscontext is left out as in S, because it may be accessible from S-mode and so raise virtual instruction.
+# The custom supervisor and hypervisor CSRs are left out because VU-mode access to an implemented one raises virtual
+# instruction, and which ones are implemented is up to the implementation.
 NONUSER_CSR_RANGES = [
     range(0x100, 0x400),
-    range(0x500, 0x7AA),
+    range(0x500, 0x5C0),
+    range(0x600, 0x6C0),
+    range(0x700, 0x7AA),
     range(0x7AB, 0x800),
-    range(0x900, 0xC00),
-    range(0xD00, 0x1000),
+    range(0x900, 0x9C0),
+    range(0xA00, 0xAC0),
+    range(0xB00, 0xC00),
+    range(0xD00, 0xDC0),
+    range(0xE00, 0xEC0),
+    range(0xF00, 0x1000),
 ]
+# TODO: Remove once the Sail used here models Smaia/Ssaia and Sscsrind (riscv-arch-test#3209)
+# From VU-mode, a supervisor or hypervisor CSR that exists raises virtual instruction. Sail does not model these
+# AIA and indirect-access CSRs, so it expects illegal instruction; skip them only when the DUT implements them.
+# stopei, vstopei, hvien, hvictl, hviprio1, hviprio2, stopi, vstopi
+SSAIA_CSRS = (0x15C, 0x25C, 0x608, 0x609, 0x646, 0x647, 0xDB0, 0xEB0)
+# sieh, siph, vsieh, vsiph, hvienh, hviph, hviprio1h, hviprio2h
+SSAIA_RV32_CSRS = (0x114, 0x154, 0x214, 0x254, 0x618, 0x655, 0x656, 0x657)
+# siselect, sireg, sireg2-6, vsiselect, vsireg, vsireg2-6
+SSCSRIND_CSRS = (*range(0x150, 0x154), *range(0x155, 0x158), *range(0x250, 0x254), *range(0x255, 0x258))
+VU_UNMODELED_CSR_GATES = {
+    **dict.fromkeys(SSAIA_CSRS, "!defined(SSAIA_SUPPORTED)"),
+    **dict.fromkeys(SSAIA_RV32_CSRS, "!defined(SSAIA_SUPPORTED) || __riscv_xlen == 64"),
+    **dict.fromkeys(SSCSRIND_CSRS, "!defined(SSCSRIND_SUPPORTED)"),
+}
 USER_RO_CSR_RANGES = [range(0xC00, 0xD00)]
 # The read-only CSR numbers VS-mode tries to write, as in S (cp_csr_ro)
 S_RO_CSR_RANGES = [range(0xC00, 0xF00)]
@@ -262,6 +284,7 @@ def _vu_csr_tests(test_data: TestData, test_chunks: list[TestChunk]) -> None:
         "In VU-mode, attempt to read each CSR that is not a user CSR.  Should throw illegal or virtual instruction",
         mode="VU",
         csrs_per_chunk=CSRS_PER_CHUNK,
+        csr_gates=VU_UNMODELED_CSR_GATES,
     )
     csr_ro_write_tests(
         test_data, test_chunks, VU_CG, USER_RO_CSR_RANGES, "vucsr_ro", mode="VU", csrs_per_chunk=CSRS_PER_CHUNK

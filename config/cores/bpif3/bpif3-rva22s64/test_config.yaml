@@ -5,3 +5,9 @@ ref_model_exe: sail_riscv_sim
 udb_config: bpif3-rva22s64.yaml
 linker_script: link.ld
 dut_include_dir: .
+# The board runner prints the signature region on a failure; self-checking tests already report the failing
+# check (RVCP/[FAILQ]/[REGS]), so keep 64 bytes. Loop pipelines refuse ELFs whose dump exceeds 4 KiB.
+final_elf_discard_locals: true
+final_elf_signature_dump_bytes: 64
+# boards/main is the baseline: every selected test runs. Debug-loop branches add include_tests, exclude_tests
+# and exclude_cases_file.

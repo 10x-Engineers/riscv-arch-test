@@ -59,7 +59,7 @@
     "medeleg": {
       "delegatable_bits": {
         "len": 64,
-        "value": "0x0000_0000_000c_b3FF"
+        "value": "0x0000_0000_0000_b3FF"
       }
     },
     "mideleg": {
@@ -124,18 +124,18 @@
           "None": null
         },
         "vector": {
-          "Some": "AccessFault"
+          "None": null
         },
         "amo": {
-          "Some": "AccessFault"
+          "None": null
         },
         "lrsc": {
-          "Some": "AccessFault"
+          "None": null
         }
       },
       "order_decreasing": false,
       "default_allowed_within_exp": 0,
-      "byte_by_byte": false
+      "byte_by_byte": true
     },
     "dtb_address": {
       "len": 64,
@@ -165,7 +165,7 @@
               "None": null
             },
             "vector": {
-              "Some": "AccessFault"
+              "Some": "AlignmentException"
             },
             "amo": "AccessFault",
             "lrsc": "AccessFault"
@@ -231,9 +231,9 @@
         }
       }
     ],
-    "vendorid": 0,
-    "archid": 0,
-    "impid": 0,
+    "vendorid": 1808,
+    "archid": 9223372038331170817,
+    "impid": 1152921505839391232,
     "hartid": 0,
     "cache_block_size_exp": 6,
     "reservation": {
@@ -425,7 +425,7 @@
         "samo_page_fault": false,
         "samo_guest_page_fault": false
       },
-      "supported": true,
+      "supported": false,
       "geilen": 63,
       "guest_page_fault_writes_htval": true,
       "hgatp_modes": {
@@ -445,13 +445,13 @@
       "supported": false
     },
     "Zic64b": {
-      "supported": false
+      "supported": true
     },
     "Zicbom": {
       "supported": true
     },
     "Zicbop": {
-      "supported": false
+      "supported": true
     },
     "Zicboz": {
       "supported": true
@@ -466,7 +466,7 @@
       "supported": false
     },
     "Zicclsm": {
-      "supported": false
+      "supported": true
     },
     "Ziccrse": {
       "supported": false
@@ -499,7 +499,7 @@
       "supported": true
     },
     "Zilx": {
-      "supported": true
+      "supported": false
     },
     "Zimop": {
       "supported": false
@@ -580,7 +580,7 @@
       "supported": false
     },
     "Zbkc": {
-      "supported": false
+      "supported": true
     },
     "Zbkx": {
       "supported": false
@@ -671,28 +671,28 @@
       "supported": false
     },
     "Shcounterenw": {
-      "supported": true
-    },
-    "Sscounterenw": {
       "supported": false
     },
-    "Shvsatpa": {
+    "Sscounterenw": {
       "supported": true
+    },
+    "Shvsatpa": {
+      "supported": false
     },
     "Shvstvala": {
-      "supported": true
+      "supported": false
     },
     "Shvstvecd": {
-      "supported": true
+      "supported": false
     },
     "Sstc": {
       "supported": true
     },
     "Shgatpa": {
-      "supported": true
+      "supported": false
     },
     "Shtvala": {
-      "supported": true
+      "supported": false
     },
     "Sstvala": {
       "supported": false
@@ -716,7 +716,7 @@
       "supported": true
     },
     "Svukte": {
-      "supported": true
+      "supported": false
     },
     "Ssnpm": {
       "supported": false,

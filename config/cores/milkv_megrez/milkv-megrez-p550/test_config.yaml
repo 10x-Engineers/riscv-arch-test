@@ -9,5 +9,19 @@ dut_include_dir: .
 # check (RVCP/[FAILQ]/[REGS]), so keep 64 bytes. Loop pipelines refuse ELFs whose dump exceeds 4 KiB.
 final_elf_discard_locals: true
 final_elf_signature_dump_bytes: 64
-# boards/main is the baseline: every selected test runs. Debug-loop branches add include_tests, exclude_tests
-# and exclude_cases_file (exclude_cases.tsv is kept here for them; it is not read on this branch).
+# Cases dropped before build (exclude_cases.tsv: the mhartid cases, payload on hart 1).
+exclude_cases_file: exclude_cases.tsv
+# Loop after baseline megrez-uart-weekly #24 (boards/main f983adac3): 654/665 pass; these 11 failed because
+# sail.json had H off (P550 H state exists). boards/main 36dc32e17 turns H back on; rerun them.
+include_tests:
+  - Sm_mcsr_access-00
+  - Sm_mcsr_walk-00
+  - Sm_mcsr_walk-01
+  - Sm_mcsr_walk-02
+  - Sm_shadow-00
+  - Sscofpmf_S_inhibit_hi-00
+  - Sscofpmf_S_inhibit_lo-00
+  - Sscofpmf_Sm_inhibit_hi-00
+  - Sscofpmf_Sm_inhibit_lo-00
+  - Sscofpmf_U_inhibit_hi-00
+  - Sscofpmf_U_inhibit_lo-00

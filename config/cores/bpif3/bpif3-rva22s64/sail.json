@@ -59,7 +59,7 @@
     "medeleg": {
       "delegatable_bits": {
         "len": 64,
-        "value": "0x0000_0000_000c_b3FF"
+        "value": "0x0000_0000_0000_b3FF"
       }
     },
     "mideleg": {
@@ -165,7 +165,7 @@
               "None": null
             },
             "vector": {
-              "Some": "AccessFault"
+              "Some": "AlignmentException"
             },
             "amo": "AccessFault",
             "lrsc": "AccessFault"
@@ -231,9 +231,9 @@
         }
       }
     ],
-    "vendorid": 0,
-    "archid": 0,
-    "impid": 0,
+    "vendorid": 1808,
+    "archid": 9223372038331170817,
+    "impid": 1152921505839391232,
     "hartid": 0,
     "cache_block_size_exp": 6,
     "reservation": {
@@ -445,13 +445,13 @@
       "supported": false
     },
     "Zic64b": {
-      "supported": false
+      "supported": true
     },
     "Zicbom": {
       "supported": true
     },
     "Zicbop": {
-      "supported": false
+      "supported": true
     },
     "Zicboz": {
       "supported": true
@@ -466,7 +466,7 @@
       "supported": false
     },
     "Zicclsm": {
-      "supported": false
+      "supported": true
     },
     "Ziccrse": {
       "supported": false
@@ -674,7 +674,7 @@
       "supported": false
     },
     "Sscounterenw": {
-      "supported": false
+      "supported": true
     },
     "Shvsatpa": {
       "supported": false
@@ -698,7 +698,7 @@
       "supported": false
     },
     "Sstvecd": {
-      "supported": false
+      "supported": true
     },
     "Svade": {
       "supported": false

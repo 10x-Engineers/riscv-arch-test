@@ -55,7 +55,10 @@ implemented_extensions:
 
   # --- Cache (DTS confirmed) ---
   - { name: Zicbom, version: "= 1.0.0" }
+  - { name: Zicbop, version: "= 1.0.0" } # DTS riscv,isa-extensions
   - { name: Zicboz, version: "= 1.0.0" }
+  - { name: Zic64b, version: "= 1.0.0" } # DTS riscv,isa-extensions; cache block 64 B (extractor CACHE_BLOCK_SIZE)
+  - { name: Zicclsm, version: "= 1.0.0" } # misaligned loads/stores supported (MISALIGNED_LDST; extractor)
 
   # --- CSR / counter extensions (Zicsr/Zifencei/Zihintpause DTS confirmed;
   #     Zicntr/Zihpm confirmed via OpenSBI hardware CSR probe, not DTS) ---
@@ -71,6 +74,10 @@ implemented_extensions:
   # --- Supervisor extensions (DTS confirmed) ---
   - { name: Sscofpmf, version: "= 1.0.0" }
   - { name: Sstc,     version: "= 1.0.0" }
+  # Detected by the UDB feature extractor on the board (single-ELF #247, 2026-11-21)
+  - { name: Sscounterenw, version: "= 1.0.0" }
+  - { name: Sstvecd,      version: "= 1.0.0" }
+  - { name: Ssu64xl,      version: "= 1.0.0" }
 
   # --- Virtual memory (DTS confirmed / behavioral inference) ---
   - { name: Sv39,    version: "= 1.0.0" }   # behavioral inference (Linux boot)
@@ -203,10 +210,14 @@ params:
   # K1 WFI may wait indefinitely until a wake-up event occurs.
   WFI_FINITE: false
   TRAP_ON_EBREAK: true
-  MARCHID_IMPLEMENTED: false
-  MIMPID_IMPLEMENTED: false
-  VENDOR_ID_BANK: 0
-  VENDOR_ID_OFFSET: 0
+  # Read on the board by the UDB feature extractor (single-ELF #247): mvendorid 0x710 (SpacemiT),
+  # marchid 0x8000000058000001, mimpid 0x1000000049772200.
+  MARCHID_IMPLEMENTED: true
+  ARCH_ID_VALUE: 0x8000000058000001
+  MIMPID_IMPLEMENTED: true
+  IMP_ID_VALUE: 0x1000000049772200
+  VENDOR_ID_BANK: 14
+  VENDOR_ID_OFFSET: 16
   MISALIGNED_LDST: true          # scalar misaligned loads/stores supported on K1
   MISALIGNED_LDST_EXCEPTION_PRIORITY: low
   MISALIGNED_MAX_ATOMICITY_GRANULE_SIZE: 0
@@ -366,7 +377,8 @@ params:
   VFREDUSUM_FINAL_NODE_ELEMENT_BEHAVIOR: "additive_identity"
   IMPRECISE_VECTOR_TRAP_SETTABLE: false
   RVV_VL_WHEN_AVL_LT_DOUBLE_VLMAX: VLMAX
-  # Same bits as sail.json medeleg.delegatable_bits (0xcb3ff).
+  # Same bits as sail.json medeleg.delegatable_bits (0xb3ff). Bits 18 and 19 are not delegatable on the
+  # board (extractor, single-ELF #247).
   MEDELEG_DELEGATABLE:
     [
       true,
@@ -387,8 +399,6 @@ params:
       true,
       false,
       false,
-      true,
-      true,
       false,
       false,
       false,
@@ -433,6 +443,8 @@ params:
       false,
       false,
       false,
+      false,
+      false
     ]
   # Same bits as sail.json mideleg.delegatable_bits (0x2222).
   MIDELEG_DELEGATABLE:

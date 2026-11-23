@@ -200,8 +200,8 @@ params:
   # values), so which context matches exist is UNVERIFIED and they are declared unsupported.
   SDTRIG_NUM_TRIGGERS: 4
   # medeleg[3] is delegatable on the K3 as well; Sail 0.16 cannot model that with Use_tcontrol (see sail.json).
-  SDTRIG_BREAKPOINT_REENTRANCY: Use_tcontrol
-  TCONTROL_IMPLEMENTED: true
+  SDTRIG_BREAKPOINT_REENTRANCY: Use_interrupt_enables   # SpacemiT config 2026-11-20
+  TCONTROL_IMPLEMENTED: false   # present on the board, but Sail 0.16 models tcontrol only with Use_tcontrol reentrancy
   TDATA2_IMPLEMENTED: true
   TDATA3_IMPLEMENTED: true
   SDTRIG_M_WRITABLE: true
@@ -220,7 +220,7 @@ params:
   SDTRIG_ETRIGGER_SUPPORTED_TRIGGERS: [false, false, false, true]
   SDTRIG_MCONTROL6_MASKMAX6: 8
   SDTRIG_MAX_CHAIN_LENGTH: 2
-  SDTRIG_MCONTROL6_MATCH_LEGAL_VALUES: [0, 1]
+  SDTRIG_MCONTROL6_MATCH_LEGAL_VALUES: [0, 1, 2, 3, 4, 5]   # SpacemiT config 2026-11-20; no Sail setting (Sail gap)
   SDTRIG_MCONTROL6_SIZE_LEGAL_VALUES: [0, 1, 2, 3, 5]
   SDTRIG_MCONTROL6_SELECT_WRITABLE: true
   SDTRIG_MCONTROL6_EXECUTE_WRITABLE: true
@@ -494,15 +494,15 @@ params:
   VFREDUSUM_FINAL_NODE_ELEMENT_BEHAVIOR: "copy"
   IMPRECISE_VECTOR_TRAP_SETTABLE: false
   RVV_VL_WHEN_AVL_LT_DOUBLE_VLMAX: "ceil(AVL/2)"
-  # Same bits as sail.json medeleg.delegatable_bits (0xf0b7f7). With H: bit 10 (ecall from VS) and 20-23
+  # Same bits as sail.json medeleg.delegatable_bits (0xf0b7ff). With H: bit 10 (ecall from VS) and 20-23
   # (guest page faults) are delegatable too, as on k3-uart-hypervisor #5 (megrez-hypervisor-sail015 config).
-  # Bit 3 (breakpoint) is delegatable on the K3, but UDB and Sail require it false with Use_tcontrol reentrancy.
+  # Bit 3 (breakpoint) is delegatable (SpacemiT config 2026-11-20; ACT setup sets it and the K3 keeps it).
   MEDELEG_DELEGATABLE:
     [
       true,
       true,
       true,
-      false,
+      true,
       true,
       true,
       true,

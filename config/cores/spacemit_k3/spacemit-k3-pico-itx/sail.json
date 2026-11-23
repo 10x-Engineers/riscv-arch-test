@@ -64,7 +64,7 @@
     "medeleg": {
       "delegatable_bits": {
         "len": 64,
-        "value": "0x0000_0000_00F0_B7F7"
+        "value": "0x0000_0000_00F0_B7FF"
       }
     },
     "mideleg": {
@@ -336,7 +336,7 @@
       // Note: `Use_tcontrol` hardwires medeleg[3] to 0, which breaks the
       // `sbreak` test in `riscv-tests`.
       // K3: tcontrol (sdtrig_probe v5, single-ELF #196).
-      "breakpoint_reentrancy": "Use_tcontrol",
+      "breakpoint_reentrancy": "Use_interrupt_enables",
       "etrigger": {
         "supported": true,
         // A bit set to 1 in this value specifies that the

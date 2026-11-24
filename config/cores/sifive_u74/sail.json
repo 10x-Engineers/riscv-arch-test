@@ -303,7 +303,7 @@
     "vendorid": 1161,
     "archid": 9223372036854775815,
     "impid": 69272615,
-    "hartid": 0,
+    "hartid": 1,  // ACT payloads run on hart 1 (the board runner), so mhartid reads 1
     "cache_block_size_exp": 6,
     "reservation": {
       "reservation_set_size_exp": 6,  // naturally aligned 64-byte set (UDB LRSC_RESERVATION_STRATEGY; board SC at +8 succeeds)

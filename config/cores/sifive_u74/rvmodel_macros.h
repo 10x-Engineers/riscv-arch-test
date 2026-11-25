@@ -97,10 +97,15 @@
 #define RVMODEL_UART_LSR         (RVMODEL_UART_BASE_ADDR + (5 << RVMODEL_UART_REG_SHIFT))
 #define RVMODEL_UART_LSR_THRE    0x20
 
-// After tohost is written: on the board (hart 1) restore the runner's mtvec (saved by
+// After a PASS is written to tohost: on the board (hart 1) restore the runner's mtvec (saved by
 // RVMODEL_BOOT) and ecall, so the runner hart ends the case and may take the next ELF in the same
 // boot (runner BOARD_BATCH). Sail and Spike (hart 0) end at the tohost write and never get here;
 // they and a zero saved mtvec spin as before. The monitor hart still reports from tohost.
+// Only RVMODEL_HALT_PASS returns: ACT reaches it from M-mode (cleanup_epilogs switches to M-mode
+// first), but the failedtest_* paths call RVMODEL_HALT_FAIL in the failing mode, where reading
+// mhartid traps into the test's own handler, which reports a failure and halts again, without end
+// (vf2-uart-weekly #23, InterruptsS_priority_sie_S-00). RVMODEL_HALT_FAIL spins as before and the
+// runner resets the board.
 #define RVMODEL_RETURN_TO_RUNNER                                      \
   csrr t0, mhartid                                                    ;\
   beqz t0, 2f                                                         ;\
@@ -132,7 +137,8 @@
   li   t4, 3                                                          ;\
   la   t0, tohost                                                     ;\
   sd   t4, 0(t0)                                                      ;\
-  RVMODEL_RETURN_TO_RUNNER                                            ;\
+2:                                                                    ;\
+  j    2b                                                             ;\
 1: .asciz "FAIL\n"
 
 

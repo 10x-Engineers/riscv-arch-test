@@ -94,9 +94,16 @@ rvmodel_last_plic_claim:                 \
 // overflows and hides the original failure (bpif3-uart-weekly #14: 10 Sv/Svpbmt/Zicbo tests). So
 // switch to M-mode first, as on the K3 (printing ends in a halt, so the mode is never restored),
 // and clear mstatus.MPRV so an M-mode print in the *_mprv_* tests is not translated either.
+// Skip the switch when ACT already records M-mode: the "TEST PASSED" print runs after the M trap
+// handler is torn down, so its ecall reaches the runner instead and every passing test hung
+// (bpif3/loop #18: 81 timeouts, 0 passes).
 #define RVMODEL_IO_WRITE_STR(_R1, _R2, _R3, _STR_PTR) \
     mv   _R3, _STR_PTR                               ;\
+    LA(_R1, rvtest_current_mode)                     ;\
+    LREG _R1, 0(_R1)                                 ;\
+    beqz _R1, 5f                                     ;\
     RVTEST_TSBI_GOTO_MMODE                           ;\
+5:                                                    ;\
     mv   _STR_PTR, _R3                               ;\
     li   _R1, 0x20000 /* mstatus.MPRV */             ;\
     csrc mstatus, _R1                                ;\

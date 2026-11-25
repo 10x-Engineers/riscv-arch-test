@@ -88,7 +88,18 @@ rvmodel_last_plic_claim:                 \
     li   _R2, 0x03                                   ;\
     sb   _R2, 0x0C(_R1)                              ; /* LCR: 8N1 */
 
+// ACT prints from any mode (a failure seen by the S-mode trap handler is reported from S-mode),
+// but the UART is mapped only in M-mode: under the Sv tests' page tables an S-mode print takes a
+// load page fault on the LSR poll, which re-enters the trap handler until the trap signature
+// overflows and hides the original failure (bpif3-uart-weekly #14: 10 Sv/Svpbmt/Zicbo tests). So
+// switch to M-mode first, as on the K3 (printing ends in a halt, so the mode is never restored),
+// and clear mstatus.MPRV so an M-mode print in the *_mprv_* tests is not translated either.
 #define RVMODEL_IO_WRITE_STR(_R1, _R2, _R3, _STR_PTR) \
+    mv   _R3, _STR_PTR                               ;\
+    RVTEST_TSBI_GOTO_MMODE                           ;\
+    mv   _STR_PTR, _R3                               ;\
+    li   _R1, 0x20000 /* mstatus.MPRV */             ;\
+    csrc mstatus, _R1                                ;\
 1:                                                    ;\
     lbu  _R1, 0(_STR_PTR)                            ;\
     beqz _R1, 3f                                     ;\
@@ -125,6 +136,8 @@ rvmodel_last_plic_claim:                 \
 // UART0 is the K1's PXA-type UART: IER bit 6 (UUE) enables the unit, so IER is only read-modify-written.
 #define K1_UART_IER_OFF     0x04
 #define K1_UART_IER_THRI    0x02   /* Bit 1: THR empty interrupt */
+#define K1_UART_MCR_OFF     0x10
+#define K1_UART_MCR_OUT2    0x08   /* Bit 3: gates the UART interrupt output to the PLIC */
 #define K1_PLIC_PRIO_U0     0xE00000A8   /* priority, source 42 */
 #define K1_PLIC_PEND_U0     0xE0001004   /* pending word 1 (sources 32..63) */
 #define K1_PLIC_U0_BIT      0x400        /* source 42 in words 1 */
@@ -145,6 +158,9 @@ rvmodel_last_plic_claim:                 \
 #define RVMODEL_MSIP_ADDRESS K1_MSIP_ADDRESS
 
 // Route source 42 to one PLIC context, raise UART0 THRE, then wait until the PLIC shows it pending.
+// The PXA UART drives its interrupt line only while MCR.OUT2 is set (probe irq_path_probe2, single-ELF
+// #256: OUT2 = 0 leaves source 42 idle while IIR shows THRE; OUT2 = 1 pends 42 and sets MEIP or SEIP),
+// so SET turns OUT2 on and CLR turns it off again.
 // These helpers can run after entry to S/U mode, so they poll the PLIC pending MMIO word, not mip.
 #define K1_SET_UART_EXT_INT(_R1, _R2, _EN, _THR)                    \
   LOAD_ADDR32(_R2, K1_PLIC_PRIO_U0);                                \
@@ -156,6 +172,10 @@ rvmodel_last_plic_claim:                 \
   sw _R1, 0(_R2);                                                   \
   LOAD_ADDR32(_R2, _THR);                                           \
   sw zero, 0(_R2);                                                  \
+  LOAD_ADDR32(_R2, K1_UART0_BASE + K1_UART_MCR_OFF);                \
+  lw _R1, 0(_R2);                                                   \
+  ori _R1, _R1, K1_UART_MCR_OUT2;                                   \
+  sw _R1, 0(_R2);                                                   \
   LOAD_ADDR32(_R2, K1_UART0_BASE + K1_UART_IER_OFF);                \
   lbu _R1, 0(_R2);                                                  \
   ori _R1, _R1, K1_UART_IER_THRI;                                   \
@@ -179,6 +199,10 @@ rvmodel_last_plic_claim:                 \
   lbu _R1, 0(_R2);                                                  \
   andi _R1, _R1, ~K1_UART_IER_THRI;                                 \
   sb _R1, 0(_R2);                                                   \
+  LOAD_ADDR32(_R2, K1_UART0_BASE + K1_UART_MCR_OFF);                \
+  lw _R1, 0(_R2);                                                   \
+  andi _R1, _R1, ~K1_UART_MCR_OUT2;                                 \
+  sw _R1, 0(_R2);                                                   \
   fence iorw, iorw;                                                 \
   LOAD_ADDR32(_R2, _CLAIM);                                         \
   lw _R1, 0(_R2);                                                   \

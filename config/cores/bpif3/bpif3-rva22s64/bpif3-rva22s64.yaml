@@ -82,6 +82,7 @@ implemented_extensions:
   # --- Virtual memory (DTS confirmed / behavioral inference) ---
   - { name: Sv39,    version: "= 1.0.0" }   # behavioral inference (Linux boot)
   - { name: Svbare,  version: "= 1.0.0" }   # behavioral inference (Linux boot)
+  - { name: Svade,   version: "= 1.0.0" }   # RVA22S64 mandatory; no Svadu in the device tree (weekly #14 Zicbo A=0 cases)
   - { name: Svpbmt,  version: "= 1.0.0" }   # DTS confirmed
   - { name: Svinval, version: "= 1.0.0" }
   - { name: Svnapot, version: "= 1.0.0" }

@@ -11,3 +11,22 @@ final_elf_discard_locals: true
 final_elf_signature_dump_bytes: 64
 # boards/main is the baseline: every selected test runs. Debug-loop branches add include_tests, exclude_tests
 # and exclude_cases_file.
+# bpif3/loop: rerun after the weekly #14 fixes (Svade, print from M-mode, UART MCR.OUT2). The suites the
+# fixes touch run in full; the other weekly #14 failures run by name.
+include_tests:
+  - InterruptsS
+  - InterruptsSm
+  - Sscofpmf
+  - Svade
+  - Sv
+  - Svpbmt
+  - Sm_mcause-00
+  - Sm_mcsr_cntr-00
+  - Sm_mcsr_walk-02
+  - Sm_mcsr_walk-10
+  - Sm_scsr_from_m-00
+  - Sm_shadow-00
+  - S-00
+  - S_scsr-01
+  - ExceptionsVx-41
+  - ExceptionsVx-42

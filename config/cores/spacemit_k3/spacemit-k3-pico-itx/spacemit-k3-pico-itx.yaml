@@ -78,6 +78,7 @@ implemented_extensions:
   - { name: Svpbmt,  version: "= 1.0.0" }   # DTS confirmed
   - { name: Svinval, version: "= 1.0.0" }
   - { name: Svnapot, version: "= 1.0.0" }
+  - { name: Ssstrict, version: "= 1.0.0" }   # trial: not claimed by the K3; run its ACT tests (2026-11-25)
 
   # --- RVA23 additions (revision 2; all in the K3 device tree riscv,isa-extensions) ---
   - { name: Za64rs,       version: "= 1.0.0" }

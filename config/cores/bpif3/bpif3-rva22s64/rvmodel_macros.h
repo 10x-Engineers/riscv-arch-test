@@ -248,11 +248,12 @@ rvmodel_last_plic_claim:                 \
 
 ##### Supervisor Interrupts #####
 
-#define RVMODEL_SET_SEXT_INT(_R1, _R2) \
-  K1_SET_UART_EXT_INT(_R1, _R2, K1_PLIC_EN_S_U0, K1_PLIC_THR_S)
-
-#define RVMODEL_CLR_SEXT_INT(_R1, _R2) \
-  K1_CLR_UART_EXT_INT(_R1, _R2, K1_PLIC_EN_S_U0, K1_PLIC_CLAIM_S)
+// RVMODEL_SET/CLR_SEXT_INT are left undefined, as on the K3: ACT then raises and clears the S external
+// interrupt through mip.SEIP from M-mode (tests/env/check_defines.h, rvtest_setup.h). ACT runs these
+// macros in S/U-mode for S/U tests, and the PLIC path did not deliver SEI there: in bpif3/loop #17 the
+// U tests never saw SEIP and three S tests hung, although the same PLIC ctx 1 path raises SEIP from
+// M-mode and S-mode can read and write the PLIC (probes irq_path_probe2 and irq_smode_probe3, single-ELF
+// #256 and #257). The M external interrupt keeps the UART THRE -> PLIC ctx 0 path.
 
 // No RVMODEL_SET/CLR_SSW_INT: the K1 has no supervisor software-interrupt device in its memory map, so
 // ACT sets mip.SSIP itself, directly or through T-SBI (as on the VF2 and Megrez). The empty definitions

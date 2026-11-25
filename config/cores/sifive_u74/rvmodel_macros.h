@@ -38,6 +38,8 @@
         .global irqdbg_pre_mstatus; irqdbg_pre_mstatus: .dword 0; \
         .global irqdbg_pre_sip; irqdbg_pre_sip: .dword 0;     \
         .global irqdbg_pre_sie; irqdbg_pre_sie: .dword 0;     \
+        .p2align 3; .global rvmodel_runner_mtvec;            \
+        rvmodel_runner_mtvec: .dword 0;                      \
         .popsection
 
 ##### STARTUP #####
@@ -45,7 +47,12 @@
 # Perform boot operations. Can be empty or left undefined unless needed for
 # DUT-specific behavior such as turning on a memory controller or
 # initializing custom state.
+// The runner's trap handler, saved before ACT installs its own: the halt macros put it back
+// and ecall, so the test returns to the runner (batched execution; as on the K3).
 #define RVMODEL_BOOT                                                \
+  csrr T1, mtvec;                                                   \
+  la T2, rvmodel_runner_mtvec;                                      \
+  SREG T1, 0(T2);                                                   \
   csrr T1, mhartid;                                                 \
   la T2, rvmodel_boot_hartid;                                      \
   SREG T1, 0(T2);                                                  \
@@ -90,17 +97,32 @@
 #define RVMODEL_UART_LSR         (RVMODEL_UART_BASE_ADDR + (5 << RVMODEL_UART_REG_SHIFT))
 #define RVMODEL_UART_LSR_THRE    0x20
 
+// After tohost is written: on the board (hart 1) restore the runner's mtvec (saved by
+// RVMODEL_BOOT) and ecall, so the runner hart ends the case and may take the next ELF in the same
+// boot (runner BOARD_BATCH). Sail and Spike (hart 0) end at the tohost write and never get here;
+// they and a zero saved mtvec spin as before. The monitor hart still reports from tohost.
+#define RVMODEL_RETURN_TO_RUNNER                                      \
+  csrr t0, mhartid                                                    ;\
+  beqz t0, 2f                                                         ;\
+  la   t0, rvmodel_runner_mtvec                                       ;\
+  ld   t0, 0(t0)                                                      ;\
+  beqz t0, 2f                                                         ;\
+  csrw mtvec, t0                                                      ;\
+  fence rw, rw                                                        ;\
+  ecall                                                               ;\
+2:                                                                    ;\
+  j    2b
+
 # Terminate test with a pass indication.
 # When the test is run in simulation, this should end the simulation.
-#define RVMODEL_HALT_PASS                                             \
+#define RVMODEL_HALT_PASS                                            \
   la   t0, 1f                                                         ;\
   RVMODEL_IO_WRITE_STR(t1, t2, t3, t0)                                ;\
   fence rw, rw                                                        ;\
   li   t4, 1                                                          ;\
   la   t0, tohost                                                     ;\
   sd   t4, 0(t0)                                                      ;\
-  nop                                                               ;\
-  j    .                                                              ;\
+  RVMODEL_RETURN_TO_RUNNER                                            ;\
 1: .asciz "PASS\n"
 
 #define RVMODEL_HALT_FAIL                                             \
@@ -110,8 +132,7 @@
   li   t4, 3                                                          ;\
   la   t0, tohost                                                     ;\
   sd   t4, 0(t0)                                                      ;\
-  nop                                                               ;\
-  j    .                                                              ;\
+  RVMODEL_RETURN_TO_RUNNER                                            ;\
 1: .asciz "FAIL\n"
 
 

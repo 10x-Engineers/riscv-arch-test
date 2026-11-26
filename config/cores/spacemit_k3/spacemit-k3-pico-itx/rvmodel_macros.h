@@ -58,10 +58,51 @@ rvmodel_runner_mtvec:                    \
 
 // The runner's trap handler, saved before ACT installs its own: the halt macros put it back
 // so their ecall reaches the runner even on failure paths that skip the trap epilogs.
+// The K3 implements H but resets with misa.H = 0, which disables it: the H-only bits
+// (mstatus.MPV/GVA, mip/mie.VSSIP, mhpmevent.VUINH) then read 0, while Sail (sail.json, H
+// supported) has H enabled (k3-uart-weekly #5: Sm_mcsr_*, Sm_shadow, Sscofpmf_*_inhibit_*).
+// misa.H is writable on the K3 (runner repo artifacts/onboarding/spacemit_k3_20261019), so set it.
+//
+// mtvec is then pointed at rvmodel_k3_mtvec, which ACT's prolog saves as the original handler and
+// its epilog restores. After the epilogs the test is in M-mode with no ACT handler, but the print
+// and fail macros still do RVTEST_TSBI_GOTO_MMODE: rvmodel_k3_mtvec answers that ecall (a0 = 1
+// from M-mode) by returning, instead of the runner ending the case on it with tohost = 0
+// (portal runs 101-107: every test that passed was reported FAIL at the "passed" print).
+// Any other trap is retaken in the runner's handler: mtval holds a0 meanwhile, since retaking
+// the trap rewrites it. mtvec is writable on the K3, so ACT never copies its trampoline over
+// this code.
 #define RVMODEL_BOOT                     \
     csrr T1, mtvec                      ;\
     la   T2, rvmodel_runner_mtvec       ;\
-    sd   T1, 0(T2)
+    sd   T1, 0(T2)                      ;\
+    la   T1, rvmodel_k3_mtvec           ;\
+    csrw mtvec, T1                      ;\
+    li   T1, 1 << 7 /* misa.H */        ;\
+    csrs misa, T1                       ;\
+    .pushsection .text,"ax",@progbits   ;\
+    .option push                        ;\
+    .option norvc                       ;\
+    .p2align 6                          ;\
+rvmodel_k3_mtvec:                       ;\
+    addi a0, a0, -1                     ;\
+    bnez a0, 2f /* not GOTO_MMODE */    ;\
+    csrr a0, mcause                     ;\
+    addi a0, a0, -11 /* ecall from M */ ;\
+    bnez a0, 1f                         ;\
+    csrr a0, mepc                       ;\
+    addi a0, a0, 4                      ;\
+    csrw mepc, a0                       ;\
+    mret /* MPP = M: stays in M-mode */ ;\
+1:  li   a0, 0                          ;\
+2:  addi a0, a0, 1                      ;\
+    csrw mtval, a0                      ;\
+    la   a0, rvmodel_runner_mtvec       ;\
+    ld   a0, 0(a0)                      ;\
+    csrw mtvec, a0                      ;\
+    csrr a0, mtval                      ;\
+    mret /* retake the trap at mepc */  ;\
+    .option pop                         ;\
+    .popsection
 
 //#define RVMODEL_BOOT_TO_MMODE
 
@@ -71,7 +112,13 @@ rvmodel_runner_mtvec:                    \
 // RVMODEL_BOOT) and ecall. The K3's monitor hart does not run, so nothing polls tohost: the
 // runner hart ends the case on this M-mode ecall (runner_machine_trap.c, ecall_m_tohost).
 // Restoring mtvec matters on failure paths, which call the halt with ACT's handler installed.
+// mstatus.MPRV is cleared first: a test that fails with MPRV set (the Sv *_mprv_* suites) would
+// otherwise translate the tohost store through the test's page tables, and hand the runner an
+// M-mode whose loads do the same, so the runner loops on load page faults until the UART
+// timeout (k3-uart-weekly #5).
 #define RVMODEL_HALT_PASS                              \
+    li   a1, 0x20000 /* mstatus.MPRV */               ;\
+    csrc mstatus, a1                                  ;\
     la   a0, tohost                                   ;\
     li   a1, 1                                        ;\
     sd   a1, 0(a0)                                    ;\
@@ -84,7 +131,15 @@ rvmodel_runner_mtvec:                    \
     wfi                                               ;\
     j    _rvmodel_halt_pass_loop
 
+// RVMODEL_HALT_FAIL switches to M-mode first: ACT reports a failed check from the mode it ran
+// in, and from S/U-mode the csrc mstatus and csrw mtvec below trap, which re-reported the
+// failure in a loop (k3-uart-weekly #5: ~1500 dumps per test, over the portal's 2 MiB limit).
+// The T-SBI ecall goes to ACT's M-mode handler, which returns here in M-mode. On the fail
+// paths after ACT's epilogs, rvmodel_k3_mtvec (RVMODEL_BOOT) returns from it instead.
 #define RVMODEL_HALT_FAIL                              \
+    RVTEST_TSBI_GOTO_MMODE                            ;\
+    li   a1, 0x20000 /* mstatus.MPRV */               ;\
+    csrc mstatus, a1                                  ;\
     la   a0, tohost                                   ;\
     li   a1, 3                                        ;\
     sd   a1, 0(a0)                                    ;\
@@ -104,7 +159,18 @@ rvmodel_runner_mtvec:                    \
     li   _R2, 0x03                                   ;\
     sb   _R2, 0x0C(_R1)                              ; /* LCR: 8N1 */
 
+// ACT prints from any mode (a failure seen by the S-mode trap handler is reported from S-mode),
+// but the UART is mapped only in M-mode: under the Sv tests' page tables an S-mode print takes a
+// load page fault on the LSR poll, which re-enters the trap handler and replaces the original
+// failure with that fault (k3-uart-weekly #5: 13 Sv tests). So switch to M-mode first, as ACT's
+// porting guide allows (printing ends in a halt, so the mode is never restored), and clear
+// mstatus.MPRV so an M-mode print in the *_mprv_* tests is not translated either.
 #define RVMODEL_IO_WRITE_STR(_R1, _R2, _R3, _STR_PTR) \
+    mv   _R3, _STR_PTR                               ;\
+    RVTEST_TSBI_GOTO_MMODE                           ;\
+    mv   _STR_PTR, _R3                               ;\
+    li   _R1, 0x20000 /* mstatus.MPRV */             ;\
+    csrc mstatus, _R1                                ;\
 1:                                                    ;\
     lbu  _R1, 0(_STR_PTR)                            ;\
     beqz _R1, 3f                                     ;\
@@ -141,8 +207,56 @@ rvmodel_runner_mtvec:                    \
 
 #define RVMODEL_MSIP_ADDRESS K3_MSIP_ADDRESS
 
-#define RVMODEL_SET_MEXT_INT(_R1, _R2)
-#define RVMODEL_CLR_MEXT_INT(_R1, _R2)
+// The K3 has AIA (Smaia, IMSIC) and no PLIC. M-mode raises its own external interrupt through
+// the M-level IMSIC interrupt file's indirect CSRs, with no MMIO: enable delivery (eidelivery = 1),
+// accept every priority (eithreshold = 0), enable identity K3_MEXT_IID in eie0 and set it
+// pending in eip0, which raises mip.MEIP. Clearing the eip0 bit drops MEIP again.
+// The _M flavors run in M-mode and reach the CSRs directly (passes on the board). The others are
+// also called from S- and U-mode (rvtest_set_mext_int_su), where miselect/mireg are illegal, so
+// they make the same accesses through T-SBI, which takes its operand in a1 and uses a0.
+#define K3_CSR_MISELECT        0x350
+#define K3_CSR_MIREG           0x351
+#define K3_ISEL_EIDELIVERY     0x70
+#define K3_ISEL_EITHRESHOLD    0x72
+#define K3_ISEL_EIP0           0x80
+#define K3_ISEL_EIE0           0xC0
+#define K3_MEXT_IID            1
+
+#define RVMODEL_SET_MEXT_INT_M(_R1, _R2)       \
+    li   _R1, K3_ISEL_EIDELIVERY              ;\
+    csrw K3_CSR_MISELECT, _R1                 ;\
+    li   _R2, 1                               ;\
+    csrw K3_CSR_MIREG, _R2                    ;\
+    li   _R1, K3_ISEL_EITHRESHOLD             ;\
+    csrw K3_CSR_MISELECT, _R1                 ;\
+    csrw K3_CSR_MIREG, zero                   ;\
+    li   _R1, K3_ISEL_EIE0                    ;\
+    csrw K3_CSR_MISELECT, _R1                 ;\
+    li   _R2, 1 << K3_MEXT_IID                ;\
+    csrs K3_CSR_MIREG, _R2                    ;\
+    li   _R1, K3_ISEL_EIP0                    ;\
+    csrw K3_CSR_MISELECT, _R1                 ;\
+    csrs K3_CSR_MIREG, _R2
+
+#define RVMODEL_CLR_MEXT_INT_M(_R1, _R2)       \
+    li   _R1, K3_ISEL_EIP0                    ;\
+    csrw K3_CSR_MISELECT, _R1                 ;\
+    li   _R2, 1 << K3_MEXT_IID                ;\
+    csrc K3_CSR_MIREG, _R2
+
+#define RVMODEL_SET_MEXT_INT(_R1, _R2)                                   \
+    RVTEST_TSBI_CSR_WRITE(K3_CSR_MISELECT, K3_ISEL_EIDELIVERY)          ;\
+    RVTEST_TSBI_CSR_WRITE(K3_CSR_MIREG, 1)                              ;\
+    RVTEST_TSBI_CSR_WRITE(K3_CSR_MISELECT, K3_ISEL_EITHRESHOLD)         ;\
+    RVTEST_TSBI_CSR_WRITE(K3_CSR_MIREG, 0)                              ;\
+    RVTEST_TSBI_CSR_WRITE(K3_CSR_MISELECT, K3_ISEL_EIE0)                ;\
+    RVTEST_TSBI_CSR_SET(K3_CSR_MIREG, 1 << K3_MEXT_IID)                 ;\
+    RVTEST_TSBI_CSR_WRITE(K3_CSR_MISELECT, K3_ISEL_EIP0)                ;\
+    RVTEST_TSBI_CSR_SET(K3_CSR_MIREG, 1 << K3_MEXT_IID)
+
+#define RVMODEL_CLR_MEXT_INT(_R1, _R2)                                   \
+    RVTEST_TSBI_CSR_WRITE(K3_CSR_MISELECT, K3_ISEL_EIP0)                ;\
+    RVTEST_TSBI_CSR_CLEAR(K3_CSR_MIREG, 1 << K3_MEXT_IID)
 
 #define RVMODEL_SET_MSW_INT(_R1, _R2)  \
     LOAD_ADDR32(_R2, K3_MSIP_ADDRESS) ;\
@@ -155,10 +269,23 @@ rvmodel_runner_mtvec:                    \
 
 ##### Supervisor Interrupts #####
 
-#define RVMODEL_SET_SEXT_INT(_R1, _R2)
-#define RVMODEL_CLR_SEXT_INT(_R1, _R2)
-#define RVMODEL_SET_SSW_INT(_R1, _R2)
-#define RVMODEL_CLR_SSW_INT(_R1, _R2)
+// RVMODEL_SET/CLR_SEXT_INT and RVMODEL_SET/CLR_SSW_INT are left undefined on purpose: ACT then
+// raises them through mip.SEIP and mip.SSIP (tests/env/check_defines.h, rvtest_setup.h), which
+// the K3 implements. Defining them empty told ACT a controller exists and raised nothing
+// (k3-uart-weekly #5: every SEI/SSI test took the timer interrupt instead).
+
+##### Guest External Interrupts #####
+
+// The X100 has 7 guest interrupt files (GEILEN 7, hgeie writable 0xfe), so ACT needs a way to set
+// and clear an hgeip bit. On the K3 that is a write to a guest interrupt file of the AIA IMSIC,
+// whose addresses (hart and guest index bits of the IMSIC at 0xe0400000) are not measured on the
+// board yet. Until then these raise nothing, as in the K3 hypervisor config
+// (megrez-hypervisor-sail015): the Sail reference build replaces them with its own
+// (sail_macros.h), and on the board the few tests that need a guest external interrupt fail
+// visibly instead of blocking every build.
+// TODO: implement via the K3 IMSIC guest interrupt files and verify on the board.
+#define RVMODEL_SET_GUEST_EXT_INT(_GEI, _R1, _R2)
+#define RVMODEL_CLR_GUEST_EXT_INT(_GEI, _R1, _R2)
 
 ##### Sscofpmf #####
 

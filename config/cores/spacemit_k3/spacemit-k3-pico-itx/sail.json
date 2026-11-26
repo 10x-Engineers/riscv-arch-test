@@ -24,9 +24,11 @@
       "len": 32,
       "value": "0x0007_FFFF"
     },
+    // hcounteren keeps counters 0-18 only: all ones reads back 0x7ffff (csr_probe; k3-uart-hypervisor #5
+    // HSm/H_hcsr_access, HSm/H_hcsr_walk-01, bit 19 never sets), the same as mcounteren/scounteren.
     "hcounteren_writable_bits": {
       "len": 32,
-      "value": "0xFFFF_FFFF"
+      "value": "0x0007_FFFF"
     },
     "mtvec": {
       "direct": {
@@ -56,10 +58,13 @@
         "base_alignment": 2
       }
     },
+    // With H: bit 10 (ecall from VS) and bits 20-23 (guest page faults) are delegatable too.
+    // Bit 3 (breakpoint) is delegatable on the K3, but Sail requires it hard-wired to 0 with Use_tcontrol
+    // reentrancy (Sail limitation): suites that boot with medeleg[3] = 1 (SdtrigS, SdtrigU) do not match here.
     "medeleg": {
       "delegatable_bits": {
         "len": 64,
-        "value": "0x0000_0000_0000_b3FF"
+        "value": "0x0000_0000_00F0_B7F7"
       }
     },
     "mideleg": {
@@ -119,6 +124,10 @@
       "napot_supported": true
     },
     "misaligned": {
+      // AMO and LR/SC are not faulted here, before translation: the K3 translates a misaligned
+      // AMO/LR first and takes the page fault when the PTE is invalid, and the access fault
+      // (regions misaligned_exceptions) only when translation succeeds (riscv-uart-single-elf
+      // #156, Sv_ExceptionsZaamoSm mprv test6: store page fault, tests 1-5 pass).
       "exceptions": {
         "load_store": {
           "None": null
@@ -127,10 +136,10 @@
           "Some": "AccessFault"
         },
         "amo": {
-          "Some": "AccessFault"
+          "None": null
         },
         "lrsc": {
-          "Some": "AccessFault"
+          "None": null
         }
       },
       "order_decreasing": false,
@@ -274,8 +283,11 @@
     "impid": 869836288,
     "hartid": 0,
     "cache_block_size_exp": 6,
+    // Reservation set: an sc to the lr address + 8 succeeds on the K3 (k3-uart-weekly #5,
+    // Zalrsc-sc.w/sc.d cp_custom_sc_addresses), so the set is wider than 8 bytes. Za64rs caps it
+    // at 64 bytes; 64 (a cache block) is assumed, UNVERIFIED between 16 and 64.
     "reservation": {
-      "reservation_set_size_exp": 3,
+      "reservation_set_size_exp": 6,
       "require_exact_reservation_addr": false,
       "invalidate_on_same_hart_store": false
     },
@@ -310,53 +322,58 @@
   "extensions": {
     // Sail 0.15/0.16 extension blocks (C: misa mutability; the others are not implemented or not tested).
     "C": { "mutable_misa": false },
-    // Sdtrig not tested on this board; block from cvw-rv64gc (Sail 0.16 layout).
+    // Sdtrig: values from sdtrig_probe v1-v3 (single-ELF #191, #192, #194), see the K3 UDB config.
+    // Sail 0.16 gives every trigger the same types. On the K3 triggers 0-2 are mcontrol6 only and
+    // trigger 3 is icount/itrigger/etrigger only, so all four types are enabled here; tests that read
+    // tinfo or write an unsupported type to a trigger expect the Sail behaviour (Sail limitation).
+    // Sail also has no legal-value lists for match/size/action (K3: match 0/1, size 0/1/2/3/5, action 0/2/3/4).
     "Sdtrig": {
-      "supported": false,
+      "supported": true,
       // `breakpoint_reentrancy` must be one of the below strings:
       // . `Use_tcontrol`: use the `mte` and `mpte` bits in the `tcontrol` CSR (this also makes the `tcontrol` CSR available)
       // . `Use_interrupt_enables`: use `mstatus.MIE` and the `SIE` bits in `sstatus` and `vsstatus`
       // . `No_reentrancy_support`: no specific support for reentrancy
       // Note: `Use_tcontrol` hardwires medeleg[3] to 0, which breaks the
       // `sbreak` test in `riscv-tests`.
-      "breakpoint_reentrancy": "No_reentrancy_support",
+      // K3: tcontrol (sdtrig_probe v5, single-ELF #196).
+      "breakpoint_reentrancy": "Use_tcontrol",
       "etrigger": {
-        "supported": false,
+        "supported": true,
         // A bit set to 1 in this value specifies that the
         // corresponding exception is supported by the trigger.
         // Triggers for reserved exceptions are not supported.  This
         // value is ignored when `etrigger` is not supported.
-        "supported_exceptions": { "len": "xlen", "value": "0" }
+        "supported_exceptions": { "len": "xlen", "value": "0xf0bffe" }
       },
-      "hcontext": { "supported": false },
+      "hcontext": { "supported": true },
       // Triggers
       "icount": {
-        "supported": false,
-        "count_hardwired_one": false,
+        "supported": true,
+        "count_hardwired_one": true,
         // Whether a `tdata1` write to an `icount` trigger with
         // `count`=1 also makes it pending when that write's instruction
         // matches the trigger.
-        "self_write_sets_pending": false
+        "self_write_sets_pending": true
       },
       "itrigger": {
-        "supported": false,
+        "supported": true,
         // A bit set to 1 in this value specifies that the
         // corresponding interrupt is supported by the trigger.
         // Triggers for reserved interrupts are not supported.  This
         // value is ignored when `itrigger` is not supported.
-        "supported_interrupts": { "len": "xlen", "value": "0" }
+        "supported_interrupts": { "len": "xlen", "value": "0x80800803eee" }
       },
       "mcontrol6": {
-        "supported": false,
+        "supported": true,
         // If `mcontrol6` is supported, this value needs to be in the range
         // 0 < `maskmax6` < XLEN.
-        "maskmax6": 63,
+        "maskmax6": 8,
         // Whether an address selection matches all the accessed addresses.
         // If set to `false`, it matches only the lowest address.
         "address_select_matches_all_addresses": true,
         // Maximum length of a chain. This cannot exceed the number of
         // triggers.  A value of 0 implies chains are not supported.
-        "max_chain_length": 4
+        "max_chain_length": 2
       },
       "textra": {
         // Which context matches are supported. Writes of unsupported
@@ -364,14 +381,14 @@
         "mhselect": {
           // Values 1, 4 and 5, match on `mcontext`. Requires the
           // `mcontext` CSR. Values 1 and 5 also require H.
-          "mcontext_match": false,
+          "mcontext_match": true,
           // Values 2 and 6, match on the VMID in `hgatp`. Requires H.
-          "vmid_match": false
+          "vmid_match": true
         },
         "sselect": {
           // Value 1, match on `scontext`. Requires S and the `scontext`
           // CSR.
-          "scontext_match": false,
+          "scontext_match": true,
           // Value 2, match on the ASID in `satp` or `vsatp`. Requires S.
           "asid_match": true
         },
@@ -379,15 +396,15 @@
         // above these are read only zero. At most 6 and 16 on RV32,
         // 13 and 32 on RV64.
         "mhvalue_len": 13,
-        "svalue_len": 32
+        "svalue_len": 32   // K3 has 34 writable svalue bits (35:2); Sail 0.16 allows at most 32
       },
       // CSRs
-      "mcontext": { "supported": false },
+      "mcontext": { "supported": true },
       // The number of supported triggers.  This has to be
       // non-negative, and greater than 0 if Sdtrig is supported.
       // The model does not support more than 16 triggers.
-      "num_triggers": 0,
-      "scontext": { "supported": false }
+      "num_triggers": 4,
+      "scontext": { "supported": true }
     },
     "Smdbltrp": { "supported": false },
     "Ssdbltrp": { "supported": false },
@@ -418,7 +435,7 @@
         "illegal_vtype": "IllegalVtype_SetVill",
         "vstart_out_of_bounds": "Vstart_Illegal"
       },
-      "vl_use_ceil": false,
+      "vl_use_ceil": true,
       "max_index_eew_exp": 6,
       "vstart": {
         "zero_required": {
@@ -450,33 +467,40 @@
       "mutable_misa": false,
       "supported": true
     },
+    // H: measured with the CSR probe with misa.H set (runner repo observation.md, "Hypervisor
+    // CSRs"): misa.H writable, GEILEN 7 (hgeie 0xfe), hgatp Sv39x4 only, Sv39 only.
     "H": {
-      "mutable_misa": false,
+      "mutable_misa": true,
       "implicit_vs_pte_access_sets_gstage_d": false,
+      // The K3 writes the transformed trapping instruction to mtinst/htinst (e.g. 0x00e02023 for
+      // sw x14 on a store page fault, 0x0040200f for cbo.zero, 0x100026af for lr.w on a load access
+      // fault) on these six causes: k3-uart-hypervisor #5 (PMPH_*, SvH*, H_trap) and
+      // riscv-uart-single-elf #136 (Sv_Zicbo zicboz U), #159-#161 (Sv Zalrsc). The misaligned
+      // causes were not seen with a nonzero value; ACT accepts zero in any case.
       "transformed_instruction": {
         "load_address_misaligned": false,
-        "load_access_fault": false,
-        "load_page_fault": false,
-        "load_guest_page_fault": false,
+        "load_access_fault": true,
+        "load_page_fault": true,
+        "load_guest_page_fault": true,
         "samo_address_misaligned": false,
-        "samo_access_fault": false,
-        "samo_page_fault": false,
-        "samo_guest_page_fault": false
+        "samo_access_fault": true,
+        "samo_page_fault": true,
+        "samo_guest_page_fault": true
       },
       "supported": true,
-      "geilen": 63,
+      "geilen": 7,
       "guest_page_fault_writes_htval": true,
       "hgatp_modes": {
         "Sv32x4": false,
         "Sv39x4": true,
-        "Sv48x4": true,
-        "Sv57x4": true
+        "Sv48x4": false,
+        "Sv57x4": false
       },
       "vsatp_modes": {
         "Sv32": false,
         "Sv39": true,
-        "Sv48": true,
-        "Sv57": true
+        "Sv48": false,
+        "Sv57": false
       }
     },
     "Zibi": {
@@ -573,7 +597,7 @@
       "supported": true
     },
     "Zfbfmin": {
-      "supported": false
+      "supported": true
     },
     "Zfh": {
       "supported": true
@@ -658,10 +682,10 @@
       "supported": false
     },
     "Zvfbfmin": {
-      "supported": false
+      "supported": true
     },
     "Zvfbfwma": {
-      "supported": false
+      "supported": true
     },
     "Zvfh": {
       "supported": true
@@ -673,28 +697,28 @@
       "supported": true
     },
     "Zvbc": {
-      "supported": false
+      "supported": true
     },
     "Zvkb": {
       "supported": true
     },
     "Zvkg": {
-      "supported": false
+      "supported": true
     },
     "Zvkned": {
-      "supported": false
+      "supported": true
     },
     "Zvknha": {
-      "supported": false
+      "supported": true
     },
     "Zvknhb": {
-      "supported": false
+      "supported": true
     },
     "Zvksed": {
-      "supported": false
+      "supported": true
     },
     "Zvksh": {
-      "supported": false
+      "supported": true
     },
     "Zvkt": {
       "supported": true
@@ -706,7 +730,7 @@
       "supported": true
     },
     "Sha": {
-      "supported": false
+      "supported": true
     },
     "Shcounterenw": {
       "supported": true
@@ -761,9 +785,11 @@
       "supported_pmlen_7": true,
       "supported_pmlen_16": false
     },
+    // Smnpm: menvcfg.PMM = 2 (PMLEN 7) reads back on the K3 (k3-uart-weekly #5, Sm_mcsr_walk-10);
+    // PMLEN 16 is not measured, so it stays off, as for Ssnpm.
     "Smnpm": {
-      "supported": false,
-      "supported_pmlen_7": false,
+      "supported": true,
+      "supported_pmlen_7": true,
       "supported_pmlen_16": false
     },
     "Smmpm": {
@@ -791,18 +817,21 @@
       "supported": false
     },
     "Stateen": {
+      // Smstateen: the K3 gates senvcfg with mstateen0.ENVCFG (k3-uart-weekly #5: S_scsr-00/01 and
+      // Exceptions_ZicboS-00 took illegal-instruction traps on S-mode senvcfg accesses while it was 0).
       "Smstateen": {
-        "supported": false
+        "supported": true
       },
       "Ssstateen": {
         "supported": true
       },
       // Sail 0.16 per-bit masks. SE0 writable for Ssstateen (revision 2, as upstream sail-RVA23S64).
-      "mstateen0": {"SE0": "CSRBit_Writable", "ENVCFG": "CSRBit_ReadOnlyZero", "CONTEXT": "CSRBit_ReadOnlyZero", "P1P13": "CSRBit_ReadOnlyZero", "SRMCFG": "CSRBit_ReadOnlyZero", "FCSR": "CSRBit_ReadOnlyZero", "C": "CSRBit_ReadOnlyZero"},
+      // ENVCFG writable for Smstateen; CONTEXT writable in mstateen0 and hstateen0 (sdtrig_probe v2).
+      "mstateen0": {"SE0": "CSRBit_Writable", "ENVCFG": "CSRBit_Writable", "CONTEXT": "CSRBit_Writable", "P1P13": "CSRBit_ReadOnlyZero", "SRMCFG": "CSRBit_ReadOnlyZero", "FCSR": "CSRBit_ReadOnlyZero", "C": "CSRBit_ReadOnlyZero"},
       "mstateen1": {"SE1": "CSRBit_Writable"},
       "mstateen2": {"SE2": "CSRBit_Writable"},
       "mstateen3": {"SE3": "CSRBit_Writable"},
-      "hstateen0": {"ENVCFG": "CSRBit_ReadOnlyZero", "CONTEXT": "CSRBit_ReadOnlyZero", "FCSR": "CSRBit_ReadOnlyZero", "C": "CSRBit_ReadOnlyZero"},
+      "hstateen0": {"ENVCFG": "CSRBit_Writable", "CONTEXT": "CSRBit_Writable", "FCSR": "CSRBit_ReadOnlyZero", "C": "CSRBit_ReadOnlyZero"},
       "sstateen0": {"FCSR": "CSRBit_ReadOnlyZero", "C": "CSRBit_ReadOnlyZero"}
     },
     "Ssqosid": {

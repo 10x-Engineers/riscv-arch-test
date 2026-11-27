@@ -3,14 +3,7 @@
 
 normative_rule_definitions:
   - name: Zkt_optional_instr
-    coverpoint: ["Definition, checked through UDB"]
+    coverpoint: ["No independent assertion: definition."]
 
   - name: Zkt_impl_must_constant_latency
-    # Use representative coverpoints; every instruction in the Zkt testplan has a cp_zkt coverpoint
-    coverpoint:
-      [
-        "Zkt_add_cg/cp_zkt_rs1_rs2",
-        "ZktZmmul_mulh_cg/cp_zkt_rs1_rs2",
-        "ZktZca_c_addi_cg/cp_zkt_rs1",
-        "Zkt_auipc_cg/cp_zkt_pc",
-      ]
+    coverpoint: ["Needs infrastructure: execution-latency measurement."]
